@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const UserModel = require('../models/user.model');
 
+const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 async function login(req, res) {
   try {
     const { phoneNumber, password } = req.body;
@@ -22,7 +24,8 @@ async function login(req, res) {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    await UserModel.updateToken(user.id, token);
+    const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+    await UserModel.updateToken(user.id, token, expiresAt);
 
     res.json({
       status: true,
@@ -48,7 +51,7 @@ async function logout(req, res) {
     if (token) {
       const user = await UserModel.findByToken(token);
       if (user) {
-        await UserModel.updateToken(user.id, null);
+        await UserModel.updateToken(user.id, null, null);
       }
     }
 
