@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -6,6 +6,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
@@ -15,6 +16,7 @@ import { categoryMockData } from '../../mockData/categoryData';
 import { locationMockData } from '../../mockData/locationData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getRawSkuColumns } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
 const emptyForm: Omit<Sku, 'id' | 'code'> = {
@@ -22,6 +24,7 @@ const emptyForm: Omit<Sku, 'id' | 'code'> = {
 };
 
 const RawSku = () => {
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [skus, setSkus] = useState<Sku[]>(skuMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -67,26 +70,35 @@ const RawSku = () => {
             header: 'Delete SKU',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => setSkus((prev) => prev.filter((item) => item.id !== sku.id)),
+            accept: () => {
+                setSkus((prev) => prev.filter((item) => item.id !== sku.id));
+                showToast(toast, 'success', 'Deleted', 'SKU deleted successfully');
+            },
         });
     };
 
     const handleSave = () => {
         if (editingId) {
             setSkus((prev) => prev.map((sku) => (sku.id === editingId ? { ...sku, ...form } : sku)));
+            showToast(toast, 'success', 'Updated', 'SKU updated successfully');
         } else {
             const nextCode = `SKU-${String(skus.length + 1).padStart(3, '0')}`;
             setSkus((prev) => [...prev, { id: nextCode, code: nextCode, ...form }]);
+            showToast(toast, 'success', 'Created', 'SKU created successfully');
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
     const columns = getRawSkuColumns(openEditDialog, handleDelete);
 
     return (
         <div className="sku-master-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}

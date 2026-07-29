@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -6,6 +6,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
@@ -17,6 +18,7 @@ import { locationMockData } from '../../mockData/locationData';
 import { skuMockData } from '../../mockData/skuData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './InventoryHome.css';
 
 let nextAssemblyRowId = 1;
@@ -28,6 +30,7 @@ const emptyForm: Omit<InventoryItem, 'id' | 'createdDate' | 'assembly'> = {
 };
 
 const InventoryHome = () => {
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [inventoryHomeItems, setInventoryHomeItems] = useState<InventoryItem[]>(inventoryHomeMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -120,7 +123,10 @@ const InventoryHome = () => {
             header: 'Delete Inventory Item',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => setInventoryHomeItems((prev) => prev.filter((i) => i.id !== item.id)),
+            accept: () => {
+                setInventoryHomeItems((prev) => prev.filter((i) => i.id !== item.id));
+                showToast(toast, 'success', 'Deleted', 'Inventory item deleted successfully');
+            },
         });
     };
 
@@ -128,9 +134,11 @@ const InventoryHome = () => {
         const assembly = assemblyRows.map(({ skuCode, skuName, quantity }) => ({ skuCode, skuName, quantity }));
         if (editingId) {
             setInventoryHomeItems((prev) => prev.map((item) => (item.id === editingId ? { ...item, ...form, assembly } : item)));
+            showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
         } else {
             const createdDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             setInventoryHomeItems((prev) => [...prev, { id: form.skuId, createdDate, ...form, assembly }]);
+            showToast(toast, 'success', 'Created', 'Inventory item created successfully');
         }
         setForm(emptyForm);
         setAssemblyRows([]);
@@ -140,12 +148,16 @@ const InventoryHome = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
     const columns = getInventoryHomeColumns(openEditDialog, handleDelete);
 
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skuMockData, updateAssemblyRow, removeAssemblyRow);
 
     return (
         <div className="inventory-home-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}

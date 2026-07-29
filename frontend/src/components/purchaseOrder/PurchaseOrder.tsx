@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
@@ -13,6 +14,7 @@ import { locationMockData } from '../../mockData/locationData';
 import { supplierMockData } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getPurchaseOrderColumns } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './PurchaseOrder.css';
 
 const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Approved', 'Received', 'Cancelled'];
@@ -28,6 +30,7 @@ const emptyForm: Omit<PurchaseOrderType, 'id' | 'poNumber' | 'createdBy'> = {
 };
 
 const PurchaseOrder = () => {
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderType[]>(purchaseOrderMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, status: DEFAULT_DATA_TYPE_VALUE.NULL });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -76,7 +79,10 @@ const PurchaseOrder = () => {
             header: 'Delete Purchase Order',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => setPurchaseOrders((prev) => prev.filter((item) => item.id !== po.id)),
+            accept: () => {
+                setPurchaseOrders((prev) => prev.filter((item) => item.id !== po.id));
+                showToast(toast, 'success', 'Deleted', 'Purchase order deleted successfully');
+            },
         });
     };
 
@@ -84,20 +90,26 @@ const PurchaseOrder = () => {
         const payload = { ...form, date: formatDate(orderDate ?? new Date()) };
         if (editingId) {
             setPurchaseOrders((prev) => prev.map((po) => (po.id === editingId ? { ...po, ...payload } : po)));
+            showToast(toast, 'success', 'Updated', 'Purchase order updated successfully');
         } else {
             const nextSeq = purchaseOrders.length + 1;
             const created: PurchaseOrderType = { id: `PO-${nextSeq}`, poNumber: `PO-2025-${String(nextSeq).padStart(6, '0')}`, createdBy: 'Admin User', ...payload };
             setPurchaseOrders((prev) => [...prev, created]);
+            showToast(toast, 'success', 'Created', 'Purchase order created successfully');
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
     const columns = getPurchaseOrderColumns(openEditDialog, handleDelete);
 
     return (
         <div className="purchase-order-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}

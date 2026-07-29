@@ -4,7 +4,8 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { useMemo, useState } from 'react';
+import { Toast } from 'primereact/toast';
+import { useMemo, useRef, useState } from 'react';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import FilterBar from '../../common/commonComponents/filterBar/FilterBar';
@@ -14,6 +15,7 @@ import { skuMockData } from '../../mockData/skuData';
 import { supplierMockData, transporterMockData, recentInwardsMockData, type RecentInward } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardItemColumns, getMaterialInwardInwardColumns, type InwardItem } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './MaterialInward.css';
 
 const emptyItem = (id: number): InwardItem => ({ id, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, skuCode: DEFAULT_DATA_TYPE_VALUE.NULL, batchNo: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, qty: DEFAULT_DATA_TYPE_VALUE.ZERO, unitPrice: DEFAULT_DATA_TYPE_VALUE.ZERO });
@@ -21,6 +23,7 @@ const emptyItem = (id: number): InwardItem => ({ id, categoryName: DEFAULT_DATA_
 let nextItemId = 1;
 
 const MaterialInward = () => {
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [recentInwards, setRecentInwards] = useState<RecentInward[]>(recentInwardsMockData);
     const [dialogVisible, setDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -91,6 +94,7 @@ const MaterialInward = () => {
         setRecentInwards((prev) => [created, ...prev]);
         resetForm();
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        showToast(toast, 'success', 'Created', 'Material inward created successfully');
     };
 
     const itemColumns = getMaterialInwardItemColumns(items, categoryMockData, skuMockData, updateItem, removeItem);
@@ -99,6 +103,8 @@ const MaterialInward = () => {
 
     return (
         <div className="material-inward-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}

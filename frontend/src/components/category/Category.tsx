@@ -1,37 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { categoryMockData, type Category as CategoryType } from '../../mockData/categoryData';
+import { AppContext } from '../../context/AppContext';
+import { createCategory, updateCategory, deleteCategory, type Category as CategoryType, type CategoryPayload } from '../../services/categoryService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getCategoryColumns } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Category.css';
 
-const emptyForm: Omit<CategoryType, 'id' | 'code' | 'skuCount'> = {
-    name: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, description: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, status: 'Active',
+const emptyForm: CategoryPayload = {
+    category: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    status: 'Active',
 };
 
 const Category = () => {
-    const [categories, setCategories] = useState<CategoryType[]>(categoryMockData);
+    const { categories, categoriesLoading, fetchCategories } = useContext(AppContext);
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
-    const [editingId, setEditingId] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const filterFields: FilterField[] = [
-        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by category code / name' },
+        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by category name' },
     ];
 
     const filteredCategories = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return categories.filter((cat) => {
-            return !search || cat.code.toLowerCase().includes(search) || cat.name.toLowerCase().includes(search);
+        return (categories as CategoryType[]).filter((cat) => {
+            return !search || cat.category.toLowerCase().includes(search);
         });
     }, [categories, filters]);
 
@@ -44,8 +48,7 @@ const Category = () => {
     const openEditDialog = (category: CategoryType) => {
         setEditingId(category.id);
         setForm({
-            name: category.name,
-            description: category.description,
+            category: category.category,
             status: category.status,
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
@@ -53,30 +56,48 @@ const Category = () => {
 
     const handleDelete = (category: CategoryType) => {
         confirmDialog({
-            message: `Delete category "${category.name}"? This cannot be undone.`,
+            message: `Delete category "${category.category}"? This cannot be undone.`,
             header: 'Delete Category',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => setCategories((prev) => prev.filter((item) => item.id !== category.id)),
+            accept: async () => {
+                try {
+                    await deleteCategory(category.id);
+                    fetchCategories();
+                    showToast(toast, 'success', 'Deleted', 'Category deleted successfully');
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
         });
     };
 
-    const handleSave = () => {
-        if (editingId) {
-            setCategories((prev) => prev.map((category) => (category.id === editingId ? { ...category, ...form } : category)));
-        } else {
-            const nextCode = `CAT-${String(categories.length + 1).padStart(3, '0')}`;
-            setCategories((prev) => [...prev, { id: nextCode, code: nextCode, skuCount: 0, ...form }]);
+    const handleSave = async () => {
+        try {
+            if (editingId) {
+                await updateCategory(editingId, form);
+                showToast(toast, 'success', 'Updated', 'Category updated successfully');
+            } else {
+                await createCategory(form);
+                showToast(toast, 'success', 'Created', 'Category created successfully');
+            }
+            fetchCategories();
+            setForm(emptyForm);
+            setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
+            setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
         }
-        setForm(emptyForm);
-        setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
-        setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
     const columns = getCategoryColumns(openEditDialog, handleDelete);
 
     return (
         <div className="category-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}
@@ -85,7 +106,7 @@ const Category = () => {
                 actions={<Button label="Add Category" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredCategories} columns={columns} />
+            <DataTable value={filteredCategories} columns={columns} loading={categoriesLoading} />
 
             <Dialog
                 visible={panelVisible}
@@ -102,11 +123,7 @@ const Category = () => {
                 <div className="dialog-form-body">
                     <div className="form-field">
                         <label>Category Name</label>
-                        <InputText value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter category name" />
-                    </div>
-                    <div className="form-field">
-                        <label>Description</label>
-                        <InputTextarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Enter description (optional)" />
+                        <InputText value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Enter category name" />
                     </div>
                     <div className="form-field form-field--row">
                         <label>Status</label>

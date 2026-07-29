@@ -1,38 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
-import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { locationMockData, type Location as LocationType } from '../../mockData/locationData';
+import { AppContext } from '../../context/AppContext';
+import { createLocation, updateLocation, deleteLocation, type Location as LocationType, type LocationPayload } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getLocationsColumns } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Locations.css';
 
-const emptyForm: Omit<LocationType, 'id' | 'code' | 'totalSkus'> = {
-    name: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, description: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, warehouseArea: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, aisleRow: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, rackShelf: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, binPosition: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, status: 'Active',
+const emptyForm: LocationPayload = {
+    location: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    status: 'Active',
 };
 
 const Locations = () => {
-    const [locations, setLocations] = useState<LocationType[]>(locationMockData);
+    const { locations, locationsLoading, fetchLocations } = useContext(AppContext);
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
-    const [editingId, setEditingId] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const filterFields: FilterField[] = [
-        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by location code / name' },
+        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by location name' },
     ];
 
     const filteredLocations = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return locations.filter((loc) => {
-            return !search || loc.code.toLowerCase().includes(search) || loc.name.toLowerCase().includes(search);
+        return (locations as LocationType[]).filter((loc) => {
+            return !search || loc.location.toLowerCase().includes(search);
         });
     }, [locations, filters]);
 
@@ -45,12 +48,7 @@ const Locations = () => {
     const openEditDialog = (location: LocationType) => {
         setEditingId(location.id);
         setForm({
-            name: location.name,
-            description: location.description,
-            warehouseArea: location.warehouseArea,
-            aisleRow: location.aisleRow,
-            rackShelf: location.rackShelf,
-            binPosition: location.binPosition,
+            location: location.location,
             status: location.status,
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
@@ -58,30 +56,48 @@ const Locations = () => {
 
     const handleDelete = (location: LocationType) => {
         confirmDialog({
-            message: `Delete location "${location.name}"? This cannot be undone.`,
+            message: `Delete location "${location.location}"? This cannot be undone.`,
             header: 'Delete Location',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => setLocations((prev) => prev.filter((item) => item.id !== location.id)),
+            accept: async () => {
+                try {
+                    await deleteLocation(location.id);
+                    fetchLocations();
+                    showToast(toast, 'success', 'Deleted', 'Location deleted successfully');
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
         });
     };
 
-    const handleSave = () => {
-        if (editingId) {
-            setLocations((prev) => prev.map((location) => (location.id === editingId ? { ...location, ...form } : location)));
-        } else {
-            const nextCode = `LOC-${String(locations.length + 1).padStart(3, '0')}`;
-            setLocations((prev) => [...prev, { id: nextCode, code: nextCode, totalSkus: 0, ...form }]);
+    const handleSave = async () => {
+        try {
+            if (editingId) {
+                await updateLocation(editingId, form);
+                showToast(toast, 'success', 'Updated', 'Location updated successfully');
+            } else {
+                await createLocation(form);
+                showToast(toast, 'success', 'Created', 'Location created successfully');
+            }
+            fetchLocations();
+            setForm(emptyForm);
+            setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
+            setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
         }
-        setForm(emptyForm);
-        setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
-        setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
     const columns = getLocationsColumns(openEditDialog, handleDelete);
 
     return (
         <div className="locations-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}
@@ -90,7 +106,7 @@ const Locations = () => {
                 actions={<Button label="Add Location" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredLocations} columns={columns} />
+            <DataTable value={filteredLocations} columns={columns} loading={locationsLoading} />
 
             <Dialog
                 visible={panelVisible}
@@ -107,32 +123,7 @@ const Locations = () => {
                 <div className="dialog-form-body">
                     <div className="form-field">
                         <label>Location Name</label>
-                        <InputText value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter location name" />
-                    </div>
-                    <div className="form-field">
-                        <label>Description</label>
-                        <InputTextarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Enter description (optional)" />
-                    </div>
-                    <div className="form-field">
-                        <label>Warehouse / Area</label>
-                        <Dropdown
-                            value={form.warehouseArea}
-                            onChange={(e) => setForm({ ...form, warehouseArea: e.value })}
-                            options={['Main Warehouse', 'Spare Parts', 'Finished Goods', 'Quarantine', 'Raw Material', 'Returns', 'Old Stock', 'Tools']}
-                            placeholder="Select warehouse / area"
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>Aisle / Row</label>
-                        <InputText value={form.aisleRow} onChange={(e) => setForm({ ...form, aisleRow: e.target.value })} placeholder="Enter aisle / row" />
-                    </div>
-                    <div className="form-field">
-                        <label>Rack / Shelf</label>
-                        <InputText value={form.rackShelf} onChange={(e) => setForm({ ...form, rackShelf: e.target.value })} placeholder="Enter rack / shelf" />
-                    </div>
-                    <div className="form-field">
-                        <label>Bin / Position</label>
-                        <InputText value={form.binPosition} onChange={(e) => setForm({ ...form, binPosition: e.target.value })} placeholder="Enter bin / position" />
+                        <InputText value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Enter location name" />
                     </div>
                     <div className="form-field form-field--row">
                         <label>Status</label>

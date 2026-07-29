@@ -18,9 +18,10 @@ import type { ColumnConfig } from '../commonComponents/dataTable/DataTable';
 import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
 
 import type { Sku } from '../../mockData/skuData';
-import type { Location as LocationType } from '../../mockData/locationData';
+import type { Location as LocationType } from '../../services/locationService';
+import type { Category as CategoryRecord } from '../../services/categoryService';
 import type { Category as CategoryType } from '../../mockData/categoryData';
-import type { ProductType as ProductTypeModel } from '../../mockData/productTypeData';
+import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
 import type { User } from '../../mockData/userData';
 import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
 import type { RecentInward } from '../../mockData/materialInwardData';
@@ -277,24 +278,24 @@ export const getRawSkuColumns = (onEdit: (row: Sku) => void, onDelete: (row: Sku
 ];
 
 export const getLocationsColumns = (onEdit: (row: LocationType) => void, onDelete: (row: LocationType) => void): ColumnConfig<LocationType>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Location', fieldType: 'text' },
+    { field: 'id', header: 'ID', fieldType: 'text' },
+    { field: 'location', header: 'Location', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
+    { field: 'id', key: 'action', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getCategoryColumns = (onEdit: (row: CategoryType) => void, onDelete: (row: CategoryType) => void): ColumnConfig<CategoryType>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Category', fieldType: 'text' },
+export const getCategoryColumns = (onEdit: (row: CategoryRecord) => void, onDelete: (row: CategoryRecord) => void): ColumnConfig<CategoryRecord>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text' },
+    { field: 'category', header: 'Category', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
+    { field: 'id', key: 'action', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
 export const getProductTypeColumns = (onEdit: (row: ProductTypeModel) => void, onDelete: (row: ProductTypeModel) => void): ColumnConfig<ProductTypeModel>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Product Type', fieldType: 'text' },
+    { field: 'id', header: 'ID', fieldType: 'text' },
+    { field: 'productType', header: 'Product Type', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
+    { field: 'id', key: 'action', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
 export const getUsersColumns = (onEdit: (row: User) => void, onDelete: (row: User) => void): ColumnConfig<User>[] => [
