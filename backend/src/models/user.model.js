@@ -2,10 +2,10 @@ const pool = require('../config/db');
 
 const TABLE = 'users';
 
-async function findByPhoneNumber(phoneNumber) {
+async function findByEmail(email) {
   const result = await pool.query(
-    `SELECT * FROM ${TABLE} WHERE "phoneNumber" = $1`,
-    [phoneNumber]
+    `SELECT * FROM ${TABLE} WHERE email = $1`,
+    [email]
   );
   return result.rows[0];
 }
@@ -25,4 +25,4 @@ async function updateToken(id, token, expiresAt) {
   );
 }
 
-module.exports = { findByPhoneNumber, findByToken, updateToken };
+module.exports = { findByEmail, findByToken, updateToken };

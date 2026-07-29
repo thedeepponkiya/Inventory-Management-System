@@ -1,23 +1,31 @@
 import { useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from 'primereact/badge';
 import { Avatar } from 'primereact/avatar';
 import { Menu } from 'primereact/menu';
 import { FaRegBell } from 'react-icons/fa6';
 import { HiOutlineCalendar, HiChevronDown } from 'react-icons/hi2';
 import { getRouteMeta } from '../../../routers/routeMeta';
+import { useAuthContext } from '../../../context/AuthContext';
 import './Header.css';
 
 const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const Header = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { logout } = useAuthContext();
     const meta = getRouteMeta(location.pathname);
     const menuRef = useRef<Menu>(null);
 
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
+
     const userMenuItems = [
         { label: 'Profile', icon: 'pi pi-user' },
-        { label: 'Logout', icon: 'pi pi-sign-out' },
+        { label: 'Logout', icon: 'pi pi-sign-out', command: handleLogout },
     ];
 
     return (

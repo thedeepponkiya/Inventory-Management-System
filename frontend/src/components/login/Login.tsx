@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
 import { Checkbox } from 'primereact/checkbox';
@@ -6,6 +8,7 @@ import { Button } from 'primereact/button';
 import { HiOutlineMagnifyingGlass, HiOutlineBell, HiOutlineUserCircle } from 'react-icons/hi2';
 import inventoryLogo from '../../assets/inventoryLogo.svg';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
+import { useAuthContext } from '../../context/AuthContext';
 import './Login.css';
 
 const kpiTiles = [
@@ -18,12 +21,25 @@ const kpiTiles = [
 const barHeights = [40, 65, 50, 80, 60, 90, 70];
 
 const Login = () => {
+    const navigate = useNavigate();
+    const { login } = useAuthContext();
     const [email, setEmail] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [password, setPassword] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [rememberMe, setRememberMe] = useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [errorMessage, setErrorMessage] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [isSubmitting, setIsSubmitting] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
 
-    const handleSignIn = (e: React.FormEvent) => {
+    const handleSignIn = async (e: FormEvent) => {
         e.preventDefault();
+        setErrorMessage(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setIsSubmitting(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        const result = await login(email, password);
+        setIsSubmitting(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        if (result.success) {
+            navigate('/');
+        } else {
+            setErrorMessage(result.message);
+        }
     };
 
     return (
@@ -81,6 +97,8 @@ const Login = () => {
                         <h1 className="login-title">Welcome back</h1>
                         <p className="login-subtitle">Enter your details to access your account.</p>
 
+                        {errorMessage && <p className="login-error">{errorMessage}</p>}
+
                         <form className="login-form" onSubmit={handleSignIn}>
                             <div className="form-field">
                                 <label>Email</label>
@@ -107,7 +125,7 @@ const Login = () => {
                                 <a href="#" className="login-link" onClick={(e) => e.preventDefault()}>Forgot password?</a>
                             </div>
 
-                            <Button type="submit" label="Sign in" className="login-submit-btn" />
+                            <Button type="submit" label={isSubmitting ? 'Signing in…' : 'Sign in'} disabled={isSubmitting} className="login-submit-btn" />
                         </form>
 
                         <p className="login-register">

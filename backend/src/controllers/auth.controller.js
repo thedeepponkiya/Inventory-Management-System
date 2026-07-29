@@ -1,24 +1,26 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 async function login(req, res) {
   try {
-    const { phoneNumber, password } = req.body;
-    if (!phoneNumber || !password) {
+    const { email, password } = req.body;
+    if (!email || !password) {
       return res.status(400).json({
         status: false,
-        message: 'phoneNumber and password are required',
+        message: 'email and password are required',
         data: null,
       });
     }
 
-    const user = await UserModel.findByPhoneNumber(phoneNumber);
-    if (!user || user.password !== password) {
+    const user = await UserModel.findByEmail(email);
+    const passwordMatches = user && (await bcrypt.compare(password, user.password));
+    if (!user || !passwordMatches) {
       return res.status(401).json({
         status: false,
-        message: 'Invalid phoneNumber or password',
+        message: 'Invalid email or password',
         data: null,
       });
     }
@@ -32,7 +34,7 @@ async function login(req, res) {
       message: 'Login successful',
       data: {
         userName: user.userName,
-        phoneNumber: user.phoneNumber,
+        email: user.email,
         token,
       },
     });

@@ -1,5 +1,6 @@
-import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from '../common/commonComponents/header/Header';
+import { useAuthContext } from '../context/AuthContext';
 import Dashboard from '../components/dashboard/Dashboard';
 import MaterialInward from '../components/materialInward/MaterialInward';
 import RawSku from '../components/rawSku/RawSku';
@@ -18,13 +19,19 @@ import SidePanel from '../common/commonComponents/sideBarNavigation/SideBarNavig
 
 const AppRoutes = () => {
     const location = useLocation();
+    const { isAuthenticated } = useAuthContext();
 
-    if (location.pathname === '/login') {
+    if (!isAuthenticated) {
         return (
             <Routes>
                 <Route path='/login' element={<Login />}></Route>
+                <Route path='*' element={<Navigate to='/login' replace />}></Route>
             </Routes>
         );
+    }
+
+    if (location.pathname === '/login') {
+        return <Navigate to='/' replace />;
     }
 
     return (
