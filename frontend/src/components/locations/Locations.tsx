@@ -9,8 +9,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { Location as LocationType } from '../../mockData/locationData';
+import { locationMockData, type Location as LocationType } from '../../mockData/locationData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getLocationsColumns } from '../../common/commonFunctions/CommonUtilities';
 import './Locations.css';
@@ -20,7 +19,7 @@ const emptyForm: Omit<LocationType, 'id' | 'code' | 'totalSkus'> = {
 };
 
 const Locations = () => {
-    const { locations, createLocation, updateLocation, deleteLocation } = useDataContext();
+    const [locations, setLocations] = useState<LocationType[]>(locationMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -32,10 +31,10 @@ const Locations = () => {
 
     const filteredLocations = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return locations.data.filter((loc) => {
+        return locations.filter((loc) => {
             return !search || loc.code.toLowerCase().includes(search) || loc.name.toLowerCase().includes(search);
         });
-    }, [locations.data, filters]);
+    }, [locations, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -63,15 +62,16 @@ const Locations = () => {
             header: 'Delete Location',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteLocation(location.id),
+            accept: () => setLocations((prev) => prev.filter((item) => item.id !== location.id)),
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (editingId) {
-            await updateLocation(editingId, form);
+            setLocations((prev) => prev.map((location) => (location.id === editingId ? { ...location, ...form } : location)));
         } else {
-            await createLocation(form);
+            const nextCode = `LOC-${String(locations.length + 1).padStart(3, '0')}`;
+            setLocations((prev) => [...prev, { id: nextCode, code: nextCode, totalSkus: 0, ...form }]);
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -90,7 +90,7 @@ const Locations = () => {
                 actions={<Button label="Add Location" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredLocations} columns={columns} loading={locations.loading} />
+            <DataTable value={filteredLocations} columns={columns} />
 
             <Dialog
                 visible={panelVisible}

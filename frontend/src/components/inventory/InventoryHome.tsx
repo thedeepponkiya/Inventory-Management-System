@@ -10,8 +10,11 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
+import { inventoryHomeMockData, type InventoryItem, type AssemblyLine } from '../../mockData/inventoryHomeData';
+import { categoryMockData } from '../../mockData/categoryData';
+import { productTypeMockData } from '../../mockData/productTypeData';
+import { locationMockData } from '../../mockData/locationData';
+import { skuMockData } from '../../mockData/skuData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
 import './InventoryHome.css';
@@ -25,7 +28,7 @@ const emptyForm: Omit<InventoryItem, 'id' | 'createdDate' | 'assembly'> = {
 };
 
 const InventoryHome = () => {
-    const { inventoryHomeItems, categories, productTypes, locations, skus, createInventoryHomeItem, updateInventoryHomeItem, deleteInventoryHomeItem } = useDataContext();
+    const [inventoryHomeItems, setInventoryHomeItems] = useState<InventoryItem[]>(inventoryHomeMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [activeDialogTab, setActiveDialogTab] = useState<'details' | 'assembly'>('details');
@@ -40,10 +43,10 @@ const InventoryHome = () => {
 
     const filteredItems = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return inventoryHomeItems.data.filter((item) => {
+        return inventoryHomeItems.filter((item) => {
             return !search || item.skuId.toLowerCase().includes(search) || item.productName.toLowerCase().includes(search);
         });
-    }, [inventoryHomeItems.data, filters]);
+    }, [inventoryHomeItems, filters]);
 
     const addAssemblyRow = () => {
         setAssemblyRows((prev) => [...prev, emptyAssemblyRow()]);
@@ -117,16 +120,17 @@ const InventoryHome = () => {
             header: 'Delete Inventory Item',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteInventoryHomeItem(item.id),
+            accept: () => setInventoryHomeItems((prev) => prev.filter((i) => i.id !== item.id)),
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         const assembly = assemblyRows.map(({ skuCode, skuName, quantity }) => ({ skuCode, skuName, quantity }));
         if (editingId) {
-            await updateInventoryHomeItem(editingId, { ...form, assembly });
+            setInventoryHomeItems((prev) => prev.map((item) => (item.id === editingId ? { ...item, ...form, assembly } : item)));
         } else {
-            await createInventoryHomeItem({ ...form, assembly });
+            const createdDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            setInventoryHomeItems((prev) => [...prev, { id: form.skuId, createdDate, ...form, assembly }]);
         }
         setForm(emptyForm);
         setAssemblyRows([]);
@@ -138,7 +142,7 @@ const InventoryHome = () => {
 
     const columns = getInventoryHomeColumns(openEditDialog, handleDelete);
 
-    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skus.data, updateAssemblyRow, removeAssemblyRow);
+    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skuMockData, updateAssemblyRow, removeAssemblyRow);
 
     return (
         <div className="inventory-home-page">
@@ -150,7 +154,7 @@ const InventoryHome = () => {
                 actions={<Button label="Add New Item" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredItems} columns={columns} loading={inventoryHomeItems.loading} />
+            <DataTable value={filteredItems} columns={columns} />
 
             <Dialog
                 visible={panelVisible}
@@ -201,7 +205,7 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.categoryName}
                                                 onChange={(e) => setForm({ ...form, categoryName: e.value })}
-                                                options={categories.data.map((c) => ({ label: c.name, value: c.name }))}
+                                                options={categoryMockData.map((c) => ({ label: c.name, value: c.name }))}
                                                 placeholder="Select category"
                                             />
                                         </div>
@@ -210,7 +214,7 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.productType}
                                                 onChange={(e) => setForm({ ...form, productType: e.value })}
-                                                options={productTypes.data.map((t) => ({ label: t.name, value: t.name }))}
+                                                options={productTypeMockData.map((t) => ({ label: t.name, value: t.name }))}
                                                 placeholder="Select product type"
                                             />
                                         </div>
@@ -247,7 +251,7 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.locationName}
                                                 onChange={(e) => setForm({ ...form, locationName: e.value })}
-                                                options={locations.data.map((l) => ({ label: l.name, value: l.name }))}
+                                                options={locationMockData.map((l) => ({ label: l.name, value: l.name }))}
                                                 placeholder="Select location"
                                             />
                                         </div>

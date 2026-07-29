@@ -8,8 +8,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { ProductType as ProductTypeModel } from '../../mockData/productTypeData';
+import { productTypeMockData, type ProductType as ProductTypeModel } from '../../mockData/productTypeData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getProductTypeColumns } from '../../common/commonFunctions/CommonUtilities';
 import './ProductType.css';
@@ -19,7 +18,7 @@ const emptyForm: Omit<ProductTypeModel, 'id' | 'code'> = {
 };
 
 const ProductType = () => {
-    const { productTypes, createProductType, updateProductType, deleteProductType } = useDataContext();
+    const [productTypes, setProductTypes] = useState<ProductTypeModel[]>(productTypeMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -31,10 +30,10 @@ const ProductType = () => {
 
     const filteredProductTypes = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return productTypes.data.filter((type) => {
+        return productTypes.filter((type) => {
             return !search || type.code.toLowerCase().includes(search) || type.name.toLowerCase().includes(search);
         });
-    }, [productTypes.data, filters]);
+    }, [productTypes, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -58,15 +57,16 @@ const ProductType = () => {
             header: 'Delete Product Type',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteProductType(type.id),
+            accept: () => setProductTypes((prev) => prev.filter((item) => item.id !== type.id)),
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (editingId) {
-            await updateProductType(editingId, form);
+            setProductTypes((prev) => prev.map((type) => (type.id === editingId ? { ...type, ...form } : type)));
         } else {
-            await createProductType(form);
+            const nextCode = `PT-${String(productTypes.length + 1).padStart(3, '0')}`;
+            setProductTypes((prev) => [...prev, { id: nextCode, code: nextCode, ...form }]);
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -85,7 +85,7 @@ const ProductType = () => {
                 actions={<Button label="Add Product Type" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredProductTypes} columns={columns} loading={productTypes.loading} />
+            <DataTable value={filteredProductTypes} columns={columns} />
 
             <Dialog
                 visible={panelVisible}

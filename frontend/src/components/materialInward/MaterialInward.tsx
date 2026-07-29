@@ -9,7 +9,9 @@ import { HiOutlinePlus } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import FilterBar from '../../common/commonComponents/filterBar/FilterBar';
 import type { FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import { useDataContext } from '../../context/DataContext';
+import { categoryMockData } from '../../mockData/categoryData';
+import { skuMockData } from '../../mockData/skuData';
+import { supplierMockData, transporterMockData, recentInwardsMockData, type RecentInward } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardItemColumns, getMaterialInwardInwardColumns, type InwardItem } from '../../common/commonFunctions/CommonUtilities';
 import './MaterialInward.css';
@@ -19,7 +21,7 @@ const emptyItem = (id: number): InwardItem => ({ id, categoryName: DEFAULT_DATA_
 let nextItemId = 1;
 
 const MaterialInward = () => {
-    const { categories, skus, materialInwardOptions, createMaterialInward } = useDataContext();
+    const [recentInwards, setRecentInwards] = useState<RecentInward[]>(recentInwardsMockData);
     const [dialogVisible, setDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
 
@@ -60,10 +62,10 @@ const MaterialInward = () => {
 
     const filteredInwards = useMemo(() => {
         const term = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return materialInwardOptions.data.recentInwards.filter((inward) => {
+        return recentInwards.filter((inward) => {
             return !term || inward.invoiceNo.toLowerCase().includes(term);
         });
-    }, [materialInwardOptions.data.recentInwards, filters]);
+    }, [recentInwards, filters]);
 
     const resetForm = () => {
         setInvoiceNo(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
@@ -78,31 +80,20 @@ const MaterialInward = () => {
         setItems([emptyItem(nextItemId++)]);
     };
 
-    const handleSave = async () => {
-        await createMaterialInward({
+    const handleSave = () => {
+        const created: RecentInward = {
+            id: `MI-${recentInwards.length + 1}`,
             invoiceNo,
-            supplier: supplier ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-            invoiceDate: invoiceDate ?? new Date(),
-            referenceNo,
-            transporter: transporter ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-            receivedBy,
-            notes,
-            items: items.map((item) => ({
-                categoryName: item.categoryName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-                skuCode: item.skuCode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-                batchNo: item.batchNo,
-                qty: item.qty,
-                unitPrice: item.unitPrice,
-            })),
-            paymentStatus,
-            paymentMode,
-            remarks,
-        });
+            date: (invoiceDate ?? new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            amount: totals.totalAmount,
+            paymentStatus: paymentStatus === 'Paid' ? 'Paid' : 'Unpaid',
+        };
+        setRecentInwards((prev) => [created, ...prev]);
         resetForm();
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
-    const itemColumns = getMaterialInwardItemColumns(items, categories.data, skus.data, updateItem, removeItem);
+    const itemColumns = getMaterialInwardItemColumns(items, categoryMockData, skuMockData, updateItem, removeItem);
 
     const inwardColumns = getMaterialInwardInwardColumns();
 
@@ -118,8 +109,7 @@ const MaterialInward = () => {
 
             <DataTable
                 value={filteredInwards}
-                columns={inwardColumns}
-                loading={materialInwardOptions.loading} />
+                columns={inwardColumns} />
 
             <Dialog
                 visible={dialogVisible}
@@ -141,7 +131,7 @@ const MaterialInward = () => {
                         </div>
                         <div className="form-field">
                             <label>Supplier Name *</label>
-                            <Dropdown value={supplier} onChange={(e) => setSupplier(e.value)} options={materialInwardOptions.data.suppliers} placeholder="Select supplier" />
+                            <Dropdown value={supplier} onChange={(e) => setSupplier(e.value)} options={supplierMockData} placeholder="Select supplier" />
                         </div>
                         <div className="form-field">
                             <label>Invoice Date *</label>
@@ -153,7 +143,7 @@ const MaterialInward = () => {
                         </div>
                         <div className="form-field">
                             <label>Transporter</label>
-                            <Dropdown value={transporter} onChange={(e) => setTransporter(e.value)} options={materialInwardOptions.data.transporters} placeholder="Select transporter" />
+                            <Dropdown value={transporter} onChange={(e) => setTransporter(e.value)} options={transporterMockData} placeholder="Select transporter" />
                         </div>
                         <div className="form-field">
                             <label>Received By *</label>

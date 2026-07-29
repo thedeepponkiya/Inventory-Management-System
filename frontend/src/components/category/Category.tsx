@@ -8,8 +8,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { Category as CategoryType } from '../../mockData/categoryData';
+import { categoryMockData, type Category as CategoryType } from '../../mockData/categoryData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getCategoryColumns } from '../../common/commonFunctions/CommonUtilities';
 import './Category.css';
@@ -19,7 +18,7 @@ const emptyForm: Omit<CategoryType, 'id' | 'code' | 'skuCount'> = {
 };
 
 const Category = () => {
-    const { categories, createCategory, updateCategory, deleteCategory } = useDataContext();
+    const [categories, setCategories] = useState<CategoryType[]>(categoryMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -31,10 +30,10 @@ const Category = () => {
 
     const filteredCategories = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return categories.data.filter((cat) => {
+        return categories.filter((cat) => {
             return !search || cat.code.toLowerCase().includes(search) || cat.name.toLowerCase().includes(search);
         });
-    }, [categories.data, filters]);
+    }, [categories, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -58,15 +57,16 @@ const Category = () => {
             header: 'Delete Category',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteCategory(category.id),
+            accept: () => setCategories((prev) => prev.filter((item) => item.id !== category.id)),
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (editingId) {
-            await updateCategory(editingId, form);
+            setCategories((prev) => prev.map((category) => (category.id === editingId ? { ...category, ...form } : category)));
         } else {
-            await createCategory(form);
+            const nextCode = `CAT-${String(categories.length + 1).padStart(3, '0')}`;
+            setCategories((prev) => [...prev, { id: nextCode, code: nextCode, skuCount: 0, ...form }]);
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -85,7 +85,7 @@ const Category = () => {
                 actions={<Button label="Add Category" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredCategories} columns={columns} loading={categories.loading} />
+            <DataTable value={filteredCategories} columns={columns} />
 
             <Dialog
                 visible={panelVisible}

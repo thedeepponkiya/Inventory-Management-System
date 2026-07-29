@@ -10,8 +10,9 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { Sku } from '../../mockData/skuData';
+import { skuMockData, type Sku } from '../../mockData/skuData';
+import { categoryMockData } from '../../mockData/categoryData';
+import { locationMockData } from '../../mockData/locationData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getRawSkuColumns } from '../../common/commonFunctions/CommonUtilities';
 import './RawSku.css';
@@ -21,7 +22,7 @@ const emptyForm: Omit<Sku, 'id' | 'code'> = {
 };
 
 const RawSku = () => {
-    const { skus, categories, locations, createSku, updateSku, deleteSku } = useDataContext();
+    const [skus, setSkus] = useState<Sku[]>(skuMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -33,10 +34,10 @@ const RawSku = () => {
 
     const filteredSkus = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return skus.data.filter((sku) => {
+        return skus.filter((sku) => {
             return !search || sku.name.toLowerCase().includes(search) || sku.code.toLowerCase().includes(search);
         });
-    }, [skus.data, filters]);
+    }, [skus, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -66,15 +67,16 @@ const RawSku = () => {
             header: 'Delete SKU',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteSku(sku.id),
+            accept: () => setSkus((prev) => prev.filter((item) => item.id !== sku.id)),
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (editingId) {
-            await updateSku(editingId, form);
+            setSkus((prev) => prev.map((sku) => (sku.id === editingId ? { ...sku, ...form } : sku)));
         } else {
-            await createSku(form);
+            const nextCode = `SKU-${String(skus.length + 1).padStart(3, '0')}`;
+            setSkus((prev) => [...prev, { id: nextCode, code: nextCode, ...form }]);
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -93,7 +95,7 @@ const RawSku = () => {
                 actions={<Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredSkus} columns={columns} loading={skus.loading} />
+            <DataTable value={filteredSkus} columns={columns} />
 
             <Dialog
                 visible={panelVisible}
@@ -117,7 +119,7 @@ const RawSku = () => {
                         <Dropdown
                             value={form.categoryName}
                             onChange={(e) => setForm({ ...form, categoryName: e.value })}
-                            options={categories.data.map((c) => ({ label: c.name, value: c.name }))}
+                            options={categoryMockData.map((c) => ({ label: c.name, value: c.name }))}
                             placeholder="Select category"
                         />
                     </div>
@@ -126,7 +128,7 @@ const RawSku = () => {
                         <Dropdown
                             value={form.locationName}
                             onChange={(e) => setForm({ ...form, locationName: e.value })}
-                            options={locations.data.map((l) => ({ label: l.name, value: l.name }))}
+                            options={locationMockData.map((l) => ({ label: l.name, value: l.name }))}
                             placeholder="Select location"
                         />
                     </div>

@@ -4,13 +4,12 @@ import { MultiSelect } from 'primereact/multiselect';
 import { HiOutlineArrowDownTray } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
+import { invoiceMockData } from '../../mockData/invoiceData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInvoicesColumns, invoicesAllColumnKeys as allColumns } from '../../common/commonFunctions/CommonUtilities';
 import './Invoices.css';
 
 const Invoices = () => {
-    const { invoices } = useDataContext();
     const [filters, setFilters] = useState<Record<string, unknown>>({ partyName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns);
 
@@ -20,10 +19,10 @@ const Invoices = () => {
 
     const filteredInvoices = useMemo(() => {
         const partyName = (filters.partyName as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return invoices.data.filter((inv) => {
+        return invoiceMockData.filter((inv) => {
             return !partyName || inv.partyName.toLowerCase().includes(partyName);
         });
-    }, [invoices.data, filters]);
+    }, [filters]);
 
     const columns = getInvoicesColumns(visibleColumns);
 
@@ -52,7 +51,7 @@ const Invoices = () => {
                 }
             />
 
-            <DataTable value={filteredInvoices} columns={columns} loading={invoices.loading} />
+            <DataTable value={filteredInvoices} columns={columns} />
         </div>
     );
 };
