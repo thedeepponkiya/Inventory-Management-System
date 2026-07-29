@@ -1,0 +1,40 @@
+.router-wrapper {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  width: 100%;
+}
+.common-light-color {
+    background-color: #f9fafc;
+}
+
+.app-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content > div {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

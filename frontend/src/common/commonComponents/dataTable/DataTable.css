@@ -1,0 +1,122 @@
+.app-data-table.p-datatable {
+    background: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.app-data-table .p-datatable-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.app-data-table .p-datatable-thead > tr > th {
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.4rem 0.65rem;
+    white-space: nowrap;
+}
+
+.app-data-table .p-datatable-thead > tr > th .p-column-header-content {
+    justify-content: flex-start;
+    gap: 4px;
+}
+
+.app-data-table .p-datatable-thead > tr > th .p-column-filter {
+    margin-left: 0;
+}
+
+.app-data-table .p-datatable-thead > tr > th .p-sortable-column-icon {
+    color: #64748b;
+}
+
+.app-data-table .p-datatable-thead > tr > th.p-highlight,
+.app-data-table .p-datatable-thead > tr > th.p-highlight .p-sortable-column-icon {
+    color: #1e293b;
+    background: #eef2f7;
+}
+
+.app-data-table .p-datatable-thead > tr > th:hover {
+    background: #eef2f7;
+    color: #1e293b;
+}
+
+.app-data-table .p-datatable-thead > tr > th .p-column-filter-menu-button {
+    color: #64748b;
+}
+
+.app-data-table .p-datatable-thead > tr > th .p-column-filter-menu-button:hover,
+.app-data-table .p-datatable-thead > tr > th .p-column-filter-menu-button-active {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.app-data-table .p-datatable-tbody > tr > td {
+    font-size: 13px;
+    color: #334155;
+    border-color: #f1f5f9;
+    padding: 0.55rem 0.85rem;
+}
+
+.app-data-table .p-datatable-tbody > tr:nth-child(even) {
+    background: #fbfcfe;
+}
+
+.app-data-table .p-paginator {
+    background: #ffffff;
+    border: none;
+    border-top: 1px solid #f1f5f9;
+    padding: 4px 16px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.app-data-table .p-paginator .p-paginator-current {
+    margin-left: 16px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+}
+
+.app-data-table .p-paginator .p-paginator-element {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    color: #475569;
+    border-radius: 6px;
+}
+
+.app-data-table .p-paginator .p-paginator-element:not(.p-disabled):hover {
+    background: #eef2f7;
+    color: #1e293b;
+}
+
+.app-data-table .p-paginator .p-paginator-page.p-highlight {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+}
+
+.app-data-table .p-paginator .p-dropdown {
+    height: 1.75rem;
+    min-width: 3.5rem;
+    margin-left: 12px;
+}
+
+.app-data-table .p-paginator .p-dropdown .p-dropdown-label {
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+}

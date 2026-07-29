@@ -1,0 +1,12 @@
+.info-banner.p-message {
+    border-radius: 16px;
+    margin: 16px 0 0;
+}
+
+.info-banner.p-message .p-message-wrapper {
+    padding: 12px 16px;
+}
+
+.info-banner.p-message .p-message-text {
+    font-size: 13px;
+}

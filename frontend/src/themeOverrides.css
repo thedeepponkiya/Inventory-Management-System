@@ -1,0 +1,198 @@
+/*
+  The bundled PrimeReact "lara-light-blue" theme is built on the Tailwind blue
+  scale where the resting/primary shade is blue-500 (#3b82f6) and blue-600
+  (#2563eb) is only used for hover states. The whole app's brand color is
+  #2563eb, so every rule below shifts that theme's blue scale one step darker
+  (500->600, 600->700, 700->800, 200->300, 50->100) using the theme's own
+  selectors, keeping hover/focus/highlight relationships intact while making
+  #2563eb the resting color everywhere instead of just a hover accent.
+*/
+
+:root {
+    --primary-color: #2563eb;
+    --primary-color-text: #ffffff;
+    --primary-50: #eff6ff;
+    --primary-100: #dbeafe;
+    --primary-200: #bfdbfe;
+    --primary-300: #93c5fd;
+    --primary-400: #60a5fa;
+    --primary-500: #2563eb;
+    --primary-600: #1d4ed8;
+    --primary-700: #1e40af;
+    --primary-800: #1e3a8a;
+    --primary-900: #172554;
+}
+
+/* Buttons (also covers SplitButton / FileUpload's choose button, which reuse .p-button) */
+.p-button {
+    background: #2563eb;
+    border-color: #2563eb;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.875rem;
+}
+.p-button:not(:disabled):hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+.p-button:not(:disabled):active {
+    background: #1e40af;
+    border-color: #1e40af;
+}
+.p-button.p-button-outlined {
+    background: transparent;
+    color: #2563eb;
+    border-color: #2563eb;
+}
+.p-button.p-button-outlined:not(:disabled):hover {
+    background: rgba(37, 99, 235, 0.04);
+    color: #2563eb;
+    border-color: #2563eb;
+}
+.p-button.p-button-outlined:not(:disabled):active {
+    background: rgba(37, 99, 235, 0.16);
+    color: #2563eb;
+    border-color: #2563eb;
+}
+.p-button.p-button-text {
+    background: transparent;
+    color: #2563eb;
+    border-color: transparent;
+}
+.p-button.p-button-text:not(:disabled):hover {
+    background: rgba(37, 99, 235, 0.04);
+    color: #2563eb;
+}
+.p-button.p-button-text:not(:disabled):active {
+    background: rgba(37, 99, 235, 0.16);
+    color: #2563eb;
+}
+
+/* Text inputs / textareas / calendar & input-number's inner input */
+.p-inputtext {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+.p-inputtext:enabled:hover {
+    border-color: #2563eb;
+}
+.p-inputtext:enabled:focus {
+    box-shadow: 0 0 0 0.2rem #93c5fd;
+    border-color: #2563eb;
+}
+
+/* Dropdown */
+.p-dropdown:not(.p-disabled):hover {
+    border-color: #2563eb;
+}
+.p-dropdown:not(.p-disabled).p-focus {
+    box-shadow: 0 0 0 0.2rem #93c5fd;
+    border-color: #2563eb;
+}
+.p-dropdown .p-dropdown-label {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+.p-dropdown .p-dropdown-trigger {
+    width: 2.5rem;
+}
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+    font-size: 0.8125rem;
+    padding: 0.45rem 0.75rem;
+}
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
+    color: #1e40af;
+    background: #dbeafe;
+}
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight.p-focus {
+    background: rgba(37, 99, 235, 0.24);
+}
+
+/* MultiSelect */
+.p-multiselect:not(.p-disabled).p-focus {
+    box-shadow: 0 0 0 0.2rem #93c5fd;
+    border-color: #2563eb;
+}
+.p-multiselect .p-multiselect-label {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+}
+.p-multiselect-panel .p-multiselect-item {
+    font-size: 0.8125rem;
+    padding: 0.45rem 0.75rem;
+}
+.p-multiselect-panel .p-multiselect-item.p-highlight {
+    color: #1e40af;
+    background: #dbeafe;
+}
+
+/* Toggle switch */
+.p-inputswitch.p-highlight .p-inputswitch-slider {
+    background: #2563eb;
+}
+
+/* Checkbox / RadioButton */
+.p-checkbox.p-highlight .p-checkbox-box,
+.p-radiobutton.p-highlight .p-radiobutton-box {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+/* TabView (Kit Master detail) */
+.p-tabview .p-tabview-nav li .p-tabview-nav-link:not(.p-disabled):focus-visible {
+    box-shadow: inset 0 0 0 0.2rem #93c5fd;
+}
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+/* DataTable paginator active page */
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+    background: #dbeafe;
+    border-color: #dbeafe;
+    color: #1e40af;
+}
+
+/* Info message / banner */
+.p-message.p-message-info {
+    border-color: #2563eb;
+    color: #1e40af;
+}
+.p-message.p-message-info .p-message-icon,
+.p-message.p-message-info .p-message-close {
+    color: #2563eb;
+}
+
+/* SelectButton (Settings theme toggle) */
+.p-selectbutton .p-button.p-highlight {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+.p-selectbutton .p-button.p-highlight:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+/* Dialog header / content spacing */
+.p-dialog .p-dialog-header {
+    padding: 0.5rem;
+}
+.p-dialog .p-dialog-header .p-dialog-title {
+    font-size: 14px;
+}
+.p-dialog .p-dialog-content {
+    padding: 0 0.5rem 0.5rem;
+}
+.p-dialog .p-dialog-footer {
+    padding: 0 0 1rem;
+}
+
+/* Calendar month/year nav hover + selected date */
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-year:enabled:hover,
+.p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-month:enabled:hover {
+    color: #2563eb;
+}
+.p-datepicker table td > span.p-highlight {
+    color: #1e40af;
+    background: #dbeafe;
+}

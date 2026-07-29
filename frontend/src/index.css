@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.form-field--row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dialog-form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.data-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #64748b;
+}
+
+.data-table-actions svg {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+.data-table-actions svg:hover {
+    color: #2563eb;
+}

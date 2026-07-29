@@ -1,0 +1,112 @@
+.settings-dialog .p-dialog-content {
+    padding: 0;
+}
+
+.settings-dialog .p-dialog-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.settings-dialog .p-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.settings-dialog-body {
+    display: flex;
+    min-height: 360px;
+}
+
+.settings-dialog-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 180px;
+    flex-shrink: 0;
+    padding: 16px 10px;
+    border-right: 1px solid #f1f5f9;
+    background: #f8fafc;
+}
+
+.settings-dialog-tab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+
+.settings-dialog-tab:hover {
+    background: #eef2f7;
+    color: #1e293b;
+}
+
+.settings-dialog-tab--active {
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.settings-dialog-content {
+    flex: 1;
+    padding: 20px 24px;
+    min-width: 0;
+}
+
+.settings-dialog-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.settings-dialog-full {
+    grid-column: 1 / -1;
+}
+
+.settings-dialog-logo-preview {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-top: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.settings-dialog-cancel,
+.settings-dialog-save {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.settings-dialog-cancel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+
+.settings-dialog-cancel:hover {
+    background: #f8fafc;
+}
+
+.settings-dialog-save {
+    background: #2563eb;
+    border: 1px solid #2563eb;
+    color: #ffffff;
+}
+
+.settings-dialog-save:hover {
+    background: #1d4ed8;
+}

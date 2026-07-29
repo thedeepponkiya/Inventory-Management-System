@@ -1,0 +1,281 @@
+.inventory-home-page {
+    padding-bottom: 24px;
+}
+
+.inventory-home-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.inventory-home-thumb--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+.inventory-home-form-columns {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.inventory-home-form-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inventory-home-form-side {
+    width: 220px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .inventory-home-form-columns {
+        flex-direction: column;
+    }
+
+    .inventory-home-form-side {
+        width: 100%;
+    }
+}
+
+.inventory-home-form-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.inventory-home-form-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.inventory-home-form-section-header .inventory-home-form-section-title {
+    margin-bottom: 0;
+}
+
+.inventory-home-form-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 12px;
+}
+
+.inventory-home-form-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inventory-home-form-section-toggle label {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+}
+
+.inventory-home-image-dropzone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.inventory-home-image-dropzone:hover {
+    border-color: #2563eb;
+}
+
+.inventory-home-image-dropzone img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.inventory-home-image-dropzone-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.inventory-home-image-dropzone-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.inventory-home-image-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.inventory-home-image-preview {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+}
+
+.inventory-home-image-preview--active {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 1px #2563eb;
+}
+
+.inventory-home-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.inventory-home-image-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.inventory-home-image-add {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+
+.inventory-home-image-add:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.inventory-home-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 500px) {
+    .inventory-home-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.inventory-home-dialog-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.inventory-home-dialog-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 4px;
+    margin-right: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.inventory-home-dialog-tab:hover {
+    color: #1e293b;
+}
+
+.inventory-home-dialog-tab--active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+}
+
+.inventory-home-assembly-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 20px 0 12px;
+}
+
+.inventory-home-assembly-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 2px;
+}
+
+.inventory-home-assembly-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.inventory-home-assembly-dropdown {
+    width: 220px;
+}
+
+.inventory-home-assembly-qty {
+    width: 70px;
+}
+
+.inventory-home-assembly-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #ede9fe;
+    color: #6d28d9;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.inventory-home-assembly-empty {
+    color: #cbd5e1;
+}

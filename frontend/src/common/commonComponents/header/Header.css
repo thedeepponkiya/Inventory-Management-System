@@ -1,0 +1,76 @@
+.small-badge.p-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+    line-height: 16px;
+    padding: 0;
+}
+
+.app-header {
+    flex-shrink: 0;
+}
+
+.app-header-title-block {
+    min-width: 0;
+}
+
+.app-header-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+}
+
+.app-header-back-btn:hover {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.app-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.app-header-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+
+.app-header-user-text {
+    line-height: 1.2;
+}
+
+.app-header-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.app-header-user-role {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+@media (max-width: 700px) {
+    .app-header-date,
+    .app-header-user-text {
+        display: none;
+    }
+}
