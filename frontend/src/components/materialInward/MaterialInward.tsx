@@ -6,7 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Toast } from 'primereact/toast';
 import { useMemo, useRef, useState } from 'react';
-import { HiOutlinePlus } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import FilterBar from '../../common/commonComponents/filterBar/FilterBar';
 import type { FilterField } from '../../common/commonComponents/filterBar/FilterBar';
@@ -14,7 +14,7 @@ import { categoryMockData } from '../../mockData/categoryData';
 import { skuMockData } from '../../mockData/skuData';
 import { supplierMockData, transporterMockData, recentInwardsMockData, type RecentInward } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getMaterialInwardItemColumns, getMaterialInwardInwardColumns, type InwardItem } from '../../common/commonFunctions/CommonUtilities';
+import { getMaterialInwardItemColumns, getMaterialInwardInwardColumns, getActionBodyTemplate, type InwardItem } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './MaterialInward.css';
 
@@ -97,7 +97,9 @@ const MaterialInward = () => {
         showToast(toast, 'success', 'Created', 'Material inward created successfully');
     };
 
-    const itemColumns = getMaterialInwardItemColumns(items, categoryMockData, skuMockData, updateItem, removeItem);
+    const itemColumns = getMaterialInwardItemColumns(items, categoryMockData, skuMockData, updateItem);
+
+    const itemActionTemplate = getActionBodyTemplate<InwardItem>({ icons: [{ icon: HiOutlineTrash, onClick: (row) => removeItem(row.id) }] });
 
     const inwardColumns = getMaterialInwardInwardColumns();
 
@@ -165,7 +167,7 @@ const MaterialInward = () => {
                         <h3>Inward Items</h3>
                         <Button label="Add Item" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={addItem} outlined />
                     </div>
-                    <DataTable value={items} columns={itemColumns} paginator={false} sortable={false} filterable={false} dataKey="id" emptyMessage="No items added yet." />
+                    <DataTable value={items} columns={itemColumns} actionBodyTemplate={itemActionTemplate} paginator={false} sortable={false} filterable={false} dataKey="id" emptyMessage="No items added yet." />
 
                     <div className="material-inward-summary-grid">
                         <div>

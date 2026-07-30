@@ -11,7 +11,7 @@ import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContext';
 import { createCategory, updateCategory, deleteCategory, type Category as CategoryType, type CategoryPayload } from '../../services/categoryService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getCategoryColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getCategoryColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Category.css';
 
@@ -90,9 +90,11 @@ const Category = () => {
         }
     };
 
+    const columns = getCategoryColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getCategoryColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<CategoryType>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="category-page">
@@ -106,7 +108,7 @@ const Category = () => {
                 actions={<Button label="Add Category" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredCategories} columns={columns} loading={categoriesLoading} />
+            <DataTable value={filteredCategories} columns={columns} loading={categoriesLoading} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

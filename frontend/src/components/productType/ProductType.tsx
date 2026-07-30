@@ -11,7 +11,7 @@ import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContext';
 import { createProductType, updateProductType, deleteProductType, type ProductType as ProductTypeModel, type ProductTypePayload } from '../../services/productTypeService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getProductTypeColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getProductTypeColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './ProductType.css';
 
@@ -90,9 +90,11 @@ const ProductType = () => {
         }
     };
 
+    const columns = getProductTypeColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getProductTypeColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<ProductTypeModel>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="product-type-page">
@@ -106,7 +108,7 @@ const ProductType = () => {
                 actions={<Button label="Add Product Type" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredProductTypes} columns={columns} loading={productTypesLoading} />
+            <DataTable value={filteredProductTypes} columns={columns} loading={productTypesLoading} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

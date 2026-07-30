@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlineArrowDownTray, HiOutlineCube, HiOutlineDocumentText, HiOutlineSquares2X2, HiOutlineMapPin } from 'react-icons/hi2';
+import { HiOutlineArrowDownTray, HiOutlineCube, HiOutlineDocumentText, HiOutlineSquares2X2, HiOutlineMapPin, HiOutlineArrowDownOnSquare, HiOutlineEnvelope } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { reportCategoriesMockData, recentReportsMockData } from '../../mockData/reportData';
+import { reportCategoriesMockData, recentReportsMockData, type RecentReport } from '../../mockData/reportData';
 import { locationMockData } from '../../mockData/locationData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getReportsColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getReportsColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import './Reports.css';
 
 const categoryIcons: Record<string, React.ComponentType<{ size?: number }>> = {
@@ -40,6 +40,8 @@ const Reports = () => {
 
     const columns = getReportsColumns();
 
+    const actionTemplate = getActionBodyTemplate<RecentReport>({ icons: [{ icon: HiOutlineArrowDownOnSquare }, { icon: HiOutlineEnvelope }] });
+
     return (
         <div className="reports-page">
             <FilterBar
@@ -70,7 +72,7 @@ const Reports = () => {
             <div className="reports-recent-header">
                 <h2 className="reports-section-title">Recent Reports</h2>
             </div>
-            <DataTable value={recentReportsMockData} columns={columns} rows={5} />
+            <DataTable value={recentReportsMockData} columns={columns} actionBodyTemplate={actionTemplate} rows={5} />
         </div>
     );
 };

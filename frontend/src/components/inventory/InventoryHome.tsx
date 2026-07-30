@@ -8,7 +8,7 @@ import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark, HiOutlineTrash } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { inventoryHomeMockData, type InventoryItem, type AssemblyLine } from '../../mockData/inventoryHomeData';
@@ -17,7 +17,7 @@ import { productTypeMockData } from '../../mockData/productTypeData';
 import { locationMockData } from '../../mockData/locationData';
 import { skuMockData } from '../../mockData/skuData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
+import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './InventoryHome.css';
 
@@ -148,11 +148,15 @@ const InventoryHome = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    const columns = getInventoryHomeColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getInventoryHomeColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<InventoryItem>({ onEdit: openEditDialog, onDelete: handleDelete });
 
-    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skuMockData, updateAssemblyRow, removeAssemblyRow);
+    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skuMockData, updateAssemblyRow);
+
+    const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ icons: [{ icon: HiOutlineTrash, onClick: (row) => removeAssemblyRow(row.rowId) }] });
 
     return (
         <div className="inventory-home-page">
@@ -166,7 +170,7 @@ const InventoryHome = () => {
                 actions={<Button label="Add New Item" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredItems} columns={columns} />
+            <DataTable value={filteredItems} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}
@@ -326,6 +330,7 @@ const InventoryHome = () => {
                         <DataTable
                             value={assemblyRows}
                             columns={assemblyColumns}
+                            actionBodyTemplate={assemblyActionTemplate}
                             paginator={false}
                             sortable={false}
                             filterable={false}

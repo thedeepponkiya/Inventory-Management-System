@@ -12,7 +12,7 @@ import FilterBar, { type FilterField } from '../../common/commonComponents/filte
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { userMockData, type User } from '../../mockData/userData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getUsersColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getUsersColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Users.css';
 
@@ -99,9 +99,11 @@ const Users = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    const columns = getUsersColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getUsersColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<User>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="users-page">
@@ -116,7 +118,7 @@ const Users = () => {
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, role: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL })}
             />
 
-            <DataTable value={filteredUsers} columns={columns} />
+            <DataTable value={filteredUsers} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

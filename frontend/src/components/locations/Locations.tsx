@@ -11,7 +11,7 @@ import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContext';
 import { createLocation, updateLocation, deleteLocation, type Location as LocationType, type LocationPayload } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getLocationsColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getLocationsColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Locations.css';
 
@@ -90,9 +90,11 @@ const Locations = () => {
         }
     };
 
+    const columns = getLocationsColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getLocationsColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<LocationType>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="locations-page">
@@ -106,7 +108,7 @@ const Locations = () => {
                 actions={<Button label="Add Location" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredLocations} columns={columns} loading={locationsLoading} />
+            <DataTable value={filteredLocations} columns={columns} loading={locationsLoading} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

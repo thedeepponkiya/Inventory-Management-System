@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
 import { MultiSelect } from 'primereact/multiselect';
-import { HiOutlineArrowDownTray } from 'react-icons/hi2';
+import { HiOutlineArrowDownTray, HiOutlineEye, HiOutlinePrinter } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { invoiceMockData } from '../../mockData/invoiceData';
+import { invoiceMockData, type Invoice } from '../../mockData/invoiceData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInvoicesColumns, invoicesAllColumnKeys as allColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getInvoicesColumns, getActionBodyTemplate, invoicesAllColumnKeys as allColumns } from '../../common/commonFunctions/CommonUtilities';
 import './Invoices.css';
 
 const Invoices = () => {
@@ -25,6 +25,8 @@ const Invoices = () => {
     }, [filters]);
 
     const columns = getInvoicesColumns(visibleColumns);
+
+    const actionTemplate = getActionBodyTemplate<Invoice>({ icons: [{ icon: HiOutlineEye }, { icon: HiOutlinePrinter }] });
 
     return (
         <div className="invoices-page">
@@ -51,7 +53,7 @@ const Invoices = () => {
                 }
             />
 
-            <DataTable value={filteredInvoices} columns={columns} />
+            <DataTable value={filteredInvoices} columns={columns} actionBodyTemplate={actionTemplate} />
         </div>
     );
 };

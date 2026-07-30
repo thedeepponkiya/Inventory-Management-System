@@ -15,7 +15,7 @@ import { skuMockData, type Sku } from '../../mockData/skuData';
 import { categoryMockData } from '../../mockData/categoryData';
 import { locationMockData } from '../../mockData/locationData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getRawSkuColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getRawSkuColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
@@ -91,9 +91,11 @@ const RawSku = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    const columns = getRawSkuColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getRawSkuColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<Sku>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="sku-master-page">
@@ -107,7 +109,7 @@ const RawSku = () => {
                 actions={<Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredSkus} columns={columns} />
+            <DataTable value={filteredSkus} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

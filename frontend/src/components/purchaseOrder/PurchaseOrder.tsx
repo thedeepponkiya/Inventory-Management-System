@@ -13,7 +13,7 @@ import { purchaseOrderMockData, type PurchaseOrder as PurchaseOrderType, type Pu
 import { locationMockData } from '../../mockData/locationData';
 import { supplierMockData } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getPurchaseOrderColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getPurchaseOrderColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './PurchaseOrder.css';
 
@@ -102,9 +102,11 @@ const PurchaseOrder = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
+    const columns = getPurchaseOrderColumns();
+
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getPurchaseOrderColumns(openEditDialog, handleDelete);
+    const actionTemplate = getActionBodyTemplate<PurchaseOrderType>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="purchase-order-page">
@@ -118,7 +120,7 @@ const PurchaseOrder = () => {
                 actions={<Button label="Add Purchase Order" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredPurchaseOrders} columns={columns} />
+            <DataTable value={filteredPurchaseOrders} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

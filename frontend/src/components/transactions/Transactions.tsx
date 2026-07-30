@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
+import { HiOutlineEye } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { transactionMockData } from '../../mockData/transactionData';
+import { transactionMockData, type Transaction } from '../../mockData/transactionData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getTransactionsColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getTransactionsColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import './Transactions.css';
 
 const Transactions = () => {
@@ -29,6 +30,8 @@ const Transactions = () => {
 
     const columns = getTransactionsColumns();
 
+    const actionTemplate = getActionBodyTemplate<Transaction>({ icons: [{ icon: HiOutlineEye }] });
+
     return (
         <div className="transactions-page">
             <FilterBar
@@ -38,7 +41,7 @@ const Transactions = () => {
                 onReset={() => setFilters({ type: DEFAULT_DATA_TYPE_VALUE.NULL, referenceNo: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, locationName: DEFAULT_DATA_TYPE_VALUE.NULL, search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
             />
 
-            <DataTable value={filteredTransactions} columns={columns} />
+            <DataTable value={filteredTransactions} columns={columns} actionBodyTemplate={actionTemplate} />
         </div>
     );
 };
