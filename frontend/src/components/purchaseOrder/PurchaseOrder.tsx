@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { PurchaseOrder as PurchaseOrderType, PurchaseOrderStatus } from '../../mockData/purchaseOrderData';
+import { purchaseOrderMockData, type PurchaseOrder as PurchaseOrderType, type PurchaseOrderStatus } from '../../mockData/purchaseOrderData';
+import { locationMockData } from '../../mockData/locationData';
+import { supplierMockData } from '../../mockData/materialInwardData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getPurchaseOrderColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getPurchaseOrderColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './PurchaseOrder.css';
 
 const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Approved', 'Received', 'Cancelled'];
@@ -27,7 +30,8 @@ const emptyForm: Omit<PurchaseOrderType, 'id' | 'poNumber' | 'createdBy'> = {
 };
 
 const PurchaseOrder = () => {
-    const { purchaseOrders, locations, materialInwardOptions, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder } = useDataContext();
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderType[]>(purchaseOrderMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, status: DEFAULT_DATA_TYPE_VALUE.NULL });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -41,12 +45,12 @@ const PurchaseOrder = () => {
     const filteredPurchaseOrders = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
         const status = filters.status as string | null;
-        return purchaseOrders.data.filter((po) => {
+        return purchaseOrders.filter((po) => {
             const matchesSearch = !search || po.poNumber.toLowerCase().includes(search) || po.supplierName.toLowerCase().includes(search);
             const matchesStatus = !status || po.status === status;
             return matchesSearch && matchesStatus;
         });
-    }, [purchaseOrders.data, filters]);
+    }, [purchaseOrders, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -75,26 +79,39 @@ const PurchaseOrder = () => {
             header: 'Delete Purchase Order',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deletePurchaseOrder(po.id),
+            accept: () => {
+                setPurchaseOrders((prev) => prev.filter((item) => item.id !== po.id));
+                showToast(toast, 'success', 'Deleted', 'Purchase order deleted successfully');
+            },
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         const payload = { ...form, date: formatDate(orderDate ?? new Date()) };
         if (editingId) {
-            await updatePurchaseOrder(editingId, payload);
+            setPurchaseOrders((prev) => prev.map((po) => (po.id === editingId ? { ...po, ...payload } : po)));
+            showToast(toast, 'success', 'Updated', 'Purchase order updated successfully');
         } else {
-            await createPurchaseOrder({ ...payload, createdBy: 'Admin User' });
+            const nextSeq = purchaseOrders.length + 1;
+            const created: PurchaseOrderType = { id: `PO-${nextSeq}`, poNumber: `PO-2025-${String(nextSeq).padStart(6, '0')}`, createdBy: 'Admin User', ...payload };
+            setPurchaseOrders((prev) => [...prev, created]);
+            showToast(toast, 'success', 'Created', 'Purchase order created successfully');
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
-    const columns = getPurchaseOrderColumns(openEditDialog, handleDelete);
+    const columns = getPurchaseOrderColumns();
+
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
+    const actionTemplate = getActionBodyTemplate<PurchaseOrderType>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="purchase-order-page">
+            <Toast ref={toast} />
+
             <FilterBar
                 fields={filterFields}
                 values={filters}
@@ -103,7 +120,7 @@ const PurchaseOrder = () => {
                 actions={<Button label="Add Purchase Order" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
             />
 
-            <DataTable value={filteredPurchaseOrders} columns={columns} loading={purchaseOrders.loading} />
+            <DataTable value={filteredPurchaseOrders} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}
@@ -127,7 +144,7 @@ const PurchaseOrder = () => {
                         <Dropdown
                             value={form.supplierName}
                             onChange={(e) => setForm({ ...form, supplierName: e.value })}
-                            options={materialInwardOptions.data.suppliers}
+                            options={supplierMockData}
                             placeholder="Select supplier"
                         />
                     </div>
@@ -136,7 +153,7 @@ const PurchaseOrder = () => {
                         <Dropdown
                             value={form.locationName}
                             onChange={(e) => setForm({ ...form, locationName: e.value })}
-                            options={locations.data.map((l) => ({ label: l.name, value: l.name }))}
+                            options={locationMockData.map((l) => ({ label: l.name, value: l.name }))}
                             placeholder="Select location"
                         />
                     </div>

@@ -10,6 +10,7 @@ import {
     HiOutlineClipboardDocumentList,
     HiOutlineFolder,
     HiOutlineTag,
+    HiOutlineBuildingStorefront,
     HiOutlineListBullet,
     HiOutlineDocumentText,
     HiOutlineChartBar,
@@ -40,6 +41,7 @@ const navGroups = [
             { label: 'Locations', path: '/locations', icon: HiOutlineMapPin },
             { label: 'Category', path: '/category', icon: HiOutlineFolder },
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
+            { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
         ],
     },
     {

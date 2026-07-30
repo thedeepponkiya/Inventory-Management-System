@@ -28,6 +28,8 @@ function resolveColumnBody<T>(col: ColumnConfig<T>): ((row: T) => React.ReactNod
 interface AppDataTableProps<T> {
     value: T[];
     columns: ColumnConfig<T>[];
+    actionBodyTemplate?: (row: T) => React.ReactNode;
+    actionHeader?: string;
     rows?: number;
     paginator?: boolean;
     emptyMessage?: string;
@@ -48,7 +50,7 @@ function buildDefaultFilters<T>(columns: ColumnConfig<T>[]): DataTableFilterMeta
     return filters;
 }
 
-function DataTable<T extends object>({ value, columns, rows = 10, paginator = true, emptyMessage = 'No records found.', loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
+function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', rows = 10, paginator = true, emptyMessage = 'No records found.', loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
 
     return (
@@ -72,6 +74,9 @@ function DataTable<T extends object>({ value, columns, rows = 10, paginator = tr
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
         >
+            {actionBodyTemplate && (
+                <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} style={{ width: '80px' }} />
+            )}
             {columns.map((col) => (
                 <Column
                     key={col.key ?? col.field}

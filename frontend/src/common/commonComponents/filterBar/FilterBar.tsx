@@ -4,7 +4,6 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import {
-    HiOutlineArrowPath,
     HiOutlineFunnel,
     HiOutlineHome,
     HiOutlineTruck,
@@ -12,7 +11,6 @@ import {
     HiOutlineClipboardDocumentList,
 } from 'react-icons/hi2';
 import { MdFilterAltOff } from 'react-icons/md';
-import { useDataContext } from '../../../context/DataContext';
 import './FilterBar.css';
 
 export interface FilterOption {
@@ -44,7 +42,6 @@ const quickActions = [
 ];
 
 const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProps) => {
-    const { refetch } = useDataContext();
     const searchFields = fields.filter((field) => field.type === 'search');
     const otherFields = fields.filter((field) => field.type !== 'search');
 
@@ -107,8 +104,6 @@ const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProp
                 {onReset && (
                     <Button icon={<MdFilterAltOff />} outlined size="small" onClick={onReset} aria-label="Clear filters" />
                 )}
-
-                <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={() => refetch()} aria-label="Refresh" />
             </div>
         </div>
     );

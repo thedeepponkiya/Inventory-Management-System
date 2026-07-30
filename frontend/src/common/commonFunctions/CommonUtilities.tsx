@@ -4,13 +4,10 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
 import {
-    HiOutlinePencil,
+    HiOutlinePencilSquare,
     HiOutlineTrash,
     HiOutlineEye,
     HiOutlineCube,
-    HiOutlinePrinter,
-    HiOutlineArrowDownOnSquare,
-    HiOutlineEnvelope,
 } from 'react-icons/hi2';
 import StatusBadge from '../commonComponents/statusBadge/StatusBadge';
 import type { StatusVariant } from '../commonComponents/statusBadge/StatusBadge';
@@ -18,9 +15,11 @@ import type { ColumnConfig } from '../commonComponents/dataTable/DataTable';
 import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
 
 import type { Sku } from '../../mockData/skuData';
-import type { Location as LocationType } from '../../mockData/locationData';
+import type { Location as LocationType } from '../../services/locationService';
+import type { Category as CategoryRecord } from '../../services/categoryService';
 import type { Category as CategoryType } from '../../mockData/categoryData';
-import type { ProductType as ProductTypeModel } from '../../mockData/productTypeData';
+import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
+import type { Vendor } from '../../services/vendorService';
 import type { User } from '../../mockData/userData';
 import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
 import type { RecentInward } from '../../mockData/materialInwardData';
@@ -40,7 +39,7 @@ import type { PurchaseOrder, PurchaseOrderStatus } from '../../mockData/purchase
 // Below that, this file also holds one getXColumns() per page's DataTable, so
 // the `columns` array itself lives here too instead of inline per page.
 
-export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'action' | 'badgeCount' | 'signedQuantity';
+export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'badgeCount' | 'signedQuantity';
 
 export interface StatusBodyOptions {
     activeValue?: string;
@@ -87,7 +86,6 @@ export type FieldTypeOptions<T> =
     | CurrencyBodyOptions
     | ImageBodyOptions<T>
     | BadgeCountBodyOptions
-    | ActionBodyOptions<T>
     | SignedQuantityBodyOptions<T>;
 
 export type RowDataColumn<T> =
@@ -96,7 +94,6 @@ export type RowDataColumn<T> =
     | { field: keyof T; fieldType: 'currency'; options?: CurrencyBodyOptions }
     | { field: keyof T; fieldType: 'image'; options?: ImageBodyOptions<T> }
     | { field: keyof T; fieldType: 'badgeCount'; options: BadgeCountBodyOptions }
-    | { field: keyof T; fieldType: 'action'; options: ActionBodyOptions<T> }
     | { field: keyof T; fieldType: 'signedQuantity'; options: SignedQuantityBodyOptions<T> };
 
 // -- plain-text resolvers: single source of truth for both the tooltip and, --
@@ -162,8 +159,8 @@ function renderAction<T>(rowData: T, options: ActionBodyOptions<T>): ReactNode {
     return (
         <div className="data-table-actions">
             {options.onView && <HiOutlineEye size={16} onClick={() => options.onView?.(rowData)} />}
-            {options.onEdit && <HiOutlinePencil size={16} onClick={() => options.onEdit?.(rowData)} />}
-            {options.onDelete && <HiOutlineTrash size={16} onClick={() => options.onDelete?.(rowData)} />}
+            {options.onEdit && <HiOutlinePencilSquare size={16} onClick={() => options.onEdit?.(rowData)} />}
+            {options.onDelete && <HiOutlineTrash size={16} color="#dc2626" onClick={() => options.onDelete?.(rowData)} />}
             {options.icons?.map(({ icon: Icon, title, onClick }, index) => (
                 <Icon key={index} size={16} title={title} onClick={onClick ? () => onClick(rowData) : undefined} />
             ))}
@@ -212,8 +209,6 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return getBadgeCountText(rowData, col.field, col.options);
             case 'signedQuantity':
                 return getSignedQuantityText(rowData, col.field, col.options);
-            case 'action':
-                return DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
             default:
                 return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         }
@@ -227,8 +222,6 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return getCurrencyText(rowData, col.field, col.options);
             case 'image':
                 return renderImage(rowData, col.field, col.options);
-            case 'action':
-                return renderAction(rowData, col.options);
             case 'badgeCount':
                 return renderBadgeCount(rowData, col.field, col.options);
             case 'signedQuantity':
@@ -254,6 +247,15 @@ export function getColumnBodyTemplate<T>(col: RowDataColumn<T>): (row: T) => Rea
     return (row: T) => getRowData(row, col);
 }
 
+/**
+ * Builds the action body template (edit/delete/view/custom icons) for a page's
+ * DataTable. The page passes the result straight to <DataTable actionBodyTemplate={...} />
+ * instead of embedding an action column inside its `columns` array.
+ */
+export function getActionBodyTemplate<T>(options: ActionBodyOptions<T>): (row: T) => ReactNode {
+    return (row: T) => renderAction(row, options);
+}
+
 // =====================================================================================
 // Per-page column definitions. Each page hands over just the callbacks/live data it
 // owns; the shape of the `columns` array itself lives here so every table's structure
@@ -264,7 +266,7 @@ export function getColumnBodyTemplate<T>(col: RowDataColumn<T>): (row: T) => Rea
 // no generic fieldType equivalent since it's bound to per-row update callbacks.
 // =====================================================================================
 
-export const getRawSkuColumns = (onEdit: (row: Sku) => void, onDelete: (row: Sku) => void): ColumnConfig<Sku>[] => [
+export const getRawSkuColumns = (): ColumnConfig<Sku>[] => [
     { field: 'code', header: 'SKU Code', fieldType: 'text' },
     { field: 'name', header: 'SKU Name', fieldType: 'text' },
     { field: 'categoryName', header: 'Category (Box)', fieldType: 'text' },
@@ -273,39 +275,44 @@ export const getRawSkuColumns = (onEdit: (row: Sku) => void, onDelete: (row: Sku
     { field: 'currentStock', header: 'Current Stock', fieldType: 'text' },
     { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getLocationsColumns = (onEdit: (row: LocationType) => void, onDelete: (row: LocationType) => void): ColumnConfig<LocationType>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Location', fieldType: 'text' },
+export const getLocationsColumns = (): ColumnConfig<LocationType>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+    { field: 'location', header: 'Location', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getCategoryColumns = (onEdit: (row: CategoryType) => void, onDelete: (row: CategoryType) => void): ColumnConfig<CategoryType>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Category', fieldType: 'text' },
+export const getCategoryColumns = (): ColumnConfig<CategoryRecord>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+    { field: 'category', header: 'Category', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getProductTypeColumns = (onEdit: (row: ProductTypeModel) => void, onDelete: (row: ProductTypeModel) => void): ColumnConfig<ProductTypeModel>[] => [
-    { field: 'code', header: 'ID', fieldType: 'text' },
-    { field: 'name', header: 'Product Type', fieldType: 'text' },
+export const getProductTypeColumns = (): ColumnConfig<ProductTypeModel>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+    { field: 'productType', header: 'Product Type', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getUsersColumns = (onEdit: (row: User) => void, onDelete: (row: User) => void): ColumnConfig<User>[] => [
+export const getVendorColumns = (): ColumnConfig<Vendor>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+    { field: 'vendorName', header: 'Vendor Name', fieldType: 'text' },
+    { field: 'email', header: 'Email', fieldType: 'text' },
+    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text' },
+    { field: 'address', header: 'Address', fieldType: 'text' },
+    { field: 'city', header: 'City', fieldType: 'text' },
+    { field: 'zipCode', header: 'Zip Code', fieldType: 'text' },
+];
+
+export const getUsersColumns = (): ColumnConfig<User>[] => [
     { field: 'name', header: 'Name', fieldType: 'text' },
     { field: 'email', header: 'Email', fieldType: 'text' },
     { field: 'role', header: 'Role', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
-export const getInventoryHomeColumns = (onEdit: (row: InventoryItem) => void, onDelete: (row: InventoryItem) => void): ColumnConfig<InventoryItem>[] => [
+export const getInventoryHomeColumns = (): ColumnConfig<InventoryItem>[] => [
     { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName' } },
     { field: 'skuId', header: 'SKU (ID)', fieldType: 'text' },
     { field: 'productName', header: 'Product Name', fieldType: 'text' },
@@ -319,14 +326,13 @@ export const getInventoryHomeColumns = (onEdit: (row: InventoryItem) => void, on
     { field: 'unitCost', header: 'Unit Cost (Rs.)', fieldType: 'currency' },
     { field: 'createdDate', header: 'Created Date', fieldType: 'text' },
     { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
-    { field: 'id', key: 'action', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
 export interface AssemblyRow extends AssemblyLine {
     rowId: number;
 }
 
-export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: Sku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void, onRemoveRow: (rowId: number) => void): ColumnConfig<AssemblyRow>[] => [
+export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: Sku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void): ColumnConfig<AssemblyRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -357,16 +363,6 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
             <InputNumber value={row.quantity} onValueChange={(e) => onUpdateRow(row.rowId, { quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} inputClassName="inventory-home-assembly-qty" />
         ),
     },
-    {
-        field: 'rowId',
-        key: 'action',
-        header: 'Action',
-        body: (row) => (
-            <div className="data-table-actions">
-                <HiOutlineTrash size={16} onClick={() => onRemoveRow(row.rowId)} />
-            </div>
-        ),
-    },
 ];
 
 export interface InwardItem {
@@ -378,7 +374,7 @@ export interface InwardItem {
     unitPrice: number;
 }
 
-export const getMaterialInwardItemColumns = (items: InwardItem[], categoriesData: CategoryType[], skusData: Sku[], onUpdateItem: (id: number, patch: Partial<InwardItem>) => void, onRemoveItem: (id: number) => void): ColumnConfig<InwardItem>[] => [
+export const getMaterialInwardItemColumns = (items: InwardItem[], categoriesData: CategoryType[], skusData: Sku[], onUpdateItem: (id: number, patch: Partial<InwardItem>) => void): ColumnConfig<InwardItem>[] => [
     {
         field: 'id',
         key: 'index',
@@ -447,16 +443,6 @@ export const getMaterialInwardItemColumns = (items: InwardItem[], categoriesData
         header: 'Total (Rs.)',
         body: (row) => (row.qty * row.unitPrice).toFixed(2),
     },
-    {
-        field: 'id',
-        key: 'action',
-        header: 'Action',
-        body: (row) => (
-            <div className="data-table-actions">
-                <HiOutlineTrash size={16} onClick={() => onRemoveItem(row.id)} />
-            </div>
-        ),
-    },
 ];
 
 const inwardPaymentStatusVariant: Record<string, StatusVariant> = {
@@ -489,7 +475,6 @@ export const getTransactionsColumns = (): ColumnConfig<Transaction>[] => [
     { field: 'unit', header: 'Unit', fieldType: 'text' },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { icons: [{ icon: HiOutlineEye }] } },
 ];
 
 const invoiceStatusVariant: Record<InvoiceStatus, StatusVariant> = {
@@ -517,10 +502,7 @@ export const getInvoicesColumns = (visibleColumns: string[]): ColumnConfig<Invoi
         { field: 'createdBy', header: 'Created By', key: 'Created By', fieldType: 'text' },
     ];
 
-    return [
-        ...allPossibleColumns.filter((col) => visibleColumns.includes(col.key)),
-        { field: 'id', header: 'Action', fieldType: 'action', options: { icons: [{ icon: HiOutlineEye }, { icon: HiOutlinePrinter }] } },
-    ];
+    return allPossibleColumns.filter((col) => visibleColumns.includes(col.key));
 };
 
 const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
@@ -531,7 +513,7 @@ const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
     Cancelled: 'danger',
 };
 
-export const getPurchaseOrderColumns = (onEdit: (row: PurchaseOrder) => void, onDelete: (row: PurchaseOrder) => void): ColumnConfig<PurchaseOrder>[] => [
+export const getPurchaseOrderColumns = (): ColumnConfig<PurchaseOrder>[] => [
     { field: 'poNumber', header: 'PO Number', fieldType: 'text' },
     { field: 'date', header: 'Date', fieldType: 'text' },
     { field: 'supplierName', header: 'Supplier', fieldType: 'text' },
@@ -539,7 +521,6 @@ export const getPurchaseOrderColumns = (onEdit: (row: PurchaseOrder) => void, on
     { field: 'totalAmount', header: 'Total Amount (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant } },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { onEdit, onDelete } },
 ];
 
 export const getReportsColumns = (): ColumnConfig<RecentReport>[] => [
@@ -548,5 +529,4 @@ export const getReportsColumns = (): ColumnConfig<RecentReport>[] => [
     { field: 'generatedOn', header: 'Generated On', fieldType: 'text' },
     { field: 'generatedBy', header: 'Generated By', fieldType: 'text' },
     { field: 'format', header: 'Format', fieldType: 'status', options: { variantMap: { PDF: 'danger', Excel: 'success' } } },
-    { field: 'id', header: 'Action', fieldType: 'action', options: { icons: [{ icon: HiOutlineArrowDownOnSquare }, { icon: HiOutlineEnvelope }] } },
 ];

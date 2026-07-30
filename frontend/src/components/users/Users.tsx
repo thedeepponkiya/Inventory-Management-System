@@ -1,18 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import PageHeader from '../../common/commonComponents/pageHeader/PageHeader';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { useDataContext } from '../../context/DataContext';
-import type { User } from '../../mockData/userData';
+import { userMockData, type User } from '../../mockData/userData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getUsersColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getUsersColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
 import './Users.css';
 
 const roles: User['role'][] = ['Administrator', 'Store Manager', 'Warehouse Staff', 'Accountant'];
@@ -20,7 +21,8 @@ const roles: User['role'][] = ['Administrator', 'Store Manager', 'Warehouse Staf
 const emptyForm: Omit<User, 'id'> = { name: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, email: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, role: 'Warehouse Staff', status: 'Active' };
 
 const Users = () => {
-    const { users, createUser, updateUser, deleteUser } = useDataContext();
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [users, setUsers] = useState<User[]>(userMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, role: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -45,13 +47,13 @@ const Users = () => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
         const role = filters.role as string | null;
         const status = filters.status as string | null;
-        return users.data.filter((user) => {
+        return users.filter((user) => {
             const matchesSearch = !search || user.name.toLowerCase().includes(search) || user.email.toLowerCase().includes(search);
             const matchesRole = !role || user.role === role;
             const matchesStatus = !status || user.status === status;
             return matchesSearch && matchesRole && matchesStatus;
         });
-    }, [users.data, filters]);
+    }, [users, filters]);
 
     const openAddDialog = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -76,25 +78,37 @@ const Users = () => {
             header: 'Delete User',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => deleteUser(user.id),
+            accept: () => {
+                setUsers((prev) => prev.filter((item) => item.id !== user.id));
+                showToast(toast, 'success', 'Deleted', 'User deleted successfully');
+            },
         });
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (editingId) {
-            await updateUser(editingId, form);
+            setUsers((prev) => prev.map((user) => (user.id === editingId ? { ...user, ...form } : user)));
+            showToast(toast, 'success', 'Updated', 'User updated successfully');
         } else {
-            await createUser(form);
+            const nextId = `USR-${String(users.length + 1).padStart(3, '0')}`;
+            setUsers((prev) => [...prev, { id: nextId, ...form }]);
+            showToast(toast, 'success', 'Created', 'User created successfully');
         }
         setForm(emptyForm);
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
-    const columns = getUsersColumns(openEditDialog, handleDelete);
+    const columns = getUsersColumns();
+
+    // toast.current is only read inside handleDelete's own click callback, never during render
+    // eslint-disable-next-line react-hooks/refs
+    const actionTemplate = getActionBodyTemplate<User>({ onEdit: openEditDialog, onDelete: handleDelete });
 
     return (
         <div className="users-page">
+            <Toast ref={toast} />
+
             <PageHeader actions={<Button label="Add User" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />} />
 
             <FilterBar
@@ -104,7 +118,7 @@ const Users = () => {
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, role: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL })}
             />
 
-            <DataTable value={filteredUsers} columns={columns} loading={users.loading} />
+            <DataTable value={filteredUsers} columns={columns} actionBodyTemplate={actionTemplate} />
 
             <Dialog
                 visible={panelVisible}

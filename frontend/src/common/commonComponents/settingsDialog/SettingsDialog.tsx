@@ -7,7 +7,7 @@ import { SelectButton } from 'primereact/selectbutton';
 import { FileUpload, type FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush } from 'react-icons/hi2';
-import { useDataContext } from '../../../context/DataContext';
+import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import './SettingsDialog.css';
 
@@ -26,39 +26,22 @@ interface SettingsDialogProps {
 }
 
 const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
-    const { settings, updateSettings } = useDataContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [activeTab, setActiveTab] = useState<TabKey>('general');
-    const [companyName, setCompanyName] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [address, setAddress] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [gstNumber, setGstNumber] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [invoicePrefix, setInvoicePrefix] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [financialYear, setFinancialYear] = useState('2025-2026');
-    const [theme, setTheme] = useState('Light');
+    const [companyName, setCompanyName] = useState(settingsMockData.companyName);
+    const [address, setAddress] = useState(settingsMockData.address);
+    const [gstNumber, setGstNumber] = useState(settingsMockData.gstNumber);
+    const [invoicePrefix, setInvoicePrefix] = useState(settingsMockData.invoicePrefix);
+    const [financialYear, setFinancialYear] = useState(settingsMockData.financialYear);
+    const [theme, setTheme] = useState(settingsMockData.theme);
     const [logoPreview, setLogoPreview] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-
-    // useState's initializer only runs on first mount, so once settings.data resolves
-    // (or is updated by a save) these fields must be reseeded. Adjusted during render
-    // (React's recommended pattern for this), not in a useEffect, to avoid an extra
-    // render pass.
-    const [syncedSettingsData, setSyncedSettingsData] = useState(settings.data);
-    if (settings.data !== syncedSettingsData) {
-        setSyncedSettingsData(settings.data);
-        setCompanyName(settings.data.companyName);
-        setAddress(settings.data.address);
-        setGstNumber(settings.data.gstNumber);
-        setInvoicePrefix(settings.data.invoicePrefix);
-        setFinancialYear(settings.data.financialYear);
-        setTheme(settings.data.theme);
-    }
 
     const handleLogoSelect = (event: FileUploadHandlerEvent) => {
         const file = event.files[0];
         if (file) setLogoPreview(URL.createObjectURL(file));
     };
 
-    const handleSave = async () => {
-        await updateSettings({ companyName, address, gstNumber, invoicePrefix, financialYear, theme });
+    const handleSave = () => {
         toast.current?.show({ severity: 'success', summary: 'Settings saved', life: 3000 });
     };
 

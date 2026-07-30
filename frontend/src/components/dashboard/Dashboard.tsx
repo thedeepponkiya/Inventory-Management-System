@@ -13,24 +13,25 @@ import { MdOutlineDonutLarge, MdOutlinePieChart, MdOutlineBarChart } from 'react
 import { KpiCardRow } from '../../common/commonComponents/kpiCard/KpiCard';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../common/commonComponents/statusBadge/StatusBadge';
-import { useDataContext } from '../../context/DataContext';
+import { dashboardKpiMockData, stockOverviewLabels, stockOverviewSeriesMockData, lowStockAlertsMockData } from '../../mockData/dashboardData';
+import { transactionMockData } from '../../mockData/transactionData';
+import { inventoryHomeMockData } from '../../mockData/inventoryHomeData';
 import './Dashboard.css';
 
 const pieColors = ['#93c5fd', '#86efac', '#fcd34d', '#c4b5fd', '#fca5a5', '#7dd3fc', '#fdba74', '#f9a8d4', '#cbd5e1'];
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { dashboard, transactions, inventoryHomeItems } = useDataContext();
     const [monthFilter, setMonthFilter] = useState('This Month');
     const [distributionView, setDistributionView] = useState<'donut' | 'pie' | 'bar'>('donut');
 
     const chartData = useMemo(
         () => ({
-            labels: dashboard.data.stockOverviewLabels,
+            labels: stockOverviewLabels,
             datasets: [
                 {
                     label: 'Inward',
-                    data: dashboard.data.stockOverviewSeries.inward,
+                    data: stockOverviewSeriesMockData.inward,
                     borderColor: '#86efac',
                     backgroundColor: 'rgba(134, 239, 172, 0.15)',
                     tension: 0.4,
@@ -38,7 +39,7 @@ const Dashboard = () => {
                 },
                 {
                     label: 'Issued',
-                    data: dashboard.data.stockOverviewSeries.issued,
+                    data: stockOverviewSeriesMockData.issued,
                     borderColor: '#fca5a5',
                     backgroundColor: 'rgba(252, 165, 165, 0.15)',
                     tension: 0.4,
@@ -46,7 +47,7 @@ const Dashboard = () => {
                 },
                 {
                     label: 'Available',
-                    data: dashboard.data.stockOverviewSeries.available,
+                    data: stockOverviewSeriesMockData.available,
                     borderColor: '#93c5fd',
                     backgroundColor: 'rgba(147, 197, 253, 0.15)',
                     tension: 0.4,
@@ -54,7 +55,7 @@ const Dashboard = () => {
                 },
             ],
         }),
-        [dashboard.data],
+        [],
     );
 
     const chartOptions = {
@@ -68,11 +69,11 @@ const Dashboard = () => {
 
     const locationEntries = useMemo(() => {
         const totals = new Map<string, number>();
-        inventoryHomeItems.data.forEach((item) => {
+        inventoryHomeMockData.forEach((item) => {
             totals.set(item.locationName, (totals.get(item.locationName) ?? 0) + 1);
         });
         return Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
-    }, [inventoryHomeItems.data]);
+    }, []);
 
     const locationColors = useMemo(
         () => locationEntries.map((_, index) => pieColors[index % pieColors.length]),
@@ -210,10 +211,10 @@ const Dashboard = () => {
             <KpiCardRow
                 columns={4}
                 items={[
-                    { icon: HiOutlineCube, iconBg: '#dbeafe', iconColor: '#2563eb', label: 'Total SKUs', value: dashboard.data.kpis.totalSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/sku-master') },
-                    { icon: HiOutlineClipboardDocumentCheck, iconBg: '#dcfce7', iconColor: '#16a34a', label: 'Total Stock Value', value: `Rs. ${dashboard.data.kpis.totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View stock value', onClick: () => navigate('/reports') },
-                    { icon: HiOutlineSquares2X2, iconBg: '#ede9fe', iconColor: '#7c3aed', label: 'Total Kits', value: dashboard.data.kpis.totalKits, sublabel: 'All configured kits', linkLabel: 'View all kits', onClick: () => navigate('/home') },
-                    { icon: HiOutlineShoppingCart, iconBg: '#ffedd5', iconColor: '#ea580c', label: 'Kits Issued (This Month)', value: dashboard.data.kpis.kitsIssuedThisMonth, sublabel: `Till now in ${currentMonthLabel}`, linkLabel: 'View transactions', onClick: () => navigate('/transactions') },
+                    { icon: HiOutlineCube, iconBg: '#dbeafe', iconColor: '#2563eb', label: 'Total SKUs', value: dashboardKpiMockData.totalSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/sku-master') },
+                    { icon: HiOutlineClipboardDocumentCheck, iconBg: '#dcfce7', iconColor: '#16a34a', label: 'Total Stock Value', value: `Rs. ${dashboardKpiMockData.totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View stock value', onClick: () => navigate('/reports') },
+                    { icon: HiOutlineSquares2X2, iconBg: '#ede9fe', iconColor: '#7c3aed', label: 'Total Kits', value: dashboardKpiMockData.totalKits, sublabel: 'All configured kits', linkLabel: 'View all kits', onClick: () => navigate('/home') },
+                    { icon: HiOutlineShoppingCart, iconBg: '#ffedd5', iconColor: '#ea580c', label: 'Kits Issued (This Month)', value: dashboardKpiMockData.kitsIssuedThisMonth, sublabel: `Till now in ${currentMonthLabel}`, linkLabel: 'View transactions', onClick: () => navigate('/transactions') },
                 ]}
             />
 
@@ -268,7 +269,7 @@ const Dashboard = () => {
                             <h2>Recent Transactions</h2>
                             <span className="dashboard-card-link" onClick={() => navigate('/transactions')}>View all</span>
                         </div>
-                        <DataTable value={transactions.data.slice(0, 5)} columns={recentTransactionColumns} paginator={false} loading={transactions.loading} />
+                        <DataTable value={transactionMockData.slice(0, 5)} columns={recentTransactionColumns} paginator={false} />
                     </div>
                 </div>
 
@@ -279,7 +280,7 @@ const Dashboard = () => {
                             <span className="dashboard-card-link" onClick={() => navigate('/sku-master')}>View all</span>
                         </div>
                         <div className="dashboard-low-stock-list">
-                            {dashboard.data.lowStockAlerts.map((item) => {
+                            {lowStockAlertsMockData.map((item) => {
                                 const ratio = Math.min(100, (item.currentStock / item.minStock) * 100);
                                 return (
                                     <div className="dashboard-low-stock-item" key={item.id}>
