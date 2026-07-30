@@ -19,6 +19,7 @@ import type { Location as LocationType } from '../../services/locationService';
 import type { Category as CategoryRecord } from '../../services/categoryService';
 import type { Category as CategoryType } from '../../mockData/categoryData';
 import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
+import type { Vendor } from '../../services/vendorService';
 import type { User } from '../../mockData/userData';
 import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
 import type { RecentInward } from '../../mockData/materialInwardData';
@@ -292,6 +293,16 @@ export const getProductTypeColumns = (): ColumnConfig<ProductTypeModel>[] => [
     { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
     { field: 'productType', header: 'Product Type', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
+];
+
+export const getVendorColumns = (): ColumnConfig<Vendor>[] => [
+    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+    { field: 'vendorName', header: 'Vendor Name', fieldType: 'text' },
+    { field: 'email', header: 'Email', fieldType: 'text' },
+    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text' },
+    { field: 'address', header: 'Address', fieldType: 'text' },
+    { field: 'city', header: 'City', fieldType: 'text' },
+    { field: 'zipCode', header: 'Zip Code', fieldType: 'text' },
 ];
 
 export const getUsersColumns = (): ColumnConfig<User>[] => [

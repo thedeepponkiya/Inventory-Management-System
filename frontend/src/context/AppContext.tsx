@@ -4,6 +4,7 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { getLocations, type Location } from '../services/locationService';
 import { getCategories, type Category } from '../services/categoryService';
 import { getProductTypes, type ProductType } from '../services/productTypeService';
+import { getVendors, type Vendor } from '../services/vendorService';
 
 export const AppContext = createContext<any>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
@@ -15,6 +16,8 @@ const AppContextProvider = (props: any) => {
     const [categoriesLoading, setCategoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [productTypes, setProductTypes] = React.useState<ProductType[]>([]);
     const [productTypesLoading, setProductTypesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [vendors, setVendors] = React.useState<Vendor[]>([]);
+    const [vendorsLoading, setVendorsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -37,11 +40,19 @@ const AppContextProvider = (props: any) => {
             .finally(() => setProductTypesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchVendors = React.useCallback(() => {
+        getVendors()
+            .then((data) => setVendors(data))
+            .catch(() => setVendors([]))
+            .finally(() => setVendorsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
         fetchProductTypes();
-    }, [fetchLocations, fetchCategories, fetchProductTypes]);
+        fetchVendors();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors]);
 
     return (
         <>
@@ -58,6 +69,9 @@ const AppContextProvider = (props: any) => {
                     productTypes,
                     productTypesLoading,
                     fetchProductTypes,
+                    vendors,
+                    vendorsLoading,
+                    fetchVendors,
                 }}>
                 {props.children}
             </AppContext.Provider >

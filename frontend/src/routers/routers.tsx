@@ -7,6 +7,7 @@ import RawSku from '../components/rawSku/RawSku';
 import Locations from '../components/locations/Locations';
 import Category from '../components/category/Category';
 import ProductType from '../components/productType/ProductType';
+import Vendor from '../components/vendor/Vendor';
 import InventoryHome from '../components/inventory/InventoryHome';
 import Transactions from '../components/transactions/Transactions';
 import Invoices from '../components/invoices/Invoices';
@@ -47,6 +48,7 @@ const AppRoutes = () => {
                         <Route path='/locations' element={<Locations />}></Route>
                         <Route path='/category' element={<Category />}></Route>
                         <Route path='/product-type' element={<ProductType />}></Route>
+                        <Route path='/vendor' element={<Vendor />}></Route>
                         <Route path='/home' element={<InventoryHome />}></Route>
                         <Route path='/transactions' element={<Transactions />}></Route>
                         <Route path='/invoices' element={<Invoices />}></Route>

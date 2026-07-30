@@ -34,3 +34,15 @@ CREATE TABLE IF NOT EXISTS ims_product_type (
     status VARCHAR(20) NOT NULL DEFAULT 'Active'
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_product_type_lower_idx ON ims_product_type (LOWER("productType"));
+
+-- Vendors master, backing /api/v1/vendors CRUD.
+CREATE TABLE IF NOT EXISTS ims_vendor (
+    id SERIAL PRIMARY KEY,
+    "vendorName" VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    "phoneNumber" VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    "zipCode" VARCHAR(20)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ims_vendor_vendorname_lower_idx ON ims_vendor (LOWER("vendorName"));
