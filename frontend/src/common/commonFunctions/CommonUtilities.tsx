@@ -26,7 +26,7 @@ import type { RecentInward } from '../../mockData/materialInwardData';
 import type { Transaction, TransactionType } from '../../mockData/transactionData';
 import type { Invoice, InvoiceStatus } from '../../mockData/invoiceData';
 import type { RecentReport } from '../../mockData/reportData';
-import type { PurchaseOrder, PurchaseOrderStatus } from '../../mockData/purchaseOrderData';
+import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../../services/purchaseOrderService';
 
 // Every DataTable column body in the app boils down to a handful of shapes
 // (status pill, currency, thumbnail, edit/delete icons, "N items" badge, plain
@@ -514,13 +514,35 @@ const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
 };
 
 export const getPurchaseOrderColumns = (): ColumnConfig<PurchaseOrder>[] => [
-    { field: 'poNumber', header: 'PO Number', fieldType: 'text' },
-    { field: 'date', header: 'Date', fieldType: 'text' },
-    { field: 'supplierName', header: 'Supplier', fieldType: 'text' },
-    { field: 'locationName', header: 'Location', fieldType: 'text' },
-    { field: 'totalAmount', header: 'Total Amount (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'poNo', header: 'PO No.', fieldType: 'text' },
+    { field: 'poDate', header: 'PO Date', fieldType: 'text' },
+    { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
+    { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant } },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
+];
+
+export interface PurchaseOrderItemRow extends PurchaseOrderItem {
+    rowId: number;
+}
+
+export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[]): ColumnConfig<PurchaseOrderItemRow>[] => [
+    {
+        field: 'rowId',
+        key: 'index',
+        header: '#',
+        style: { width: '44px' },
+        body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
+    },
+    { field: 'itemName', header: 'Item Name', fieldType: 'text' },
+    { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
+    { field: 'receivedQty', header: 'Received Qty', fieldType: 'text' },
+    { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
+    { field: 'discountPercent', header: 'Discount %', fieldType: 'text' },
+    { field: 'gstPercent', header: 'GST %', fieldType: 'text' },
+    { field: 'lineTotal', header: 'Line Total (Rs.)', fieldType: 'currency' },
+    { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
 export const getReportsColumns = (): ColumnConfig<RecentReport>[] => [

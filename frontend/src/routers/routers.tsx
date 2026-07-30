@@ -14,6 +14,7 @@ import Invoices from '../components/invoices/Invoices';
 import Reports from '../components/reports/Reports';
 import Users from '../components/users/Users';
 import PurchaseOrder from '../components/purchaseOrder/PurchaseOrder';
+import PurchaseOrderForm from '../components/purchaseOrder/PurchaseOrderForm';
 import Login from '../components/login/Login';
 import './routers.css';
 import SidePanel from '../common/commonComponents/sideBarNavigation/SideBarNavigation';
@@ -55,6 +56,8 @@ const AppRoutes = () => {
                         <Route path='/reports' element={<Reports />}></Route>
                         <Route path='/users' element={<Users />}></Route>
                         <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
+                        <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
+                        <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>
                     </Routes>
                 </div>
             </div>

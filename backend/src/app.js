@@ -5,6 +5,7 @@ const locationRoutes = require('./routes/location.routes');
 const categoryRoutes = require('./routes/category.routes');
 const productTypeRoutes = require('./routes/productType.routes');
 const vendorRoutes = require('./routes/vendor.routes');
+const purchaseOrderRoutes = require('./routes/purchaseOrder.routes');
 
 const app = express();
 
@@ -20,5 +21,6 @@ app.use('/api/v1/locations', locationRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/product-types', productTypeRoutes);
 app.use('/api/v1/vendors', vendorRoutes);
+app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 
 module.exports = app;
