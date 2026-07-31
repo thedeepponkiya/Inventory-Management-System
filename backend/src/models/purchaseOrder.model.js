@@ -29,9 +29,9 @@ async function create(poNo, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
       "poNo", "vendorId", "poDate", "expectedDeliveryDate", "deliveryAddress", "paymentTerms", status, items,
-      "totalItems", "totalQty", "subTotal", "discountAmount", "gstAmount", "freightCharge",
-      "otherCharges", "grandTotal", remarks, "createdBy", "approvedBy", "approvedAt"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      "totalItems", "totalQty", "subTotal", "discountAmount", "gstAmount",
+      "grandTotal", remarks, "createdBy", "approvedBy", "approvedAt"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       poNo,
@@ -47,8 +47,6 @@ async function create(poNo, fields) {
       fields.subTotal,
       fields.discountAmount,
       fields.gstAmount,
-      fields.freightCharge,
-      fields.otherCharges,
       fields.grandTotal,
       fields.remarks,
       fields.createdBy,
@@ -64,9 +62,9 @@ async function update(id, fields) {
     `UPDATE ${TABLE} SET
       "vendorId" = $1, "poDate" = $2, "expectedDeliveryDate" = $3, "deliveryAddress" = $4, "paymentTerms" = $5, status = $6,
       items = $7, "totalItems" = $8, "totalQty" = $9, "subTotal" = $10, "discountAmount" = $11,
-      "gstAmount" = $12, "freightCharge" = $13, "otherCharges" = $14, "grandTotal" = $15,
-      remarks = $16, "createdBy" = $17, "approvedBy" = $18, "approvedAt" = $19, "updatedAt" = now()
-    WHERE id = $20
+      "gstAmount" = $12, "grandTotal" = $13,
+      remarks = $14, "createdBy" = $15, "approvedBy" = $16, "approvedAt" = $17, "updatedAt" = now()
+    WHERE id = $18
     RETURNING *`,
     [
       fields.vendorId,
@@ -81,8 +79,6 @@ async function update(id, fields) {
       fields.subTotal,
       fields.discountAmount,
       fields.gstAmount,
-      fields.freightCharge,
-      fields.otherCharges,
       fields.grandTotal,
       fields.remarks,
       fields.createdBy,

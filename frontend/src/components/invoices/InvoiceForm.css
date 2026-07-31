@@ -1,8 +1,8 @@
-.purchase-order-form-page {
+.invoice-form-page {
     padding-bottom: 24px;
 }
 
-.po-form-toolbar {
+.inv-form-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -14,20 +14,20 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-.po-form-toolbar-title {
+.inv-form-toolbar-title {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.po-form-toolbar-title h2 {
+.inv-form-toolbar-title h2 {
     font-size: 16px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
 }
 
-.po-form-back-btn {
+.inv-form-back-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -40,16 +40,16 @@
     cursor: pointer;
 }
 
-.po-form-back-btn:hover {
+.inv-form-back-btn:hover {
     background: var(--surface-hover);
 }
 
-.po-form-toolbar-actions {
+.inv-form-toolbar-actions {
     display: flex;
     gap: 8px;
 }
 
-.po-form-layout {
+.inv-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
     gap: 16px;
@@ -57,12 +57,12 @@
 }
 
 @media (max-width: 1000px) {
-    .po-form-layout {
+    .inv-form-layout {
         grid-template-columns: 1fr;
     }
 }
 
-.po-form-main {
+.inv-form-main {
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -70,56 +70,39 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-/* Match InventoryHome's dialog tab padding (.inventory-home-dialog-tab) instead of
-   PrimeReact's default 1.25rem tab/panel padding, which doubled up with .po-form-main's
-   own 16px padding. */
-.po-form-main .p-tabview-nav-link {
-    padding: 10px 4px !important;
-    margin-right: 20px;
-    font-size: 13px;
+.inv-form-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+    margin: 4px 0 12px;
 }
 
-.po-form-main .p-tabview-panels {
-    padding: 16px 0 0 !important;
-}
-
-.purchase-order-form-grid {
+.invoice-form-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
+    margin-bottom: 20px;
 }
 
 @media (max-width: 800px) {
-    .purchase-order-form-grid {
+    .invoice-form-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-.purchase-order-form-full {
+.invoice-form-full {
     grid-column: 1 / -1;
 }
 
-.purchase-order-items-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 4px 0 12px;
-}
-
-.purchase-order-items-header h3 {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-}
-
 /* Live preview panel */
-.po-preview-panel {
+.inv-preview-panel {
     position: sticky;
     top: 16px;
 }
 
-.po-preview-card {
+.inv-preview-card {
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -127,26 +110,26 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-.po-preview-header {
+.inv-preview-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 16px;
 }
 
-.po-preview-title {
+.inv-preview-title {
     font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.po-preview-subtitle {
+.inv-preview-subtitle {
     font-size: 13px;
     color: var(--text-muted);
     margin-top: 2px;
 }
 
-.po-preview-status {
+.inv-preview-status {
     font-size: 12px;
     font-weight: 600;
     color: var(--accent-info-text);
@@ -156,11 +139,11 @@
     height: fit-content;
 }
 
-.po-preview-section {
+.inv-preview-section {
     margin-bottom: 14px;
 }
 
-.po-preview-label {
+.inv-preview-label {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -169,25 +152,14 @@
     margin-bottom: 4px;
 }
 
-.po-preview-vendor {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
-
-.po-preview-vendor-name {
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.po-preview-empty {
+.inv-preview-empty {
     font-size: 13px;
     color: var(--text-subtle);
     text-align: center;
     padding: 8px 0;
 }
 
-.po-preview-dates {
+.inv-preview-dates {
     display: flex;
     gap: 24px;
     font-size: 13px;
@@ -195,29 +167,7 @@
     margin-bottom: 16px;
 }
 
-.po-preview-items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    margin-bottom: 16px;
-}
-
-.po-preview-items-table th {
-    text-align: left;
-    font-size: 11px;
-    text-transform: uppercase;
-    color: var(--text-subtle);
-    border-bottom: 1px solid var(--border-default);
-    padding: 6px 4px;
-}
-
-.po-preview-items-table td {
-    padding: 8px 4px;
-    border-bottom: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
-}
-
-.po-preview-totals {
+.inv-preview-totals {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -227,12 +177,12 @@
     border-top: 1px solid var(--border-default);
 }
 
-.po-preview-totals > div {
+.inv-preview-totals > div {
     display: flex;
     justify-content: space-between;
 }
 
-.po-preview-grand-total {
+.inv-preview-grand-total {
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
@@ -241,7 +191,7 @@
     border-top: 1px solid var(--border-default);
 }
 
-.po-preview-remarks {
+.inv-preview-remarks {
     margin-top: 16px;
     font-size: 13px;
     color: var(--text-secondary);

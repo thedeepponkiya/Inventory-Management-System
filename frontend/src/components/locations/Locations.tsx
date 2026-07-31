@@ -8,7 +8,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../context/AppContextDefinition';
 import { createLocation, updateLocation, deleteLocation, type Location as LocationType, type LocationPayload } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getLocationsColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';

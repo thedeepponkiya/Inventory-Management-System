@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { createContext } from 'react';
 import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { getLocations, type Location } from '../services/locationService';
 import { getCategories, type Category } from '../services/categoryService';
 import { getProductTypes, type ProductType } from '../services/productTypeService';
 import { getVendors, type Vendor } from '../services/vendorService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
-
-export const AppContext = createContext<any>(DEFAULT_DATA_TYPE_VALUE.NULL);
+import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
+import { getInvoices, type Invoice } from '../services/invoiceService';
+import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
     const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -21,6 +21,10 @@ const AppContextProvider = (props: any) => {
     const [vendorsLoading, setVendorsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [purchaseOrders, setPurchaseOrders] = React.useState<PurchaseOrder[]>([]);
     const [purchaseOrdersLoading, setPurchaseOrdersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [materialInwards, setMaterialInwards] = React.useState<MaterialInward[]>([]);
+    const [materialInwardsLoading, setMaterialInwardsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+    const [invoicesLoading, setInvoicesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -57,13 +61,29 @@ const AppContextProvider = (props: any) => {
             .finally(() => setPurchaseOrdersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchMaterialInwards = React.useCallback(() => {
+        getMaterialInwards()
+            .then((data) => setMaterialInwards(data))
+            .catch(() => setMaterialInwards([]))
+            .finally(() => setMaterialInwardsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchInvoices = React.useCallback(() => {
+        getInvoices()
+            .then((data) => setInvoices(data))
+            .catch(() => setInvoices([]))
+            .finally(() => setInvoicesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
         fetchProductTypes();
         fetchVendors();
         fetchPurchaseOrders();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders]);
+        fetchMaterialInwards();
+        fetchInvoices();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices]);
 
     return (
         <>
@@ -86,6 +106,12 @@ const AppContextProvider = (props: any) => {
                     purchaseOrders,
                     purchaseOrdersLoading,
                     fetchPurchaseOrders,
+                    materialInwards,
+                    materialInwardsLoading,
+                    fetchMaterialInwards,
+                    invoices,
+                    invoicesLoading,
+                    fetchInvoices,
                 }}>
                 {props.children}
             </AppContext.Provider >

@@ -75,7 +75,7 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
         >
             {actionBodyTemplate && (
-                <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} style={{ width: '80px' }} />
+                <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} />
             )}
             {columns.map((col) => (
                 <Column

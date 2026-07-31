@@ -8,7 +8,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../context/AppContextDefinition';
 import { createCategory, updateCategory, deleteCategory, type Category as CategoryType, type CategoryPayload } from '../../services/categoryService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getCategoryColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';

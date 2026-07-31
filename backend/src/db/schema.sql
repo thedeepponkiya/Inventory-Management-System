@@ -69,8 +69,6 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "subTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
     "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
     "gstAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
-    "freightCharge" NUMERIC(12,2) NOT NULL DEFAULT 0,
-    "otherCharges" NUMERIC(12,2) NOT NULL DEFAULT 0,
     "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
     remarks TEXT,
     "createdBy" VARCHAR(150),
@@ -82,3 +80,84 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
 -- ims_purchase_order already existed live before "deliveryAddress" was added to the
 -- CREATE TABLE block above, so this migrates any already-created table too.
 ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "deliveryAddress" TEXT;
+-- freightCharge/otherCharges were dropped from Purchase Order (Material Inward has its
+-- own, unrelated freightCharge/otherCharges columns on ims_material_inward - not touched).
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "freightCharge";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "otherCharges";
+-- "Approved" was removed as a selectable status (Sent now plays that "locked, awaiting
+-- receipt" role instead) - migrate any existing rows so they stay consistent with the
+-- new Draft -> Sent -> Received/Cancelled lifecycle.
+UPDATE ims_purchase_order SET status = 'Sent' WHERE status = 'Approved';
+
+-- Material inwards, backing /api/v1/material-inwards CRUD.
+-- "items" is a JSONB array of raw-material lines, each shaped like:
+-- { skuId, skuCode, itemName, unit, orderedQty, previousReceivedQty, receivedQty,
+--   pendingQty, acceptedQty, rejectedQty, unitPrice, discountPercent, discountAmount,
+--   gstPercent, gstAmount, lineTotal, batchNo, expiryDate, remarks }
+-- Unlike ims_purchase_order (which joins ims_vendor for vendorName), "vendorName" and
+-- "purchaseOrderNo" are stored directly here (denormalized, set by the frontend when the
+-- vendor/PO is picked) since the schema was specified that way.
+CREATE TABLE IF NOT EXISTS ims_material_inward (
+    id SERIAL PRIMARY KEY,
+    "inwardNo" VARCHAR(50) NOT NULL UNIQUE,
+    "purchaseOrderId" INTEGER REFERENCES ims_purchase_order(id),
+    "purchaseOrderNo" VARCHAR(50),
+    "vendorId" INTEGER NOT NULL REFERENCES ims_vendor(id),
+    "vendorName" VARCHAR(150) NOT NULL,
+    "receivedDate" DATE NOT NULL,
+    "invoiceNo" VARCHAR(100),
+    "invoiceDate" DATE,
+    "challanNo" VARCHAR(100),
+    "vehicleNo" VARCHAR(50),
+    "warehouseId" INTEGER NOT NULL REFERENCES ims_location(id),
+    items JSONB NOT NULL DEFAULT '[]',
+    "totalItems" INTEGER NOT NULL DEFAULT 0,
+    "totalQty" NUMERIC NOT NULL DEFAULT 0,
+    "subTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "gstAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "freightCharge" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "otherCharges" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    remarks TEXT,
+    "receivedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Invoices, backing /api/v1/invoices CRUD. Auto-generated once (create-only) whenever a
+-- Material Inward is saved (see materialInward.controller.js's createInvoiceFromMaterialInward);
+-- after that it's an independently-editable financial record, never overwritten by later
+-- Material Inward edits/deletes. No line items - this is a header-only aggregate document.
+CREATE TABLE IF NOT EXISTS ims_invoices (
+    id SERIAL PRIMARY KEY,
+    "invoiceNo" VARCHAR(50) NOT NULL UNIQUE,
+    "invoiceDate" DATE NOT NULL,
+    "invoiceType" VARCHAR(30) NOT NULL DEFAULT 'Purchase',
+    "referenceNo" VARCHAR(50),
+    "materialInwardNo" VARCHAR(50),
+    "customerSupplier" VARCHAR(150),
+    location VARCHAR(150),
+    "totalQty" NUMERIC NOT NULL DEFAULT 0,
+    "subTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "unitPrice" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "discountPercent" NUMERIC(5,2) NOT NULL DEFAULT 0,
+    "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "gstPercent" NUMERIC(5,2) NOT NULL DEFAULT 0,
+    "gstAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "freightCharge" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "otherCharges" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "dueAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "dueDate" DATE,
+    "paymentTerms" VARCHAR(50),
+    "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    remarks TEXT,
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- "invoiceStatus" (Draft/Generated/Sent/Cancelled) was removed - Payment Status
+-- (Unpaid/Partial/Paid) is the invoice's only status field now.
+ALTER TABLE ims_invoices DROP COLUMN IF EXISTS "invoiceStatus";

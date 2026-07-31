@@ -1,0 +1,683 @@
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { InputNumber } from 'primereact/inputnumber';
+import { Dropdown } from 'primereact/dropdown';
+import { Calendar } from 'primereact/calendar';
+import { TabView, TabPanel } from 'primereact/tabview';
+import { Dialog } from 'primereact/dialog';
+import { Toast } from 'primereact/toast';
+import { HiOutlineArrowLeft } from 'react-icons/hi2';
+import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import { AppContext } from '../../context/AppContextDefinition';
+import {
+    createMaterialInward,
+    updateMaterialInward,
+    type MaterialInward as MaterialInwardType,
+    type MaterialInwardItem,
+    type MaterialInwardPayload,
+} from '../../services/materialInwardService';
+import type { PurchaseOrder as PurchaseOrderType } from '../../services/purchaseOrderService';
+import type { Vendor } from '../../services/vendorService';
+import type { Location as LocationType } from '../../services/locationService';
+import { skuMockData } from '../../mockData/skuData';
+import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
+import { getMaterialInwardItemColumns, getActionBodyTemplate, type MaterialInwardItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { showToast } from '../../common/commonFunctions/commonFunction';
+import './MaterialInwardForm.css';
+
+let nextItemRowId = 1;
+
+interface ItemForm {
+    skuCode: string;
+    itemName: string;
+    unit: string;
+    orderedQty: number;
+    receivedQty: number;
+    acceptedQty: number;
+    rejectedQty: number;
+    unitPrice: number;
+    discountPercent: number;
+    gstPercent: number;
+    batchNo: string;
+    expiryDate: Date | null;
+    remarks: string;
+}
+
+const emptyItemForm = (): ItemForm => ({
+    skuCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    itemName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    unit: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    orderedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    receivedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    acceptedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    rejectedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    unitPrice: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    discountPercent: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    gstPercent: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    batchNo: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    expiryDate: DEFAULT_DATA_TYPE_VALUE.NULL,
+    remarks: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+});
+
+const toIso = (date: Date | null): string | null => (date ? date.toISOString() : DEFAULT_DATA_TYPE_VALUE.NULL);
+
+const MaterialInwardForm = () => {
+    const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditRoute = Boolean(id);
+    const { vendors, locations, purchaseOrders, materialInwards, materialInwardsLoading, fetchMaterialInwards, fetchPurchaseOrders, fetchInvoices } = useContext(AppContext);
+    const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+
+    const existingMi = useMemo(
+        () => (isEditRoute ? (materialInwards as MaterialInwardType[]).find((mi) => mi.id === Number(id)) : DEFAULT_DATA_TYPE_VALUE.UNDEFINED),
+        [isEditRoute, materialInwards, id],
+    );
+
+    const [activeTab, setActiveTab] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [loadedForId, setLoadedForId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [currentInwardNo, setCurrentInwardNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [purchaseOrderId, setPurchaseOrderId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [vendorId, setVendorId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [receivedDate, setReceivedDate] = useState<Date | null>(new Date());
+    const [invoiceNo, setInvoiceNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [invoiceDate, setInvoiceDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [challanNo, setChallanNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [vehicleNo, setVehicleNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [warehouseId, setWarehouseId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [freightCharge, setFreightCharge] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [otherCharges, setOtherCharges] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [items, setItems] = useState<MaterialInwardItemRow[]>([]);
+
+    const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [editingPreviousReceivedQty, setEditingPreviousReceivedQty] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [itemForm, setItemForm] = useState<ItemForm>(emptyItemForm());
+
+    useEffect(() => {
+        if (existingMi && loadedForId !== existingMi.id) {
+            // One-time sync of local form state once the async-loaded record arrives from
+            // AppContext; guarded by loadedForId so it never re-runs for the same record.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setCurrentInwardNo(existingMi.inwardNo);
+            setPurchaseOrderId(existingMi.purchaseOrderId);
+            setVendorId(existingMi.vendorId);
+            setReceivedDate(new Date(existingMi.receivedDate));
+            setInvoiceNo(existingMi.invoiceNo ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setInvoiceDate(existingMi.invoiceDate ? new Date(existingMi.invoiceDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
+            setChallanNo(existingMi.challanNo ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setVehicleNo(existingMi.vehicleNo ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setWarehouseId(existingMi.warehouseId);
+            setRemarks(existingMi.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setFreightCharge(existingMi.freightCharge);
+            setOtherCharges(existingMi.otherCharges);
+            setItems(existingMi.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
+            setLoadedForId(existingMi.id);
+        }
+    }, [existingMi, loadedForId]);
+
+    const updateItem = (rowId: number, patch: Partial<MaterialInwardItemRow>) => {
+        setItems((prev) => prev.map((item) => (item.rowId === rowId ? { ...item, ...patch } : item)));
+    };
+
+    const handlePurchaseOrderChange = (poId: number | null) => {
+        setPurchaseOrderId(poId);
+        if (!poId) return;
+
+        const po = (purchaseOrders as PurchaseOrderType[]).find((p) => p.id === poId);
+        if (!po) return;
+
+        setVendorId(po.vendorId);
+
+        const newItems: MaterialInwardItemRow[] = po.items.map((poItem) => {
+            const previousReceivedQty = (materialInwards as MaterialInwardType[])
+                .filter((mi) => mi.purchaseOrderId === poId && (!isEditRoute || mi.id !== existingMi?.id))
+                .flatMap((mi) => mi.items)
+                .filter((item) => item.itemName === poItem.itemName)
+                .reduce((sum, item) => sum + item.receivedQty, DEFAULT_DATA_TYPE_VALUE.ZERO);
+            const receivedQty = Math.max(poItem.orderedQty - previousReceivedQty, DEFAULT_DATA_TYPE_VALUE.ZERO);
+            const lineGross = receivedQty * poItem.unitPrice;
+            const lineDiscount = (lineGross * poItem.discountPercent) / 100;
+            const taxable = lineGross - lineDiscount;
+            const lineGst = (taxable * poItem.gstPercent) / 100;
+
+            return {
+                rowId: nextItemRowId++,
+                skuId: poItem.skuId,
+                skuCode: poItem.skuCode,
+                itemName: poItem.itemName,
+                unit: poItem.unit,
+                orderedQty: poItem.orderedQty,
+                previousReceivedQty,
+                receivedQty,
+                pendingQty: poItem.orderedQty - previousReceivedQty - receivedQty,
+                acceptedQty: receivedQty,
+                rejectedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+                unitPrice: poItem.unitPrice,
+                discountPercent: poItem.discountPercent,
+                discountAmount: lineDiscount,
+                gstPercent: poItem.gstPercent,
+                gstAmount: lineGst,
+                lineTotal: taxable + lineGst,
+                batchNo: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                expiryDate: DEFAULT_DATA_TYPE_VALUE.NULL,
+                remarks: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+            };
+        });
+        setItems(newItems);
+    };
+
+    const openEditItemDialog = (row: MaterialInwardItemRow) => {
+        setEditingItemRowId(row.rowId);
+        setEditingPreviousReceivedQty(row.previousReceivedQty);
+        setItemForm({
+            skuCode: row.skuCode,
+            itemName: row.itemName,
+            unit: row.unit,
+            orderedQty: row.orderedQty,
+            receivedQty: row.receivedQty,
+            acceptedQty: row.acceptedQty,
+            rejectedQty: row.rejectedQty,
+            unitPrice: row.unitPrice,
+            discountPercent: row.discountPercent,
+            gstPercent: row.gstPercent,
+            batchNo: row.batchNo,
+            expiryDate: row.expiryDate ? new Date(row.expiryDate) : DEFAULT_DATA_TYPE_VALUE.NULL,
+            remarks: row.remarks,
+        });
+        setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    };
+
+    const handleItemDialogSave = () => {
+        if (!itemForm.itemName.trim()) {
+            showToast(toast, 'error', 'Error', 'Select a raw material');
+            return;
+        }
+        if (itemForm.receivedQty <= 0) {
+            showToast(toast, 'error', 'Error', 'Received quantity must be greater than 0');
+            return;
+        }
+        if (purchaseOrderId) {
+            const pendingAvailable = itemForm.orderedQty - editingPreviousReceivedQty;
+            if (itemForm.receivedQty > pendingAvailable) {
+                showToast(toast, 'error', 'Error', `Received quantity cannot exceed pending quantity (${pendingAvailable})`);
+                return;
+            }
+        }
+        if (itemForm.acceptedQty + itemForm.rejectedQty !== itemForm.receivedQty) {
+            showToast(toast, 'error', 'Error', 'Accepted Qty + Rejected Qty must equal Received Qty');
+            return;
+        }
+
+        const lineGross = itemForm.receivedQty * itemForm.unitPrice;
+        const discountAmount = (lineGross * itemForm.discountPercent) / 100;
+        const taxable = lineGross - discountAmount;
+        const gstAmount = (taxable * itemForm.gstPercent) / 100;
+        const sku = skuMockData.find((s) => s.code === itemForm.skuCode);
+        const computed = {
+            skuId: sku?.id ?? itemForm.skuCode,
+            skuCode: itemForm.skuCode,
+            itemName: itemForm.itemName,
+            unit: itemForm.unit,
+            orderedQty: itemForm.orderedQty,
+            previousReceivedQty: editingPreviousReceivedQty,
+            receivedQty: itemForm.receivedQty,
+            pendingQty: itemForm.orderedQty - editingPreviousReceivedQty - itemForm.receivedQty,
+            acceptedQty: itemForm.acceptedQty,
+            rejectedQty: itemForm.rejectedQty,
+            unitPrice: itemForm.unitPrice,
+            discountPercent: itemForm.discountPercent,
+            discountAmount,
+            gstPercent: itemForm.gstPercent,
+            gstAmount,
+            lineTotal: taxable + gstAmount,
+            batchNo: itemForm.batchNo,
+            expiryDate: toIso(itemForm.expiryDate),
+            remarks: itemForm.remarks,
+        };
+
+        if (editingItemRowId) {
+            updateItem(editingItemRowId, computed);
+        }
+        setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    };
+
+    const totals = useMemo(() => {
+        let totalQty = DEFAULT_DATA_TYPE_VALUE.ZERO;
+        let subTotal = DEFAULT_DATA_TYPE_VALUE.ZERO;
+        let discountAmount = DEFAULT_DATA_TYPE_VALUE.ZERO;
+        let gstAmount = DEFAULT_DATA_TYPE_VALUE.ZERO;
+
+        items.forEach((item) => {
+            const lineGross = item.receivedQty * item.unitPrice;
+            const lineDiscount = (lineGross * item.discountPercent) / 100;
+            const taxable = lineGross - lineDiscount;
+            const lineGst = (taxable * item.gstPercent) / 100;
+
+            totalQty += item.receivedQty;
+            subTotal += lineGross;
+            discountAmount += lineDiscount;
+            gstAmount += lineGst;
+        });
+
+        const grandTotal = subTotal - discountAmount + gstAmount + freightCharge + otherCharges;
+        return { totalItems: items.length, totalQty, subTotal, discountAmount, gstAmount, grandTotal };
+    }, [items, freightCharge, otherCharges]);
+
+    const selectedVendor = useMemo(
+        () => (vendors as Vendor[]).find((v) => v.id === vendorId),
+        [vendors, vendorId],
+    );
+
+    const selectedWarehouse = useMemo(
+        () => (locations as LocationType[]).find((loc) => loc.id === warehouseId),
+        [locations, warehouseId],
+    );
+
+    const linkedPurchaseOrderIds = useMemo(
+        () =>
+            new Set(
+                (materialInwards as MaterialInwardType[])
+                    .filter((mi) => mi.purchaseOrderId !== null && (!isEditRoute || mi.id !== existingMi?.id))
+                    .map((mi) => mi.purchaseOrderId),
+            ),
+        [materialInwards, isEditRoute, existingMi],
+    );
+
+    // A PO that already has a Material Inward against it is hidden from the dropdown so a
+    // second inward can't be created for it here; the currently selected PO stays visible
+    // so it keeps rendering correctly once picked (or when editing an existing inward).
+    const eligiblePurchaseOrders = useMemo(
+        () =>
+            (purchaseOrders as PurchaseOrderType[]).filter(
+                (po) => po.status !== 'Draft' && po.status !== 'Cancelled' && (po.id === purchaseOrderId || !linkedPurchaseOrderIds.has(po.id)),
+            ),
+        [purchaseOrders, linkedPurchaseOrderIds, purchaseOrderId],
+    );
+
+    const handleCancel = () => {
+        navigate('/material-inward');
+    };
+
+    const handleSave = async () => {
+        if (!vendorId || !warehouseId || !receivedDate) {
+            showToast(toast, 'error', 'Error', 'Vendor, Warehouse and Received Date are required');
+            return;
+        }
+        if (!items.some((item) => item.itemName)) {
+            showToast(toast, 'error', 'Error', 'Add at least one item');
+            return;
+        }
+
+        const computedItems: MaterialInwardItem[] = items
+            .filter((item) => item.itemName)
+            .map((item) => {
+                const lineGross = item.receivedQty * item.unitPrice;
+                const discountAmount = (lineGross * item.discountPercent) / 100;
+                const taxable = lineGross - discountAmount;
+                const gstAmount = (taxable * item.gstPercent) / 100;
+                return {
+                    skuId: item.skuId,
+                    skuCode: item.skuCode,
+                    itemName: item.itemName,
+                    unit: item.unit,
+                    orderedQty: item.orderedQty,
+                    previousReceivedQty: item.previousReceivedQty,
+                    receivedQty: item.receivedQty,
+                    pendingQty: item.orderedQty - item.previousReceivedQty - item.receivedQty,
+                    acceptedQty: item.acceptedQty,
+                    rejectedQty: item.rejectedQty,
+                    unitPrice: item.unitPrice,
+                    discountPercent: item.discountPercent,
+                    discountAmount,
+                    gstPercent: item.gstPercent,
+                    gstAmount,
+                    lineTotal: taxable + gstAmount,
+                    batchNo: item.batchNo,
+                    expiryDate: item.expiryDate,
+                    remarks: item.remarks,
+                };
+            });
+
+        const selectedPo = purchaseOrderId ? (purchaseOrders as PurchaseOrderType[]).find((po) => po.id === purchaseOrderId) : DEFAULT_DATA_TYPE_VALUE.UNDEFINED;
+
+        const payload: MaterialInwardPayload = {
+            purchaseOrderId,
+            purchaseOrderNo: selectedPo?.poNo ?? DEFAULT_DATA_TYPE_VALUE.NULL,
+            vendorId,
+            vendorName: selectedVendor?.vendorName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+            receivedDate: toIso(receivedDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+            invoiceNo: invoiceNo || DEFAULT_DATA_TYPE_VALUE.NULL,
+            invoiceDate: toIso(invoiceDate),
+            challanNo: challanNo || DEFAULT_DATA_TYPE_VALUE.NULL,
+            vehicleNo: vehicleNo || DEFAULT_DATA_TYPE_VALUE.NULL,
+            warehouseId,
+            items: computedItems,
+            totalItems: computedItems.length,
+            totalQty: totals.totalQty,
+            subTotal: totals.subTotal,
+            discountAmount: totals.discountAmount,
+            gstAmount: totals.gstAmount,
+            freightCharge,
+            otherCharges,
+            grandTotal: totals.grandTotal,
+            remarks: remarks || DEFAULT_DATA_TYPE_VALUE.NULL,
+            receivedBy: 'Admin User',
+        };
+
+        try {
+            if (isEditRoute && existingMi) {
+                await updateMaterialInward(existingMi.id, payload);
+                showToast(toast, 'success', 'Updated', 'Material inward updated successfully');
+            } else {
+                await createMaterialInward(payload);
+                showToast(toast, 'success', 'Created', 'Material inward created successfully');
+            }
+            fetchMaterialInwards();
+            // Saving an inward against a PO also updates that PO's received/pending qty and
+            // status server-side (see materialInward.controller.js's resync) - without this,
+            // AppContext's cached purchaseOrders stays stale until a manual page refresh.
+            fetchPurchaseOrders();
+            // Creating a Material Inward also auto-generates an Invoice server-side (see
+            // materialInward.controller.js) - refetch so it shows up on /invoices immediately.
+            if (!isEditRoute) fetchInvoices();
+            navigate('/material-inward');
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        }
+    };
+
+    const isPoLinked = Boolean(purchaseOrderId);
+
+    const itemColumns = getMaterialInwardItemColumns(items);
+    const itemActionTemplate = getActionBodyTemplate<MaterialInwardItemRow>({ onEdit: openEditItemDialog });
+
+    if (isEditRoute && materialInwardsLoading) {
+        return <div className="material-inward-form-page">Loading material inward…</div>;
+    }
+    if (isEditRoute && !existingMi) {
+        return <div className="material-inward-form-page">Material inward not found.</div>;
+    }
+
+    return (
+        <div className="material-inward-form-page">
+            <Toast ref={toast} />
+
+            <div className="mi-form-toolbar">
+                <div className="mi-form-toolbar-title">
+                    <button type="button" className="mi-form-back-btn" onClick={handleCancel} aria-label="Back to material inwards">
+                        <HiOutlineArrowLeft size={18} />
+                    </button>
+                    <h2>{isEditRoute ? `Edit ${currentInwardNo}` : 'New Material Inward'}</h2>
+                </div>
+                <div className="mi-form-toolbar-actions">
+                    <Button label="Cancel" outlined onClick={handleCancel} />
+                    <Button label={isEditRoute ? 'Save Changes' : 'Save Material Inward'} onClick={handleSave} />
+                </div>
+            </div>
+
+            <div className="mi-form-layout">
+                <div className="mi-form-main">
+                    <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
+                        <TabPanel header="Inward Details">
+                            <div className="material-inward-form-grid">
+                                <div className="form-field">
+                                    <label>Inward No.</label>
+                                    <InputText value={isEditRoute ? currentInwardNo : 'Auto-generated on save'} disabled />
+                                </div>
+                                <div className="form-field">
+                                    <label>Purchase Order</label>
+                                    <Dropdown
+                                        value={purchaseOrderId}
+                                        onChange={(e) => handlePurchaseOrderChange(e.value)}
+                                        options={eligiblePurchaseOrders.map((po) => ({ label: `${po.poNo} — ${po.vendorName}`, value: po.id }))}
+                                        placeholder="Select purchase order (optional)"
+                                        filter
+                                        filterPlaceholder="Search purchase order"
+                                    />
+                                </div>
+                                <div className="form-field">
+                                    <label>Vendor *</label>
+                                    <Dropdown
+                                        value={vendorId}
+                                        onChange={(e) => setVendorId(e.value)}
+                                        options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
+                                        placeholder="Select vendor"
+                                        disabled={isPoLinked}
+                                    />
+                                </div>
+                                <div className="form-field">
+                                    <label>Warehouse *</label>
+                                    <Dropdown
+                                        value={warehouseId}
+                                        onChange={(e) => setWarehouseId(e.value)}
+                                        options={(locations as LocationType[]).map((loc) => ({ label: loc.location, value: loc.id }))}
+                                        placeholder="Select warehouse"
+                                    />
+                                </div>
+                                <div className="form-field">
+                                    <label>Received Date *</label>
+                                    <Calendar value={receivedDate} onChange={(e) => setReceivedDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon />
+                                </div>
+                                <div className="form-field">
+                                    <label>Invoice No.</label>
+                                    <InputText value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Enter invoice no." />
+                                </div>
+                                <div className="form-field">
+                                    <label>Invoice Date</label>
+                                    <Calendar value={invoiceDate} onChange={(e) => setInvoiceDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon />
+                                </div>
+                                <div className="form-field">
+                                    <label>Challan No.</label>
+                                    <InputText value={challanNo} onChange={(e) => setChallanNo(e.target.value)} placeholder="Enter challan no." />
+                                </div>
+                                <div className="form-field">
+                                    <label>Vehicle No.</label>
+                                    <InputText value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="Enter vehicle no." />
+                                </div>
+                                <div className="form-field material-inward-form-full">
+                                    <label>Remarks</label>
+                                    <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" />
+                                </div>
+                            </div>
+                        </TabPanel>
+
+                        <TabPanel header="Items & Charges">
+                            <div className="material-inward-items-header">
+                                <h3>Inward Items</h3>
+                            </div>
+                            <DataTable
+                                value={items}
+                                columns={itemColumns}
+                                actionBodyTemplate={itemActionTemplate}
+                                paginator={false}
+                                sortable={false}
+                                filterable={false}
+                                dataKey="rowId"
+                                emptyMessage="No items added yet."
+                            />
+
+                            <div className="material-inward-form-grid material-inward-charges-grid">
+                                <div className="form-field">
+                                    <label>Freight Charge (Rs.)</label>
+                                    <InputNumber value={freightCharge} onValueChange={(e) => setFreightCharge(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} />
+                                </div>
+                                <div className="form-field">
+                                    <label>Other Charges (Rs.)</label>
+                                    <InputNumber value={otherCharges} onValueChange={(e) => setOtherCharges(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} />
+                                </div>
+                            </div>
+                        </TabPanel>
+                    </TabView>
+                </div>
+
+                <div className="mi-preview-panel">
+                    <div className="mi-preview-card">
+                        <div className="mi-preview-header">
+                            <div>
+                                <div className="mi-preview-title">Material Inward</div>
+                                <div className="mi-preview-subtitle">#{isEditRoute ? currentInwardNo : 'Auto-generated'}</div>
+                            </div>
+                        </div>
+
+                        <div className="mi-preview-section">
+                            <div className="mi-preview-label">Vendor</div>
+                            {selectedVendor ? (
+                                <div className="mi-preview-vendor">
+                                    <div className="mi-preview-vendor-name">{selectedVendor.vendorName}</div>
+                                    {selectedVendor.email && <div>{selectedVendor.email}</div>}
+                                    {selectedVendor.phoneNumber && <div>{selectedVendor.phoneNumber}</div>}
+                                </div>
+                            ) : (
+                                <div className="mi-preview-empty">No vendor selected</div>
+                            )}
+                        </div>
+
+                        {purchaseOrderId && (
+                            <div className="mi-preview-section">
+                                <div className="mi-preview-label">Against Purchase Order</div>
+                                <div>{(purchaseOrders as PurchaseOrderType[]).find((po) => po.id === purchaseOrderId)?.poNo ?? '—'}</div>
+                            </div>
+                        )}
+
+                        <div className="mi-preview-dates">
+                            <div>
+                                <div className="mi-preview-label">Warehouse</div>
+                                <div>{selectedWarehouse?.location ?? '—'}</div>
+                            </div>
+                            <div>
+                                <div className="mi-preview-label">Received Date</div>
+                                <div>{receivedDate ? receivedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
+                            </div>
+                        </div>
+
+                        <table className="mi-preview-items-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Rate</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.filter((item) => item.itemName).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="mi-preview-empty">No items added yet</td>
+                                    </tr>
+                                ) : (
+                                    items.filter((item) => item.itemName).map((item) => (
+                                        <tr key={item.rowId}>
+                                            <td>{item.itemName}</td>
+                                            <td>{item.receivedQty}</td>
+                                            <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
+                                            <td>Rs. {(item.receivedQty * item.unitPrice).toLocaleString('en-IN')}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+
+                        <div className="mi-preview-totals">
+                            <div><span>Sub Total</span><span>Rs. {totals.subTotal.toLocaleString('en-IN')}</span></div>
+                            <div><span>Discount</span><span>- Rs. {totals.discountAmount.toLocaleString('en-IN')}</span></div>
+                            <div><span>GST</span><span>+ Rs. {totals.gstAmount.toLocaleString('en-IN')}</span></div>
+                            <div><span>Freight</span><span>+ Rs. {freightCharge.toLocaleString('en-IN')}</span></div>
+                            <div><span>Other Charges</span><span>+ Rs. {otherCharges.toLocaleString('en-IN')}</span></div>
+                            <div className="mi-preview-grand-total"><span>Grand Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
+                        </div>
+
+                        {remarks && (
+                            <div className="mi-preview-remarks">
+                                <div className="mi-preview-label">Remarks</div>
+                                <div>{remarks}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <Dialog
+                visible={itemDialogVisible}
+                onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
+                header="Edit Item"
+                style={{ width: '480px' }}
+                footer={
+                    <>
+                        <Button label="Cancel" outlined onClick={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
+                        <Button label="Save Changes" onClick={handleItemDialogSave} />
+                    </>
+                }
+            >
+                <div className="dialog-form-body">
+                    <div className="form-field">
+                        <label>Raw Material *</label>
+                        <Dropdown
+                            value={itemForm.skuCode || DEFAULT_DATA_TYPE_VALUE.NULL}
+                            onChange={(e) => {
+                                const sku = skuMockData.find((s) => s.code === e.value);
+                                setItemForm({
+                                    ...itemForm,
+                                    skuCode: e.value,
+                                    itemName: sku?.name ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                                    unit: sku?.unit ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                                    unitPrice: sku?.unitPrice ?? DEFAULT_DATA_TYPE_VALUE.ZERO,
+                                });
+                            }}
+                            options={skuMockData.map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }))}
+                            placeholder="Select raw material"
+                            disabled={isPoLinked}
+                        />
+                    </div>
+                    {editingPreviousReceivedQty > 0 && (
+                        <div className="mi-item-dialog-hint">Previously received: {editingPreviousReceivedQty}</div>
+                    )}
+                    <div className="form-field form-field--row">
+                        <label>Ordered Qty</label>
+                        <InputNumber value={itemForm.orderedQty} onValueChange={(e) => setItemForm({ ...itemForm, orderedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} disabled={isPoLinked} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>Received Qty *</label>
+                        <InputNumber value={itemForm.receivedQty} onValueChange={(e) => setItemForm({ ...itemForm, receivedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>Accepted Qty</label>
+                        <InputNumber value={itemForm.acceptedQty} onValueChange={(e) => setItemForm({ ...itemForm, acceptedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>Rejected Qty</label>
+                        <InputNumber value={itemForm.rejectedQty} onValueChange={(e) => setItemForm({ ...itemForm, rejectedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>Unit Price (Rs.)</label>
+                        <InputNumber value={itemForm.unitPrice} onValueChange={(e) => setItemForm({ ...itemForm, unitPrice: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} mode="decimal" minFractionDigits={2} disabled={isPoLinked} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>Discount %</label>
+                        <InputNumber value={itemForm.discountPercent} onValueChange={(e) => setItemForm({ ...itemForm, discountPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} suffix="%" disabled={isPoLinked} />
+                    </div>
+                    <div className="form-field form-field--row">
+                        <label>GST %</label>
+                        <InputNumber value={itemForm.gstPercent} onValueChange={(e) => setItemForm({ ...itemForm, gstPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} suffix="%" disabled={isPoLinked} />
+                    </div>
+                    <div className="form-field">
+                        <label>Batch No.</label>
+                        <InputText value={itemForm.batchNo} onChange={(e) => setItemForm({ ...itemForm, batchNo: e.target.value })} placeholder="Enter batch no." />
+                    </div>
+                    <div className="form-field">
+                        <label>Expiry Date</label>
+                        <Calendar value={itemForm.expiryDate} onChange={(e) => setItemForm({ ...itemForm, expiryDate: e.value as Date })} dateFormat="dd/mm/yy" showIcon />
+                    </div>
+                    <div className="form-field">
+                        <label>Remarks</label>
+                        <InputText value={itemForm.remarks} onChange={(e) => setItemForm({ ...itemForm, remarks: e.target.value })} placeholder="Enter remarks (optional)" />
+                    </div>
+                </div>
+            </Dialog>
+        </div>
+    );
+};
+export default MaterialInwardForm;

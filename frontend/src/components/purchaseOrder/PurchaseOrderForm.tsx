@@ -11,7 +11,7 @@ import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { HiOutlinePlus, HiOutlineArrowLeft } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../context/AppContextDefinition';
 import {
     createPurchaseOrder,
     updatePurchaseOrder,
@@ -26,7 +26,7 @@ import { getPurchaseOrderItemColumns, getActionBodyTemplate, type PurchaseOrderI
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './PurchaseOrderForm.css';
 
-const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Approved', 'Received', 'Cancelled'];
+const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Received', 'Cancelled'];
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
 
 let nextItemRowId = 1;
@@ -77,8 +77,6 @@ const PurchaseOrderForm = () => {
     const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [approvedBy, setApprovedBy] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [approvedAt, setApprovedAt] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const [freightCharge, setFreightCharge] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
-    const [otherCharges, setOtherCharges] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [items, setItems] = useState<PurchaseOrderItemRow[]>([]);
 
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -100,8 +98,6 @@ const PurchaseOrderForm = () => {
             setRemarks(existingPo.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setApprovedBy(existingPo.approvedBy ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setApprovedAt(existingPo.approvedAt ? new Date(existingPo.approvedAt) : DEFAULT_DATA_TYPE_VALUE.NULL);
-            setFreightCharge(existingPo.freightCharge);
-            setOtherCharges(existingPo.otherCharges);
             setItems(existingPo.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
             setLoadedForId(existingPo.id);
         }
@@ -191,9 +187,9 @@ const PurchaseOrderForm = () => {
             gstAmount += lineGst;
         });
 
-        const grandTotal = subTotal - discountAmount + gstAmount + freightCharge + otherCharges;
+        const grandTotal = subTotal - discountAmount + gstAmount;
         return { totalItems: items.length, totalQty, subTotal, discountAmount, gstAmount, grandTotal };
-    }, [items, freightCharge, otherCharges]);
+    }, [items]);
 
     const selectedVendor = useMemo(
         () => (vendors as Vendor[]).find((v) => v.id === vendorId),
@@ -253,8 +249,6 @@ const PurchaseOrderForm = () => {
             subTotal: totals.subTotal,
             discountAmount: totals.discountAmount,
             gstAmount: totals.gstAmount,
-            freightCharge,
-            otherCharges,
             grandTotal: totals.grandTotal,
             remarks,
             createdBy: 'Admin User',
@@ -277,10 +271,12 @@ const PurchaseOrderForm = () => {
         }
     };
 
-    const isApproved = status === 'Approved';
+    // Draft is the only editable state; once a PO moves to Sent (or beyond), the whole
+    // form - including the Status field itself - locks so it can no longer be changed here.
+    const isLocked = status !== 'Draft';
 
     const itemColumns = getPurchaseOrderItemColumns(items);
-    const itemActionTemplate = isApproved
+    const itemActionTemplate = isLocked
         ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED
         : getActionBodyTemplate<PurchaseOrderItemRow>({ onEdit: openEditItemDialog, onDelete: (row) => removeItem(row.rowId) });
 
@@ -324,20 +320,20 @@ const PurchaseOrderForm = () => {
                                         onChange={(e) => setVendorId(e.value)}
                                         options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
                                         placeholder="Select vendor"
-                                        disabled={isApproved}
+                                        disabled={isLocked}
                                     />
                                 </div>
                                 <div className="form-field">
                                     <label>PO Date *</label>
-                                    <Calendar value={poDate} onChange={(e) => setPoDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isApproved} />
+                                    <Calendar value={poDate} onChange={(e) => setPoDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
                                 </div>
                                 <div className="form-field">
                                     <label>Expected Delivery Date</label>
-                                    <Calendar value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isApproved} />
+                                    <Calendar value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
                                 </div>
                                 <div className="form-field">
                                     <label>Payment Terms</label>
-                                    <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isApproved} />
+                                    <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isLocked} />
                                 </div>
                                 <div className="form-field">
                                     <label>Status</label>
@@ -345,25 +341,25 @@ const PurchaseOrderForm = () => {
                                         value={status}
                                         onChange={(e) => setStatus(e.value)}
                                         options={statusOptions}
-                                        optionDisabled={(option) => status === 'Approved' && (option === 'Draft' || option === 'Sent')}
                                         placeholder="Select status"
+                                        disabled={isLocked}
                                     />
                                 </div>
                                 <div className="form-field purchase-order-form-full">
                                     <label>Delivery Address</label>
-                                    <InputTextarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Enter delivery address (optional)" disabled={isApproved} />
+                                    <InputTextarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Enter delivery address (optional)" disabled={isLocked} />
                                 </div>
                                 <div className="form-field purchase-order-form-full">
                                     <label>Remarks</label>
-                                    <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" disabled={isApproved} />
+                                    <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" disabled={isLocked} />
                                 </div>
                                 <div className="form-field">
                                     <label>Approved By</label>
-                                    <InputText value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Enter approver name (optional)" disabled={isApproved} />
+                                    <InputText value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Enter approver name (optional)" disabled={isLocked} />
                                 </div>
                                 <div className="form-field">
                                     <label>Approved At</label>
-                                    <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isApproved} />
+                                    <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isLocked} />
                                 </div>
                             </div>
                         </TabPanel>
@@ -371,7 +367,7 @@ const PurchaseOrderForm = () => {
                         <TabPanel header="Items & Charges">
                             <div className="purchase-order-items-header">
                                 <h3>Order Items</h3>
-                                <Button label="Add Item" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={openAddItemDialog} outlined disabled={isApproved} />
+                                <Button label="Add Item" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={openAddItemDialog} outlined disabled={isLocked} />
                             </div>
                             <DataTable
                                 value={items}
@@ -383,17 +379,6 @@ const PurchaseOrderForm = () => {
                                 dataKey="rowId"
                                 emptyMessage="No items added yet."
                             />
-
-                            <div className="purchase-order-form-grid purchase-order-charges-grid">
-                                <div className="form-field">
-                                    <label>Freight Charge (Rs.)</label>
-                                    <InputNumber value={freightCharge} onValueChange={(e) => setFreightCharge(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} disabled={isApproved} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Other Charges (Rs.)</label>
-                                    <InputNumber value={otherCharges} onValueChange={(e) => setOtherCharges(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} disabled={isApproved} />
-                                </div>
-                            </div>
                         </TabPanel>
                     </TabView>
                 </div>
@@ -471,8 +456,6 @@ const PurchaseOrderForm = () => {
                             <div><span>Sub Total</span><span>Rs. {totals.subTotal.toLocaleString('en-IN')}</span></div>
                             <div><span>Discount</span><span>- Rs. {totals.discountAmount.toLocaleString('en-IN')}</span></div>
                             <div><span>GST</span><span>+ Rs. {totals.gstAmount.toLocaleString('en-IN')}</span></div>
-                            <div><span>Freight</span><span>+ Rs. {freightCharge.toLocaleString('en-IN')}</span></div>
-                            <div><span>Other Charges</span><span>+ Rs. {otherCharges.toLocaleString('en-IN')}</span></div>
                             <div className="po-preview-grand-total"><span>Grand Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
                         </div>
 

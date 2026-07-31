@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { AppContext } from '../../../context/AppContext';
+import { AppContext } from '../../../context/AppContextDefinition';
 import {
     HiOutlineTruck,
     HiOutlineArchiveBox,
@@ -152,14 +152,6 @@ const SidePanel = () => {
                         <HiOutlineCog6Tooth size={19} />
                         <span>Settings</span>
                     </button>
-
-                    <div className="sidebar-user">
-                        <div className="sidebar-user-avatar">AU</div>
-                        <div className="sidebar-user-meta">
-                            <div className="sidebar-user-name">Admin User</div>
-                            <div className="sidebar-user-role">Administrator</div>
-                        </div>
-                    </div>
                 </div>
             </div>
 

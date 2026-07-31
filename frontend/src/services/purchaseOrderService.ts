@@ -1,6 +1,6 @@
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
-export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Approved' | 'Received' | 'Cancelled';
+export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Received' | 'Cancelled';
 
 export interface PurchaseOrderItem {
     skuId: string;
@@ -36,8 +36,6 @@ export interface PurchaseOrder {
     subTotal: number;
     discountAmount: number;
     gstAmount: number;
-    freightCharge: number;
-    otherCharges: number;
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
@@ -60,8 +58,6 @@ export interface PurchaseOrderPayload {
     subTotal: number;
     discountAmount: number;
     gstAmount: number;
-    freightCharge: number;
-    otherCharges: number;
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
@@ -86,8 +82,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 // Postgres NUMERIC columns come back from `pg` as strings (to avoid float
 // precision loss), even though every consumer here expects real numbers.
 // Coercing right after the fetch keeps that a one-time concern instead of
-// something every caller has to remember (the bug this fixed: string
-// freightCharge/otherCharges got silently string-concatenated into grandTotal).
+// something every caller has to remember.
 function normalizePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
     return {
         ...po,
@@ -95,8 +90,6 @@ function normalizePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
         subTotal: Number(po.subTotal),
         discountAmount: Number(po.discountAmount),
         gstAmount: Number(po.gstAmount),
-        freightCharge: Number(po.freightCharge),
-        otherCharges: Number(po.otherCharges),
         grandTotal: Number(po.grandTotal),
     };
 }

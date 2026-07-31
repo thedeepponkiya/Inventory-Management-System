@@ -27,7 +27,7 @@
 .p-button {
     background: #2563eb;
     border-color: #2563eb;
-    padding: 0.5rem 0.9rem;
+    padding: 0.4rem 0.6rem;
     font-size: 0.875rem;
 }
 .p-button:not(:disabled):hover {

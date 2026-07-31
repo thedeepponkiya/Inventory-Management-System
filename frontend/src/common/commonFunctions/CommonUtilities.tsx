@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import type { IconType } from 'react-icons';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
 import {
     HiOutlinePencilSquare,
     HiOutlineTrash,
@@ -17,16 +16,15 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
 import type { Sku } from '../../mockData/skuData';
 import type { Location as LocationType } from '../../services/locationService';
 import type { Category as CategoryRecord } from '../../services/categoryService';
-import type { Category as CategoryType } from '../../mockData/categoryData';
 import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
 import type { Vendor } from '../../services/vendorService';
 import type { User } from '../../mockData/userData';
 import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
-import type { RecentInward } from '../../mockData/materialInwardData';
 import type { Transaction, TransactionType } from '../../mockData/transactionData';
-import type { Invoice, InvoiceStatus } from '../../mockData/invoiceData';
 import type { RecentReport } from '../../mockData/reportData';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../../services/purchaseOrderService';
+import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
+import type { Invoice, PaymentStatus } from '../../services/invoiceService';
 
 // Every DataTable column body in the app boils down to a handful of shapes
 // (status pill, currency, thumbnail, edit/delete icons, "N items" badge, plain
@@ -365,96 +363,41 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
     },
 ];
 
-export interface InwardItem {
-    id: number;
-    categoryName: string | null;
-    skuCode: string | null;
-    batchNo: string;
-    qty: number;
-    unitPrice: number;
-}
-
-export const getMaterialInwardItemColumns = (items: InwardItem[], categoriesData: CategoryType[], skusData: Sku[], onUpdateItem: (id: number, patch: Partial<InwardItem>) => void): ColumnConfig<InwardItem>[] => [
-    {
-        field: 'id',
-        key: 'index',
-        header: '#',
-        style: { width: '48px' },
-        body: (row) => items.findIndex((item) => item.id === row.id) + 1,
-    },
-    {
-        field: 'categoryName',
-        header: 'Category (Box)',
-        body: (row) => (
-            <Dropdown
-                value={row.categoryName}
-                onChange={(e) => onUpdateItem(row.id, { categoryName: e.value, skuCode: DEFAULT_DATA_TYPE_VALUE.NULL })}
-                options={categoriesData.map((c) => c.name)}
-                placeholder="Category"
-                className="inward-items-dropdown"
-            />
-        ),
-    },
-    {
-        field: 'skuCode',
-        header: 'SKU / Item',
-        body: (row) => (
-            <Dropdown
-                value={row.skuCode}
-                onChange={(e) => onUpdateItem(row.id, { skuCode: e.value })}
-                options={skusData
-                    .filter((s) => !row.categoryName || s.categoryName === row.categoryName)
-                    .map((s) => ({ label: s.name, value: s.code }))}
-                placeholder="SKU / Item"
-                className="inward-items-dropdown"
-            />
-        ),
-    },
-    {
-        field: 'batchNo',
-        header: 'Batch No.',
-        body: (row) => (
-            <InputText value={row.batchNo} onChange={(e) => onUpdateItem(row.id, { batchNo: e.target.value })} placeholder="Batch no." />
-        ),
-    },
-    {
-        field: 'qty',
-        header: 'Qty',
-        body: (row) => (
-            <InputNumber value={row.qty} onValueChange={(e) => onUpdateItem(row.id, { qty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} inputClassName="inward-items-number" />
-        ),
-    },
-    {
-        field: 'unitPrice',
-        header: 'Unit Price (Rs.)',
-        body: (row) => (
-            <InputNumber
-                value={row.unitPrice}
-                onValueChange={(e) => onUpdateItem(row.id, { unitPrice: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
-                mode="decimal"
-                minFractionDigits={2}
-                inputClassName="inward-items-number"
-            />
-        ),
-    },
-    {
-        field: 'unitPrice',
-        key: 'total',
-        header: 'Total (Rs.)',
-        body: (row) => (row.qty * row.unitPrice).toFixed(2),
-    },
+export const getMaterialInwardColumns = (): ColumnConfig<MaterialInward>[] => [
+    { field: 'inwardNo', header: 'Inward No.', fieldType: 'text' },
+    { field: 'receivedDate', header: 'Received Date', fieldType: 'text' },
+    { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
+    { field: 'purchaseOrderNo', header: 'PO No.', fieldType: 'text' },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'receivedBy', header: 'Received By', fieldType: 'text' },
 ];
 
-const inwardPaymentStatusVariant: Record<string, StatusVariant> = {
-    Paid: 'success',
-    Unpaid: 'warning',
-};
+export interface MaterialInwardItemRow extends MaterialInwardItem {
+    rowId: number;
+}
 
-export const getMaterialInwardInwardColumns = (): ColumnConfig<RecentInward>[] => [
-    { field: 'invoiceNo', header: 'Invoice No.', fieldType: 'text' },
-    { field: 'date', header: 'Date', fieldType: 'text' },
-    { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
-    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: inwardPaymentStatusVariant } },
+export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[]): ColumnConfig<MaterialInwardItemRow>[] => [
+    {
+        field: 'rowId',
+        key: 'index',
+        header: '#',
+        style: { width: '44px' },
+        body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
+    },
+    { field: 'itemName', header: 'Item Name', fieldType: 'text' },
+    { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
+    { field: 'previousReceivedQty', header: 'Prev. Received', fieldType: 'text' },
+    { field: 'receivedQty', header: 'Received Qty', fieldType: 'text' },
+    { field: 'pendingQty', header: 'Pending Qty', fieldType: 'text' },
+    { field: 'acceptedQty', header: 'Accepted Qty', fieldType: 'text' },
+    { field: 'rejectedQty', header: 'Rejected Qty', fieldType: 'text' },
+    { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
+    { field: 'discountPercent', header: 'Discount %', fieldType: 'text' },
+    { field: 'gstPercent', header: 'GST %', fieldType: 'text' },
+    { field: 'lineTotal', header: 'Line Total (Rs.)', fieldType: 'currency' },
+    { field: 'batchNo', header: 'Batch No.', fieldType: 'text' },
+    { field: 'expiryDate', header: 'Expiry Date', fieldType: 'text' },
+    { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
 const transactionTypeVariant: Record<TransactionType, StatusVariant> = {
@@ -477,38 +420,25 @@ export const getTransactionsColumns = (): ColumnConfig<Transaction>[] => [
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
-const invoiceStatusVariant: Record<InvoiceStatus, StatusVariant> = {
-    Paid: 'success',
+const paymentStatusVariant: Record<PaymentStatus, StatusVariant> = {
+    Unpaid: 'danger',
     Partial: 'warning',
-    Overdue: 'danger',
-    Pending: 'warning',
-    Draft: 'info',
-    Canceled: 'neutral',
+    Paid: 'success',
 };
 
-export const invoicesAllColumnKeys = ['Invoice No.', 'Date', 'Type', 'Customer / Supplier', 'Location', 'Total Amount', 'Paid Amount', 'Due Amount', 'Status', 'Created By'];
-
-export const getInvoicesColumns = (visibleColumns: string[]): ColumnConfig<Invoice>[] => {
-    const allPossibleColumns: (ColumnConfig<Invoice> & { key: string })[] = [
-        { field: 'invoiceNo', header: 'Invoice No.', key: 'Invoice No.', fieldType: 'text' },
-        { field: 'date', header: 'Date', key: 'Date', fieldType: 'text' },
-        { field: 'type', header: 'Type', key: 'Type', fieldType: 'status', options: { defaultVariant: 'info' } },
-        { field: 'partyName', header: 'Customer / Supplier', key: 'Customer / Supplier', fieldType: 'text' },
-        { field: 'locationName', header: 'Location', key: 'Location', fieldType: 'text' },
-        { field: 'totalAmount', header: 'Total Amount', key: 'Total Amount', fieldType: 'currency', options: { decimals: 0 } },
-        { field: 'paidAmount', header: 'Paid Amount', key: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 } },
-        { field: 'dueAmount', header: 'Due Amount', key: 'Due Amount', fieldType: 'currency', options: { decimals: 0 } },
-        { field: 'status', header: 'Status', key: 'Status', fieldType: 'status', options: { variantMap: invoiceStatusVariant } },
-        { field: 'createdBy', header: 'Created By', key: 'Created By', fieldType: 'text' },
-    ];
-
-    return allPossibleColumns.filter((col) => visibleColumns.includes(col.key));
-};
+export const getInvoiceColumns = (): ColumnConfig<Invoice>[] => [
+    { field: 'invoiceNo', header: 'Invoice No.', fieldType: 'text' },
+    { field: 'invoiceDate', header: 'Invoice Date', fieldType: 'text' },
+    { field: 'invoiceType', header: 'Type', fieldType: 'status', options: { defaultVariant: 'info' } },
+    { field: 'customerSupplier', header: 'Customer / Supplier', fieldType: 'text' },
+    { field: 'materialInwardNo', header: 'Material Inward No.', fieldType: 'text' },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant } },
+];
 
 const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
     Draft: 'neutral',
     Sent: 'info',
-    Approved: 'warning',
     Received: 'success',
     Cancelled: 'danger',
 };

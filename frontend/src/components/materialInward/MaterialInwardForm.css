@@ -1,8 +1,8 @@
-.purchase-order-form-page {
+.material-inward-form-page {
     padding-bottom: 24px;
 }
 
-.po-form-toolbar {
+.mi-form-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -14,20 +14,20 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-.po-form-toolbar-title {
+.mi-form-toolbar-title {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.po-form-toolbar-title h2 {
+.mi-form-toolbar-title h2 {
     font-size: 16px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
 }
 
-.po-form-back-btn {
+.mi-form-back-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -40,16 +40,16 @@
     cursor: pointer;
 }
 
-.po-form-back-btn:hover {
+.mi-form-back-btn:hover {
     background: var(--surface-hover);
 }
 
-.po-form-toolbar-actions {
+.mi-form-toolbar-actions {
     display: flex;
     gap: 8px;
 }
 
-.po-form-layout {
+.mi-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
     gap: 16px;
@@ -57,12 +57,12 @@
 }
 
 @media (max-width: 1000px) {
-    .po-form-layout {
+    .mi-form-layout {
         grid-template-columns: 1fr;
     }
 }
 
-.po-form-main {
+.mi-form-main {
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -70,56 +70,63 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-/* Match InventoryHome's dialog tab padding (.inventory-home-dialog-tab) instead of
-   PrimeReact's default 1.25rem tab/panel padding, which doubled up with .po-form-main's
-   own 16px padding. */
-.po-form-main .p-tabview-nav-link {
+.mi-form-main .p-tabview-nav-link {
     padding: 10px 4px !important;
     margin-right: 20px;
     font-size: 13px;
 }
 
-.po-form-main .p-tabview-panels {
+.mi-form-main .p-tabview-panels {
     padding: 16px 0 0 !important;
 }
 
-.purchase-order-form-grid {
+.material-inward-form-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 
 @media (max-width: 800px) {
-    .purchase-order-form-grid {
+    .material-inward-form-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-.purchase-order-form-full {
+.material-inward-form-full {
     grid-column: 1 / -1;
 }
 
-.purchase-order-items-header {
+.material-inward-charges-grid {
+    margin-top: 16px;
+}
+
+.material-inward-items-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin: 4px 0 12px;
 }
 
-.purchase-order-items-header h3 {
+.material-inward-items-header h3 {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
 }
 
+.mi-item-dialog-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: -4px;
+}
+
 /* Live preview panel */
-.po-preview-panel {
+.mi-preview-panel {
     position: sticky;
     top: 16px;
 }
 
-.po-preview-card {
+.mi-preview-card {
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -127,40 +134,30 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-.po-preview-header {
+.mi-preview-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 16px;
 }
 
-.po-preview-title {
+.mi-preview-title {
     font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.po-preview-subtitle {
+.mi-preview-subtitle {
     font-size: 13px;
     color: var(--text-muted);
     margin-top: 2px;
 }
 
-.po-preview-status {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent-info-text);
-    background: var(--accent-info-bg);
-    border-radius: 999px;
-    padding: 4px 10px;
-    height: fit-content;
-}
-
-.po-preview-section {
+.mi-preview-section {
     margin-bottom: 14px;
 }
 
-.po-preview-label {
+.mi-preview-label {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -169,25 +166,25 @@
     margin-bottom: 4px;
 }
 
-.po-preview-vendor {
+.mi-preview-vendor {
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.5;
 }
 
-.po-preview-vendor-name {
+.mi-preview-vendor-name {
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.po-preview-empty {
+.mi-preview-empty {
     font-size: 13px;
     color: var(--text-subtle);
     text-align: center;
     padding: 8px 0;
 }
 
-.po-preview-dates {
+.mi-preview-dates {
     display: flex;
     gap: 24px;
     font-size: 13px;
@@ -195,14 +192,14 @@
     margin-bottom: 16px;
 }
 
-.po-preview-items-table {
+.mi-preview-items-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
     margin-bottom: 16px;
 }
 
-.po-preview-items-table th {
+.mi-preview-items-table th {
     text-align: left;
     font-size: 11px;
     text-transform: uppercase;
@@ -211,13 +208,13 @@
     padding: 6px 4px;
 }
 
-.po-preview-items-table td {
+.mi-preview-items-table td {
     padding: 8px 4px;
     border-bottom: 1px solid var(--border-subtle);
     color: var(--text-secondary);
 }
 
-.po-preview-totals {
+.mi-preview-totals {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -227,12 +224,12 @@
     border-top: 1px solid var(--border-default);
 }
 
-.po-preview-totals > div {
+.mi-preview-totals > div {
     display: flex;
     justify-content: space-between;
 }
 
-.po-preview-grand-total {
+.mi-preview-grand-total {
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
@@ -241,7 +238,7 @@
     border-top: 1px solid var(--border-default);
 }
 
-.po-preview-remarks {
+.mi-preview-remarks {
     margin-top: 16px;
     font-size: 13px;
     color: var(--text-secondary);

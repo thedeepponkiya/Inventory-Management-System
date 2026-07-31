@@ -1,59 +1,52 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
-import { MultiSelect } from 'primereact/multiselect';
-import { HiOutlineArrowDownTray, HiOutlineEye, HiOutlinePrinter } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
+import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { invoiceMockData, type Invoice } from '../../mockData/invoiceData';
+import { AppContext } from '../../context/AppContextDefinition';
+import { type Invoice } from '../../services/invoiceService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInvoicesColumns, getActionBodyTemplate, invoicesAllColumnKeys as allColumns } from '../../common/commonFunctions/CommonUtilities';
+import { getInvoiceColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import './Invoices.css';
 
 const Invoices = () => {
-    const [filters, setFilters] = useState<Record<string, unknown>>({ partyName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
-    const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns);
+    const navigate = useNavigate();
+    const { invoices, invoicesLoading } = useContext(AppContext);
+    const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
 
     const filterFields: FilterField[] = [
-        { key: 'partyName', type: 'search', label: 'Customer / Supplier', placeholder: 'Search customer / supplier' },
+        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by invoice no. / customer-supplier' },
     ];
 
     const filteredInvoices = useMemo(() => {
-        const partyName = (filters.partyName as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return invoiceMockData.filter((inv) => {
-            return !partyName || inv.partyName.toLowerCase().includes(partyName);
+        const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
+        return (invoices as Invoice[]).filter((invoice) => {
+            return (
+                !search ||
+                invoice.invoiceNo.toLowerCase().includes(search) ||
+                (invoice.customerSupplier ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING).toLowerCase().includes(search)
+            );
         });
-    }, [filters]);
+    }, [invoices, filters]);
 
-    const columns = getInvoicesColumns(visibleColumns);
+    const columns = getInvoiceColumns();
 
-    const actionTemplate = getActionBodyTemplate<Invoice>({ icons: [{ icon: HiOutlineEye }, { icon: HiOutlinePrinter }] });
+    const actionTemplate = getActionBodyTemplate<Invoice>({
+        onEdit: (invoice) => navigate(`/invoices/${invoice.id}`),
+    });
 
     return (
         <div className="invoices-page">
-
             <FilterBar
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ partyName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={
-                    <>
-                        <Button label="Export" icon={<HiOutlineArrowDownTray className="mr-2" />} outlined size="small" />
-                        <MultiSelect
-                            value={visibleColumns}
-                            onChange={(e) => setVisibleColumns(e.value)}
-                            options={allColumns}
-                            placeholder="Column Settings"
-                            className="invoices-column-settings"
-                            display="comma"
-                            maxSelectedLabels={0}
-                            selectedItemsLabel="Column Settings ({0})"
-                        />
-                    </>
-                }
+                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                actions={<Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/invoices/new')} size="small" outlined />}
             />
 
-            <DataTable value={filteredInvoices} columns={columns} actionBodyTemplate={actionTemplate} />
+            <DataTable value={filteredInvoices} columns={columns} loading={invoicesLoading} actionBodyTemplate={actionTemplate} />
         </div>
     );
 };

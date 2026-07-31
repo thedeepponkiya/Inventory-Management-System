@@ -7,7 +7,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../context/AppContextDefinition';
 import { createVendor, updateVendor, deleteVendor, type Vendor as VendorType, type VendorPayload } from '../../services/vendorService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getVendorColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';

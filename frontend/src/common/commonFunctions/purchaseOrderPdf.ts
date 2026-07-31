@@ -137,8 +137,6 @@ export function exportPurchaseOrderPdf(po: PurchaseOrder, vendor?: Vendor): void
         ['Sub Total', formatCurrency(po.subTotal)],
         ['Discount', `- ${formatCurrency(po.discountAmount)}`],
         ['GST', `+ ${formatCurrency(po.gstAmount)}`],
-        ['Freight', `+ ${formatCurrency(po.freightCharge)}`],
-        ['Other Charges', `+ ${formatCurrency(po.otherCharges)}`],
     ];
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);

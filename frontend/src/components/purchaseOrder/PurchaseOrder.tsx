@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { HiOutlinePlus, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { AppContext } from '../../context/AppContext';
+import { AppContext } from '../../context/AppContextDefinition';
 import { deletePurchaseOrder, type PurchaseOrder as PurchaseOrderType } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
