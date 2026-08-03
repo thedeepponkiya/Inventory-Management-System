@@ -3,7 +3,6 @@ import Header from '../common/commonComponents/header/Header';
 import { useAuthContext } from '../context/AuthContextDefinition';
 import Dashboard from '../components/dashboard/Dashboard';
 import MaterialInward from '../components/materialInward/MaterialInward';
-import MaterialInwardForm from '../components/materialInward/MaterialInwardForm';
 import RawSku from '../components/rawSku/RawSku';
 import Locations from '../components/locations/Locations';
 import Category from '../components/category/Category';
@@ -47,8 +46,6 @@ const AppRoutes = () => {
                     <Routes>
                         <Route path='/' element={<Dashboard />}></Route>
                         <Route path='/material-inward' element={<MaterialInward />}></Route>
-                        <Route path='/material-inward/new' element={<MaterialInwardForm />}></Route>
-                        <Route path='/material-inward/:id' element={<MaterialInwardForm />}></Route>
                         <Route path='/sku-master' element={<RawSku />}></Route>
                         <Route path='/locations' element={<Locations />}></Route>
                         <Route path='/category' element={<Category />}></Route>

@@ -77,9 +77,19 @@
 }
 
 .form-field label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
+}
+
+input::placeholder,
+textarea::placeholder {
+    font-size: 0.75rem;
+}
+
+.p-dropdown .p-dropdown-label.p-placeholder,
+.p-multiselect .p-multiselect-label.p-placeholder {
+    font-size: 0.75rem;
 }
 
 .form-field--row {

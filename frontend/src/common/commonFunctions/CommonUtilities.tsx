@@ -467,7 +467,6 @@ export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[]): Colu
     },
     { field: 'itemName', header: 'Item Name', fieldType: 'text' },
     { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
-    { field: 'receivedQty', header: 'Received Qty', fieldType: 'text' },
     { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
     { field: 'discountPercent', header: 'Discount %', fieldType: 'text' },
     { field: 'gstPercent', header: 'GST %', fieldType: 'text' },

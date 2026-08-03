@@ -6,7 +6,7 @@ import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
 import PageHeader from '../../common/commonComponents/pageHeader/PageHeader';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
@@ -128,7 +128,7 @@ const Users = () => {
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
-                        <Button label={editingId ? 'Save Changes' : 'Save User'} onClick={handleSave} />
+                        <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                     </>
                 }
             >

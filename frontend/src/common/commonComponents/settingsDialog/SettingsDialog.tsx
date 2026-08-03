@@ -6,7 +6,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { SelectButton } from 'primereact/selectbutton';
 import { FileUpload, type FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
-import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
@@ -58,7 +58,10 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                 footer={
                     <>
                         <button type="button" className="settings-dialog-cancel" onClick={onHide}>Cancel</button>
-                        <button type="button" className="settings-dialog-save" onClick={handleSave}>Save Changes</button>
+                        <button type="button" className="settings-dialog-save" onClick={handleSave}>
+                            <HiOutlineCheckCircle className="mr-2" />
+                            Save
+                        </button>
                     </>
                 }
             >

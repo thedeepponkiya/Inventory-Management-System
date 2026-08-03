@@ -9,7 +9,8 @@ import { Calendar } from 'primereact/calendar';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { confirmDialog } from 'primereact/confirmdialog';
+import { HiOutlinePlus, HiOutlineArrowLeft, HiOutlineXCircle, HiOutlineCheckCircle } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import {
@@ -200,6 +201,26 @@ const PurchaseOrderForm = () => {
         navigate('/purchase-order');
     };
 
+    const handleCancelOrder = () => {
+        if (!existingPo) return;
+        confirmDialog({
+            message: 'Are you sure you want to cancel this order?',
+            header: 'Cancel Purchase Order',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    await updatePurchaseOrder(existingPo.id, { status: 'Cancelled' });
+                    showToast(toast, 'success', 'Cancelled', 'Purchase order cancelled successfully');
+                    fetchPurchaseOrders();
+                    navigate('/purchase-order');
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
+        });
+    };
+
     const handleSave = async () => {
         if (!vendorId || !poDate) {
             showToast(toast, 'error', 'Error', 'Vendor and PO Date are required');
@@ -271,9 +292,17 @@ const PurchaseOrderForm = () => {
         }
     };
 
-    // Draft is the only editable state; once a PO moves to Sent (or beyond), the whole
-    // form - including the Status field itself - locks so it can no longer be changed here.
-    const isLocked = status !== 'Draft';
+    // Locking reflects the PO's *persisted* status, not the live (possibly still-being-edited,
+    // not-yet-saved) Status dropdown value - so picking "Sent" while still filling out a form
+    // doesn't instantly freeze the rest of it before you've had a chance to save. A brand-new
+    // PO is therefore never locked; an existing one locks only once it was already saved as
+    // non-Draft (i.e. the next time you open it, after that save went through).
+    const isLocked = isEditRoute && existingPo?.status !== 'Draft';
+
+    // A brand-new PO can only start as Draft or Sent - Received/Cancelled only make sense
+    // once a PO already exists and has been through its lifecycle, so they're hidden here
+    // (the edit form still offers all four, since an existing PO may already be in either).
+    const statusOptionsForForm = isEditRoute ? statusOptions : statusOptions.filter((option) => option !== 'Received' && option !== 'Cancelled');
 
     const itemColumns = getPurchaseOrderItemColumns(items);
     const itemActionTemplate = isLocked
@@ -299,8 +328,11 @@ const PurchaseOrderForm = () => {
                     <h2>{isEditRoute ? `Edit ${currentPoNo}` : 'New Purchase Order'}</h2>
                 </div>
                 <div className="po-form-toolbar-actions">
+                    {isEditRoute && existingPo?.status === 'Sent' && (
+                        <Button label="Cancel Order" icon={<HiOutlineXCircle className="mr-2" />} severity="danger" outlined onClick={handleCancelOrder} />
+                    )}
                     <Button label="Cancel" outlined onClick={handleCancel} />
-                    <Button label={isEditRoute ? 'Save Changes' : 'Save Purchase Order'} onClick={handleSave} />
+                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                 </div>
             </div>
 
@@ -340,7 +372,7 @@ const PurchaseOrderForm = () => {
                                     <Dropdown
                                         value={status}
                                         onChange={(e) => setStatus(e.value)}
-                                        options={statusOptions}
+                                        options={statusOptionsForForm}
                                         placeholder="Select status"
                                         disabled={isLocked}
                                     />
@@ -477,7 +509,11 @@ const PurchaseOrderForm = () => {
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
-                        <Button label={editingItemRowId ? 'Save Changes' : 'Add Item'} onClick={handleItemDialogSave} />
+                        <Button
+                            label={editingItemRowId ? 'Save' : 'Add Item'}
+                            icon={editingItemRowId ? <HiOutlineCheckCircle className="mr-2" /> : DEFAULT_DATA_TYPE_VALUE.UNDEFINED}
+                            onClick={handleItemDialogSave}
+                        />
                     </>
                 }
             >
@@ -489,10 +525,6 @@ const PurchaseOrderForm = () => {
                     <div className="form-field form-field--row">
                         <label>Ordered Qty *</label>
                         <InputNumber value={itemForm.orderedQty} onValueChange={(e) => setItemForm({ ...itemForm, orderedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
-                    </div>
-                    <div className="form-field form-field--row">
-                        <label>Received Qty</label>
-                        <InputNumber value={itemForm.receivedQty} onValueChange={(e) => setItemForm({ ...itemForm, receivedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
                     </div>
                     <div className="form-field form-field--row">
                         <label>Unit Price (Rs.)</label>

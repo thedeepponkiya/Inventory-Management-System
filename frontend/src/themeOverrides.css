@@ -28,7 +28,15 @@
     background: #2563eb;
     border-color: #2563eb;
     padding: 0.4rem 0.6rem;
-    font-size: 0.875rem;
+    font-size: 12px;
+}
+
+/* Custom icon elements (react-icons) passed via Button's `icon` prop render as a plain
+   inline SVG sized "1em" by default, which just tracked the button's font-size above -
+   this pins every button icon to a fixed 1.5rem regardless of that font-size. */
+.p-button svg {
+    width: 1.2rem;
+    height: 1.2rem;
 }
 .p-button:not(:disabled):hover {
     background: #1d4ed8;
@@ -67,9 +75,54 @@
     color: #2563eb;
 }
 
+/* No button anywhere shows a box-shadow (PrimeReact's default theme adds a focus-ring glow
+   via box-shadow on .p-button:focus and each severity variant) - !important since several
+   of those theme rules share this same specificity and would otherwise win on source order. */
+.p-button {
+    box-shadow: none !important;
+}
+
+/* Danger variant (e.g. "Cancel Order") - the blanket .p-button rules above hardcode the
+   brand blue regardless of severity, so this needs its own override to actually render red. */
+.p-button.p-button-danger {
+    background: var(--accent-danger-text);
+    border-color: var(--accent-danger-text);
+}
+.p-button.p-button-danger:not(:disabled):hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+.p-button.p-button-outlined.p-button-danger {
+    background: transparent;
+    color: var(--accent-danger-text);
+    border-color: var(--accent-danger-text);
+}
+.p-button.p-button-outlined.p-button-danger:not(:disabled):hover {
+    background: rgba(220, 38, 38, 0.08);
+    color: var(--accent-danger-text);
+    border-color: var(--accent-danger-text);
+}
+
+/* Confirm dialogs always use the theme's primary color for their Yes/accept button, even
+   when a call site passes acceptClassName="p-button-danger" (e.g. delete confirmations) -
+   red is reserved for standalone danger actions like the Cancel Order button itself, not
+   this confirm step. */
+.p-button.p-confirm-dialog-accept.p-button-danger {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+.p-button.p-confirm-dialog-accept.p-button-danger:not(:disabled):hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.p-confirm-dialog-message {
+    font-size: 13px;
+}
+
 /* Text inputs / textareas / calendar & input-number's inner input */
 .p-inputtext {
-    font-size: 0.875rem;
+    font-size: 13px;
     padding: 0.5rem 0.75rem;
 }
 .p-inputtext:enabled:hover {
@@ -89,7 +142,7 @@
     border-color: #2563eb;
 }
 .p-dropdown .p-dropdown-label {
-    font-size: 0.875rem;
+    font-size: 13px;
     padding: 0.5rem 0.75rem;
 }
 .p-dropdown .p-dropdown-trigger {
@@ -113,7 +166,7 @@
     border-color: #2563eb;
 }
 .p-multiselect .p-multiselect-label {
-    font-size: 0.875rem;
+    font-size: 13px;
     padding: 0.5rem 0.75rem;
 }
 .p-multiselect-panel .p-multiselect-item {

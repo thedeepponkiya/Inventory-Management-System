@@ -100,3 +100,10 @@
     width: 100%;
     min-width: 160px;
 }
+
+.filter-bar-clear-btn.p-button.p-button-outlined {
+    border: none;
+}
+.filter-bar-clear-btn.p-button.p-button-outlined:not(:disabled):hover {
+    border: none;
+}

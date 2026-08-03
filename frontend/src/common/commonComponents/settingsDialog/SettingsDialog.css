@@ -84,11 +84,18 @@
 
 .settings-dialog-cancel,
 .settings-dialog-save {
+    display: inline-flex;
+    align-items: center;
     font-size: 13px;
     font-weight: 600;
     padding: 8px 16px;
     border-radius: 8px;
     cursor: pointer;
+}
+
+.settings-dialog-save svg {
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
 .settings-dialog-cancel {

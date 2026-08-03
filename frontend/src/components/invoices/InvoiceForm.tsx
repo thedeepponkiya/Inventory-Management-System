@@ -7,7 +7,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Toast } from 'primereact/toast';
-import { HiOutlineArrowLeft } from 'react-icons/hi2';
+import { HiOutlineArrowLeft, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { AppContext } from '../../context/AppContextDefinition';
 import {
     createInvoice,
@@ -180,7 +180,7 @@ const InvoiceForm = () => {
                 </div>
                 <div className="inv-form-toolbar-actions">
                     <Button label="Cancel" outlined onClick={handleCancel} />
-                    <Button label={isEditRoute ? 'Save Changes' : 'Save Invoice'} onClick={handleSave} />
+                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                 </div>
             </div>
 
