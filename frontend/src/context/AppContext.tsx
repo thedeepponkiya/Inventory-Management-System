@@ -7,6 +7,7 @@ import { getVendors, type Vendor } from '../services/vendorService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
 import { getInvoices, type Invoice } from '../services/invoiceService';
+import { getRawSkus, type RawSku } from '../services/rawSkuService';
 import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
@@ -25,6 +26,8 @@ const AppContextProvider = (props: any) => {
     const [materialInwardsLoading, setMaterialInwardsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [invoices, setInvoices] = React.useState<Invoice[]>([]);
     const [invoicesLoading, setInvoicesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [rawSkus, setRawSkus] = React.useState<RawSku[]>([]);
+    const [rawSkusLoading, setRawSkusLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -75,6 +78,13 @@ const AppContextProvider = (props: any) => {
             .finally(() => setInvoicesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchRawSkus = React.useCallback(() => {
+        getRawSkus()
+            .then((data) => setRawSkus(data))
+            .catch(() => setRawSkus([]))
+            .finally(() => setRawSkusLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
@@ -83,7 +93,8 @@ const AppContextProvider = (props: any) => {
         fetchPurchaseOrders();
         fetchMaterialInwards();
         fetchInvoices();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices]);
+        fetchRawSkus();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus]);
 
     return (
         <>
@@ -112,6 +123,9 @@ const AppContextProvider = (props: any) => {
                     invoices,
                     invoicesLoading,
                     fetchInvoices,
+                    rawSkus,
+                    rawSkusLoading,
+                    fetchRawSkus,
                 }}>
                 {props.children}
             </AppContext.Provider >

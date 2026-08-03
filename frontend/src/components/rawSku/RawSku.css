@@ -1,3 +1,13 @@
-.sku-master-page {
+.raw-sku-page {
     padding-bottom: 24px;
+}
+
+.raw-sku-dialog-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.raw-sku-dialog-full {
+    grid-column: 1 / -1;
 }

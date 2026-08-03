@@ -21,7 +21,7 @@ import {
 import type { PurchaseOrder as PurchaseOrderType } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
 import type { Location as LocationType } from '../../services/locationService';
-import { skuMockData } from '../../mockData/skuData';
+import type { RawSku } from '../../services/rawSkuService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardItemColumns, getActionBodyTemplate, type MaterialInwardItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
@@ -70,7 +70,7 @@ interface MaterialInwardFormProps {
 
 const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
     const isEditRoute = Boolean(editingId);
-    const { vendors, locations, purchaseOrders, materialInwards, fetchMaterialInwards, fetchPurchaseOrders, fetchInvoices } = useContext(AppContext);
+    const { vendors, locations, purchaseOrders, materialInwards, rawSkus, fetchMaterialInwards, fetchPurchaseOrders, fetchInvoices } = useContext(AppContext);
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const existingMi = useMemo(
@@ -224,9 +224,9 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
         const discountAmount = (lineGross * itemForm.discountPercent) / 100;
         const taxable = lineGross - discountAmount;
         const gstAmount = (taxable * itemForm.gstPercent) / 100;
-        const sku = skuMockData.find((s) => s.code === itemForm.skuCode);
+        const sku = (rawSkus as RawSku[]).find((s) => s.skuCode === itemForm.skuCode);
         const computed = {
-            skuId: sku?.id ?? itemForm.skuCode,
+            skuId: sku ? String(sku.id) : itemForm.skuCode,
             skuCode: itemForm.skuCode,
             itemName: itemForm.itemName,
             unit: itemForm.unit,
@@ -520,17 +520,17 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                         <Dropdown
                             value={itemForm.skuCode || DEFAULT_DATA_TYPE_VALUE.NULL}
                             onChange={(e) => {
-                                const sku = skuMockData.find((s) => s.code === e.value);
+                                const sku = (rawSkus as RawSku[]).find((s) => s.skuCode === e.value);
                                 setItemForm({
                                     ...itemForm,
                                     skuCode: e.value,
-                                    itemName: sku?.name ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                                    itemName: sku?.skuName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
                                     unit: sku?.unit ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-                                    unitPrice: sku?.unitPrice ?? DEFAULT_DATA_TYPE_VALUE.ZERO,
                                 });
                             }}
-                            options={skuMockData.map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }))}
+                            options={(rawSkus as RawSku[]).map((s) => ({ label: `${s.skuCode} - ${s.skuName}`, value: s.skuCode }))}
                             placeholder="Select raw material"
+                            filter
                             disabled={isPoLinked}
                         />
                     </div>

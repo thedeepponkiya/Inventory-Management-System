@@ -46,7 +46,7 @@ const AppRoutes = () => {
                     <Routes>
                         <Route path='/' element={<Dashboard />}></Route>
                         <Route path='/material-inward' element={<MaterialInward />}></Route>
-                        <Route path='/sku-master' element={<RawSku />}></Route>
+                        <Route path='/raw-sku' element={<RawSku />}></Route>
                         <Route path='/locations' element={<Locations />}></Route>
                         <Route path='/category' element={<Category />}></Route>
                         <Route path='/product-type' element={<ProductType />}></Route>

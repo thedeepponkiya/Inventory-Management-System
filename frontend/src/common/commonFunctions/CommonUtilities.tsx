@@ -13,7 +13,7 @@ import type { StatusVariant } from '../commonComponents/statusBadge/StatusBadge'
 import type { ColumnConfig } from '../commonComponents/dataTable/DataTable';
 import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
 
-import type { Sku } from '../../mockData/skuData';
+import type { RawSku } from '../../services/rawSkuService';
 import type { Location as LocationType } from '../../services/locationService';
 import type { Category as CategoryRecord } from '../../services/categoryService';
 import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
@@ -264,14 +264,14 @@ export function getActionBodyTemplate<T>(options: ActionBodyOptions<T>): (row: T
 // no generic fieldType equivalent since it's bound to per-row update callbacks.
 // =====================================================================================
 
-export const getRawSkuColumns = (): ColumnConfig<Sku>[] => [
-    { field: 'code', header: 'SKU Code', fieldType: 'text' },
-    { field: 'name', header: 'SKU Name', fieldType: 'text' },
-    { field: 'categoryName', header: 'Category (Box)', fieldType: 'text' },
-    { field: 'locationName', header: 'Location', fieldType: 'text' },
+export const getRawSkuColumns = (): ColumnConfig<RawSku>[] => [
+    { field: 'skuCode', header: 'SKU Code', fieldType: 'text' },
+    { field: 'skuName', header: 'SKU Name', fieldType: 'text' },
+    { field: 'categoryName', header: 'Category', fieldType: 'text' },
     { field: 'unit', header: 'Unit', fieldType: 'text' },
+    { field: 'sourceType', header: 'Source Type', fieldType: 'status', options: { defaultVariant: 'info' } },
     { field: 'currentStock', header: 'Current Stock', fieldType: 'text' },
-    { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
+    { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
@@ -330,7 +330,7 @@ export interface AssemblyRow extends AssemblyLine {
     rowId: number;
 }
 
-export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: Sku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void): ColumnConfig<AssemblyRow>[] => [
+export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: RawSku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void): ColumnConfig<AssemblyRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -345,10 +345,10 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
             <Dropdown
                 value={row.skuCode || DEFAULT_DATA_TYPE_VALUE.NULL}
                 onChange={(e) => {
-                    const sku = skusData.find((s) => s.code === e.value);
-                    onUpdateRow(row.rowId, { skuCode: e.value, skuName: sku?.name ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    const sku = skusData.find((s) => s.skuCode === e.value);
+                    onUpdateRow(row.rowId, { skuCode: e.value, skuName: sku?.skuName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
                 }}
-                options={skusData.map((s) => ({ label: `${s.code} - ${s.name}`, value: s.code }))}
+                options={skusData.map((s) => ({ label: `${s.skuCode} - ${s.skuName}`, value: s.skuCode }))}
                 placeholder="Select SKU"
                 className="inventory-home-assembly-dropdown"
             />

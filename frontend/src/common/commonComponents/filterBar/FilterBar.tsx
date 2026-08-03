@@ -38,7 +38,7 @@ const quickActions = [
     { label: 'Home', path: '/home', icon: HiOutlineHome },
     { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
-    { label: 'SKU Master', path: '/sku-master', icon: HiOutlineArchiveBox },
+    { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
 ];
 
 const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProps) => {

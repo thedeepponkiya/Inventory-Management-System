@@ -24,7 +24,7 @@ export const reportKpiMockData = {
 };
 
 export const reportCategoriesMockData: ReportCategory[] = [
-    { id: 'RC-1', label: 'Stock Reports', description: 'View stock summary, stock details, and stock valuation.', count: 8, path: '/sku-master' },
+    { id: 'RC-1', label: 'Stock Reports', description: 'View stock summary, stock details, and stock valuation.', count: 8, path: '/raw-sku' },
     { id: 'RC-2', label: 'Transaction Reports', description: 'Analyze inward, issue, transfer and return transactions.', count: 10, path: '/transactions' },
     { id: 'RC-3', label: 'Invoice Reports', description: 'View invoice summary, aging and detailed reports.', count: 6, path: '/invoices' },
     { id: 'RC-4', label: 'Kit Reports', description: 'Analyze kit details, BOM and component usage.', count: 5, path: '/home' },

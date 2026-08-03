@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -15,7 +15,8 @@ import { inventoryHomeMockData, type InventoryItem, type AssemblyLine } from '..
 import { categoryMockData } from '../../mockData/categoryData';
 import { productTypeMockData } from '../../mockData/productTypeData';
 import { locationMockData } from '../../mockData/locationData';
-import { skuMockData } from '../../mockData/skuData';
+import { AppContext } from '../../context/AppContextDefinition';
+import type { RawSku } from '../../services/rawSkuService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
@@ -30,6 +31,7 @@ const emptyForm: Omit<InventoryItem, 'id' | 'createdDate' | 'assembly'> = {
 };
 
 const InventoryHome = () => {
+    const { rawSkus } = useContext(AppContext);
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [inventoryHomeItems, setInventoryHomeItems] = useState<InventoryItem[]>(inventoryHomeMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -154,7 +156,7 @@ const InventoryHome = () => {
     // eslint-disable-next-line react-hooks/refs
     const actionTemplate = getActionBodyTemplate<InventoryItem>({ onEdit: openEditDialog, onDelete: handleDelete });
 
-    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, skuMockData, updateAssemblyRow);
+    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow);
 
     const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ icons: [{ icon: HiOutlineTrash, onClick: (row) => removeAssemblyRow(row.rowId) }] });
 

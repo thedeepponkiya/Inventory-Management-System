@@ -211,7 +211,7 @@ const Dashboard = () => {
             <KpiCardRow
                 columns={4}
                 items={[
-                    { icon: HiOutlineCube, iconBg: '#dbeafe', iconColor: '#2563eb', label: 'Total SKUs', value: dashboardKpiMockData.totalSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/sku-master') },
+                    { icon: HiOutlineCube, iconBg: '#dbeafe', iconColor: '#2563eb', label: 'Total SKUs', value: dashboardKpiMockData.totalSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/raw-sku') },
                     { icon: HiOutlineClipboardDocumentCheck, iconBg: '#dcfce7', iconColor: '#16a34a', label: 'Total Stock Value', value: `Rs. ${dashboardKpiMockData.totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View stock value', onClick: () => navigate('/reports') },
                     { icon: HiOutlineSquares2X2, iconBg: '#ede9fe', iconColor: '#7c3aed', label: 'Total Kits', value: dashboardKpiMockData.totalKits, sublabel: 'All configured kits', linkLabel: 'View all kits', onClick: () => navigate('/home') },
                     { icon: HiOutlineShoppingCart, iconBg: '#ffedd5', iconColor: '#ea580c', label: 'Kits Issued (This Month)', value: dashboardKpiMockData.kitsIssuedThisMonth, sublabel: `Till now in ${currentMonthLabel}`, linkLabel: 'View transactions', onClick: () => navigate('/transactions') },
@@ -277,7 +277,7 @@ const Dashboard = () => {
                     <div className="dashboard-card">
                         <div className="dashboard-card-header">
                             <h2>Low Stock Alerts</h2>
-                            <span className="dashboard-card-link" onClick={() => navigate('/sku-master')}>View all</span>
+                            <span className="dashboard-card-link" onClick={() => navigate('/raw-sku')}>View all</span>
                         </div>
                         <div className="dashboard-low-stock-list">
                             {lowStockAlertsMockData.map((item) => {

@@ -47,6 +47,32 @@ CREATE TABLE IF NOT EXISTS ims_vendor (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_vendor_vendorname_lower_idx ON ims_vendor (LOWER("vendorName"));
 
+-- Raw SKU master, backing /api/v1/raw-skus CRUD. "rawMaterialId" self-references this same
+-- table (a "Processed" SKU can point at a parent raw material, e.g. Door Stopper <- Steel Rod).
+-- inventoryEntryMode/sourceType/rawMaterialId are stored as real data but not wired into any
+-- automatic stock-recalculation logic yet - there's no transaction pipeline today that would
+-- update currentStock automatically (InventoryHome is still its own mock world).
+CREATE TABLE IF NOT EXISTS ims_raw_sku (
+    id SERIAL PRIMARY KEY,
+    "skuCode" VARCHAR(50) NOT NULL UNIQUE,
+    "skuName" VARCHAR(150) NOT NULL,
+    "categoryId" INTEGER REFERENCES ims_category(id),
+    unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+    "inventoryEntryMode" VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
+    "sourceType" VARCHAR(30) NOT NULL DEFAULT 'Direct Purchase',
+    "rawMaterialId" INTEGER REFERENCES ims_raw_sku(id),
+    "minStock" NUMERIC NOT NULL DEFAULT 0,
+    "maxStock" NUMERIC NOT NULL DEFAULT 0,
+    "reorderLevel" NUMERIC NOT NULL DEFAULT 0,
+    "openingStock" NUMERIC NOT NULL DEFAULT 0,
+    "currentStock" NUMERIC NOT NULL DEFAULT 0,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Purchase orders, backing /api/v1/purchase-orders CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
 -- { skuId, skuCode, itemName, category, unit, orderedQty, receivedQty, pendingQty,

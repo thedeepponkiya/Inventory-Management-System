@@ -32,7 +32,7 @@ const navGroups = [
             { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-            { label: 'SKU Master', path: '/sku-master', icon: HiOutlineArchiveBox },
+            { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
         ],
     },
     {
