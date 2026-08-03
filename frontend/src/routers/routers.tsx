@@ -1,6 +1,6 @@
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from '../common/commonComponents/header/Header';
-import { useAuthContext } from '../context/AuthContext';
+import { useAuthContext } from '../context/AuthContextDefinition';
 import Dashboard from '../components/dashboard/Dashboard';
 import MaterialInward from '../components/materialInward/MaterialInward';
 import RawSku from '../components/rawSku/RawSku';
@@ -11,9 +11,11 @@ import Vendor from '../components/vendor/Vendor';
 import InventoryHome from '../components/inventory/InventoryHome';
 import Transactions from '../components/transactions/Transactions';
 import Invoices from '../components/invoices/Invoices';
+import InvoiceForm from '../components/invoices/InvoiceForm';
 import Reports from '../components/reports/Reports';
 import Users from '../components/users/Users';
 import PurchaseOrder from '../components/purchaseOrder/PurchaseOrder';
+import PurchaseOrderForm from '../components/purchaseOrder/PurchaseOrderForm';
 import Login from '../components/login/Login';
 import './routers.css';
 import SidePanel from '../common/commonComponents/sideBarNavigation/SideBarNavigation';
@@ -52,9 +54,13 @@ const AppRoutes = () => {
                         <Route path='/home' element={<InventoryHome />}></Route>
                         <Route path='/transactions' element={<Transactions />}></Route>
                         <Route path='/invoices' element={<Invoices />}></Route>
+                        <Route path='/invoices/new' element={<InvoiceForm />}></Route>
+                        <Route path='/invoices/:id' element={<InvoiceForm />}></Route>
                         <Route path='/reports' element={<Reports />}></Route>
                         <Route path='/users' element={<Users />}></Route>
                         <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
+                        <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
+                        <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>
                     </Routes>
                 </div>
             </div>

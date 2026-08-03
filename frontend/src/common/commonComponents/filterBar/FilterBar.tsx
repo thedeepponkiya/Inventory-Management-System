@@ -102,7 +102,7 @@ const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProp
                 ))}
 
                 {onReset && (
-                    <Button icon={<MdFilterAltOff />} outlined size="small" onClick={onReset} aria-label="Clear filters" />
+                    <Button className="filter-bar-clear-btn" icon={<MdFilterAltOff />} outlined size="small" onClick={onReset} aria-label="Clear filters" />
                 )}
             </div>
         </div>

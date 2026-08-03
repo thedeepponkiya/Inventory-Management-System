@@ -4,7 +4,7 @@
 
 .settings-dialog .p-dialog-header {
     padding-bottom: 12px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .settings-dialog .p-dialog-footer {
@@ -12,7 +12,7 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 14px 20px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--border-subtle);
 }
 
 .settings-dialog-body {
@@ -27,8 +27,8 @@
     width: 180px;
     flex-shrink: 0;
     padding: 16px 10px;
-    border-right: 1px solid #f1f5f9;
-    background: #f8fafc;
+    border-right: 1px solid var(--border-subtle);
+    background: var(--surface-subtle);
 }
 
 .settings-dialog-tab {
@@ -39,7 +39,7 @@
     border-radius: 8px;
     border: none;
     background: transparent;
-    color: #475569;
+    color: var(--text-tertiary);
     font-size: 13px;
     font-weight: 500;
     text-align: left;
@@ -47,8 +47,8 @@
 }
 
 .settings-dialog-tab:hover {
-    background: #eef2f7;
-    color: #1e293b;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 
 .settings-dialog-tab--active {
@@ -79,11 +79,13 @@
     object-fit: cover;
     border-radius: 12px;
     margin-top: 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-default);
 }
 
 .settings-dialog-cancel,
 .settings-dialog-save {
+    display: inline-flex;
+    align-items: center;
     font-size: 13px;
     font-weight: 600;
     padding: 8px 16px;
@@ -91,14 +93,19 @@
     cursor: pointer;
 }
 
+.settings-dialog-save svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
 .settings-dialog-cancel {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    color: #475569;
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
 }
 
 .settings-dialog-cancel:hover {
-    background: #f8fafc;
+    background: var(--surface-subtle);
 }
 
 .settings-dialog-save {

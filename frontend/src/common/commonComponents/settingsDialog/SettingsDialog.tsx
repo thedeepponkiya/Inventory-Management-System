@@ -6,9 +6,10 @@ import { Dropdown } from 'primereact/dropdown';
 import { SelectButton } from 'primereact/selectbutton';
 import { FileUpload, type FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
-import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle } from 'react-icons/hi2';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
+import { useThemeContext } from '../../../context/ThemeContextDefinition';
 import './SettingsDialog.css';
 
 const financialYears = ['2024-2025', '2025-2026', '2026-2027'];
@@ -33,7 +34,7 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const [gstNumber, setGstNumber] = useState(settingsMockData.gstNumber);
     const [invoicePrefix, setInvoicePrefix] = useState(settingsMockData.invoicePrefix);
     const [financialYear, setFinancialYear] = useState(settingsMockData.financialYear);
-    const [theme, setTheme] = useState(settingsMockData.theme);
+    const { theme, setTheme } = useThemeContext();
     const [logoPreview, setLogoPreview] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const handleLogoSelect = (event: FileUploadHandlerEvent) => {
@@ -57,7 +58,10 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                 footer={
                     <>
                         <button type="button" className="settings-dialog-cancel" onClick={onHide}>Cancel</button>
-                        <button type="button" className="settings-dialog-save" onClick={handleSave}>Save Changes</button>
+                        <button type="button" className="settings-dialog-save" onClick={handleSave}>
+                            <HiOutlineCheckCircle className="mr-2" />
+                            Save
+                        </button>
                     </>
                 }
             >
@@ -106,7 +110,11 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                             <div className="settings-dialog-grid">
                                 <div className="form-field">
                                     <label>Theme</label>
-                                    <SelectButton value={theme} onChange={(e) => e.value && setTheme(e.value)} options={['Light', 'Dark']} />
+                                    <SelectButton
+                                        value={theme === 'dark' ? 'Dark' : 'Light'}
+                                        onChange={(e) => e.value && setTheme(e.value === 'Dark' ? 'dark' : 'light')}
+                                        options={['Light', 'Dark']}
+                                    />
                                 </div>
                                 <div className="form-field settings-dialog-full">
                                     <label>Logo Upload</label>

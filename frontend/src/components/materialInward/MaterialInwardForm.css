@@ -1,0 +1,49 @@
+.mi-form-dialog .p-tabview-nav-link {
+    padding: 10px 4px !important;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.mi-form-dialog .p-tabview-panels {
+    padding: 16px 0 0 !important;
+}
+
+.material-inward-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 800px) {
+    .material-inward-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.material-inward-form-full {
+    grid-column: 1 / -1;
+}
+
+.material-inward-charges-grid {
+    margin-top: 16px;
+}
+
+.material-inward-items-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 0 12px;
+}
+
+.material-inward-items-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.mi-item-dialog-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: -4px;
+}

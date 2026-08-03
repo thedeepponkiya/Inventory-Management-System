@@ -8,7 +8,7 @@ import { Button } from 'primereact/button';
 import { HiOutlineMagnifyingGlass, HiOutlineBell, HiOutlineUserCircle } from 'react-icons/hi2';
 import inventoryLogo from '../../assets/inventoryLogo.svg';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuthContext } from '../../context/AuthContextDefinition';
 import './Login.css';
 
 const kpiTiles = [

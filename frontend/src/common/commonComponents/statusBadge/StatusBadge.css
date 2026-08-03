@@ -6,26 +6,26 @@
 }
 
 .status-badge--success.p-tag {
-    background: #dcfce7;
-    color: #16a34a;
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
 }
 
 .status-badge--danger.p-tag {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
 }
 
 .status-badge--warning.p-tag {
-    background: #fef3c7;
-    color: #d97706;
+    background: var(--accent-warning-bg);
+    color: var(--accent-warning-text);
 }
 
 .status-badge--info.p-tag {
-    background: #dbeafe;
-    color: #2563eb;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
 }
 
 .status-badge--neutral.p-tag {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--surface-subtle-2);
+    color: var(--text-muted);
 }

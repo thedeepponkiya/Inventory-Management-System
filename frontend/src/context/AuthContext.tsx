@@ -1,14 +1,10 @@
-import { createContext, useContext, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
+import { AuthContext, type AuthUser, type LoginResult } from './AuthContextDefinition';
 
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 const STORAGE_KEY = 'inventory-app:auth';
-
-export interface AuthUser {
-    userName: string;
-    email: string;
-}
 
 interface StoredAuth {
     token: string;
@@ -35,26 +31,6 @@ function saveAuthToStorage(auth: StoredAuth | null): void {
         // Storage quota exceeded or unavailable (e.g. private browsing) - the
         // session just won't survive a refresh, which is an acceptable fallback.
     }
-}
-
-export interface LoginResult {
-    success: boolean;
-    message: string;
-}
-
-export interface AuthContextValue {
-    isAuthenticated: boolean;
-    user: AuthUser | null;
-    login: (email: string, password: string) => Promise<LoginResult>;
-    logout: () => Promise<void>;
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-
-export function useAuthContext(): AuthContextValue {
-    const ctx = useContext(AuthContext);
-    if (!ctx) throw new Error('useAuthContext must be used within an AuthContextProvider');
-    return ctx;
 }
 
 const initialAuth = loadAuthFromStorage();

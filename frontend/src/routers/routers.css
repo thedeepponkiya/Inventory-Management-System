@@ -5,7 +5,7 @@
   width: 100%;
 }
 .common-light-color {
-    background-color: #f9fafc;
+    background: var(--surface-page);
 }
 
 .app-main-col {

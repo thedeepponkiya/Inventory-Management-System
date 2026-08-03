@@ -1,5 +1,75 @@
 @import "tailwindcss";
 
+/*
+  Shared light/dark palette. Every component CSS file references these instead of hardcoded
+  hex values so ThemeContext's data-theme attribute (set on <html>) can flip the whole app -
+  see src/context/ThemeContext.tsx. The sidebar is intentionally excluded (it's always-dark
+  chrome in both themes), as is Login.css (rendered before the theme toggle is reachable).
+*/
+:root {
+    --surface-page: #f9fafc;
+    --surface-card: #ffffff;
+    --surface-subtle: #f8fafc;
+    --surface-subtle-2: #f1f5f9;
+    --surface-hover: #eef2f7;
+    --surface-muted: #e2e8f0;
+
+    --border-default: #e2e8f0;
+    --border-subtle: #f1f5f9;
+    --border-dashed: #cbd5e1;
+
+    --text-primary: #1e293b;
+    --text-secondary: #334155;
+    --text-tertiary: #475569;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+    --text-faint: #cbd5e1;
+
+    --accent-success-bg: #dcfce7;
+    --accent-success-text: #16a34a;
+    --accent-danger-bg: #fee2e2;
+    --accent-danger-text: #dc2626;
+    --accent-warning-bg: #fef3c7;
+    --accent-warning-text: #d97706;
+    --accent-info-bg: #dbeafe;
+    --accent-info-text: #2563eb;
+    --accent-info-border: #bfdbfe;
+    --accent-purple-bg: #ede9fe;
+    --accent-purple-text: #6d28d9;
+}
+
+:root[data-theme="dark"] {
+    --surface-page: #0b1220;
+    --surface-card: #17223a;
+    --surface-subtle: #1b2740;
+    --surface-subtle-2: #1f2c47;
+    --surface-hover: #24324f;
+    --surface-muted: #2a3a58;
+
+    --border-default: #32405f;
+    --border-subtle: #263251;
+    --border-dashed: #3d4c6e;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #a8b7cf;
+    --text-muted: #94a3b8;
+    --text-subtle: #7688a6;
+    --text-faint: #56698c;
+
+    --accent-success-bg: rgba(22, 163, 74, 0.18);
+    --accent-success-text: #4ade80;
+    --accent-danger-bg: rgba(220, 38, 38, 0.2);
+    --accent-danger-text: #f87171;
+    --accent-warning-bg: rgba(217, 119, 6, 0.2);
+    --accent-warning-text: #fbbf24;
+    --accent-info-bg: rgba(37, 99, 235, 0.22);
+    --accent-info-text: #60a5fa;
+    --accent-info-border: rgba(96, 165, 250, 0.4);
+    --accent-purple-bg: rgba(109, 40, 217, 0.22);
+    --accent-purple-text: #c4b5fd;
+}
+
 .form-field {
     display: flex;
     flex-direction: column;
@@ -7,9 +77,19 @@
 }
 
 .form-field label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: #334155;
+    color: var(--text-secondary);
+}
+
+input::placeholder,
+textarea::placeholder {
+    font-size: 0.75rem;
+}
+
+.p-dropdown .p-dropdown-label.p-placeholder,
+.p-multiselect .p-multiselect-label.p-placeholder {
+    font-size: 0.75rem;
 }
 
 .form-field--row {
@@ -28,7 +108,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .data-table-actions svg {
@@ -39,4 +119,16 @@
 
 .data-table-actions svg:hover {
     color: #2563eb;
+}
+
+.p-toast .p-toast-message .p-toast-message-content {
+    padding: 10px 12px;
+}
+
+.p-toast .p-toast-message .p-toast-message-content .p-toast-summary {
+    font-size: 13px;
+}
+
+.p-toast .p-toast-message .p-toast-message-content .p-toast-detail {
+    font-size: 13px;
 }

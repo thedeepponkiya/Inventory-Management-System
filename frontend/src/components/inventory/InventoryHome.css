@@ -13,8 +13,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f1f5f9;
-    color: #94a3b8;
+    background: var(--surface-subtle-2);
+    color: var(--text-subtle);
 }
 
 .inventory-home-form-columns {
@@ -47,7 +47,7 @@
 }
 
 .inventory-home-form-section {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-default);
     border-radius: 8px;
     padding: 14px 16px;
 }
@@ -66,7 +66,7 @@
 .inventory-home-form-section-title {
     font-size: 13px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-primary);
     margin: 0 0 12px;
 }
 
@@ -78,7 +78,7 @@
 
 .inventory-home-form-section-toggle label {
     font-size: 12px;
-    color: #64748b;
+    color: var(--text-muted);
     margin: 0;
 }
 
@@ -88,9 +88,9 @@
     align-items: center;
     justify-content: center;
     height: 150px;
-    border: 1.5px dashed #cbd5e1;
+    border: 1.5px dashed var(--border-dashed);
     border-radius: 8px;
-    background: #f8fafc;
+    background: var(--surface-subtle);
     cursor: pointer;
     overflow: hidden;
     margin-bottom: 10px;
@@ -116,7 +116,7 @@
     font-weight: 600;
     line-height: 1.4;
     text-align: center;
-    color: #94a3b8;
+    color: var(--text-subtle);
 }
 
 .inventory-home-image-dropzone-hint {
@@ -144,7 +144,7 @@
     height: 64px;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-default);
     cursor: pointer;
 }
 
@@ -185,8 +185,8 @@
     width: 64px;
     height: 64px;
     border-radius: 6px;
-    border: 1px dashed #cbd5e1;
-    color: #94a3b8;
+    border: 1px dashed var(--border-dashed);
+    color: var(--text-subtle);
     font-size: 10px;
     font-weight: 600;
     cursor: pointer;
@@ -213,7 +213,7 @@
 .inventory-home-dialog-tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-default);
     margin-bottom: 16px;
 }
 
@@ -225,12 +225,12 @@
     margin-right: 20px;
     font-size: 13px;
     font-weight: 600;
-    color: #64748b;
+    color: var(--text-muted);
     cursor: pointer;
 }
 
 .inventory-home-dialog-tab:hover {
-    color: #1e293b;
+    color: var(--text-primary);
 }
 
 .inventory-home-dialog-tab--active {
@@ -249,13 +249,13 @@
 .inventory-home-assembly-header h3 {
     font-size: 14px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-primary);
     margin: 0 0 2px;
 }
 
 .inventory-home-assembly-subtitle {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--text-subtle);
 }
 
 .inventory-home-assembly-dropdown {
@@ -270,12 +270,12 @@
     display: inline-block;
     padding: 2px 8px;
     border-radius: 999px;
-    background: #ede9fe;
-    color: #6d28d9;
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
     font-size: 12px;
     font-weight: 600;
 }
 
 .inventory-home-assembly-empty {
-    color: #cbd5e1;
+    color: var(--text-faint);
 }

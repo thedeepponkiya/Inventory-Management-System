@@ -1,5 +1,5 @@
 .filter-bar {
-    background: #ffffff;
+    background: var(--surface-card);
     border-radius: 16px;
     padding: 12px 16px;
     margin-bottom: 16px;
@@ -8,7 +8,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--border-subtle);
 }
 
 .filter-bar-quick-actions {
@@ -26,16 +26,16 @@
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #475569;
-    background: #f8fafc;
+    color: var(--text-tertiary);
+    background: var(--surface-subtle);
     border: 1px solid transparent;
     text-decoration: none;
     white-space: nowrap;
 }
 
 .filter-bar-quick-action:hover {
-    background: #eef2f7;
-    color: #1e293b;
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 
 .filter-bar-quick-action--active {
@@ -61,14 +61,14 @@
 .filter-bar-label {
     font-size: 12px;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-tertiary);
 }
 
 .filter-bar-search {
     display: flex;
     align-items: center;
     position: relative;
-    background: #f1f5f9;
+    background: var(--surface-subtle-2);
     border-radius: 8px;
     width: 220px;
 }
@@ -76,7 +76,7 @@
 .filter-bar-search-icon {
     position: absolute;
     left: 12px;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 15px;
     z-index: 1;
 }
@@ -87,7 +87,7 @@
     background: transparent;
     border: none;
     box-shadow: none;
-    color: #334155;
+    color: var(--text-secondary);
 }
 
 .filter-bar-search .p-inputtext:enabled:focus {
@@ -99,4 +99,11 @@
 .filter-bar-calendar {
     width: 100%;
     min-width: 160px;
+}
+
+.filter-bar-clear-btn.p-button.p-button-outlined {
+    border: none;
+}
+.filter-bar-clear-btn.p-button.p-button-outlined:not(:disabled):hover {
+    border: none;
 }
