@@ -8,6 +8,7 @@ import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrder
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
 import { getInvoices, type Invoice } from '../services/invoiceService';
 import { getRawSkus, type RawSku } from '../services/rawSkuService';
+import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
 import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
@@ -28,6 +29,8 @@ const AppContextProvider = (props: any) => {
     const [invoicesLoading, setInvoicesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [rawSkus, setRawSkus] = React.useState<RawSku[]>([]);
     const [rawSkusLoading, setRawSkusLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [inventories, setInventories] = React.useState<InventoryItem[]>([]);
+    const [inventoriesLoading, setInventoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -85,6 +88,13 @@ const AppContextProvider = (props: any) => {
             .finally(() => setRawSkusLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchInventories = React.useCallback(() => {
+        getInventoryItems()
+            .then((data) => setInventories(data))
+            .catch(() => setInventories([]))
+            .finally(() => setInventoriesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
@@ -94,7 +104,8 @@ const AppContextProvider = (props: any) => {
         fetchMaterialInwards();
         fetchInvoices();
         fetchRawSkus();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus]);
+        fetchInventories();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories]);
 
     return (
         <>
@@ -126,6 +137,9 @@ const AppContextProvider = (props: any) => {
                     rawSkus,
                     rawSkusLoading,
                     fetchRawSkus,
+                    inventories,
+                    inventoriesLoading,
+                    fetchInventories,
                 }}>
                 {props.children}
             </AppContext.Provider >

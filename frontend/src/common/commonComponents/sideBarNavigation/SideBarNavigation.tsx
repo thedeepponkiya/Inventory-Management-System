@@ -2,19 +2,19 @@ import { useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AppContext } from '../../../context/AppContextDefinition';
 import {
-    HiOutlineTruck,
+    // HiOutlineTruck, // Material Inward nav item hidden below
     HiOutlineArchiveBox,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineCube,
-    HiOutlineClipboardDocumentList,
+    // HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
     HiOutlineBuildingStorefront,
-    HiOutlineListBullet,
-    HiOutlineDocumentText,
-    HiOutlineChartBar,
-    HiOutlineUsers,
+    // HiOutlineListBullet, // Transactions nav item hidden below
+    // HiOutlineDocumentText, // Invoices nav item hidden below
+    // HiOutlineChartBar, // Reports nav item hidden below
+    // HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineBars3,
 } from 'react-icons/hi2';
@@ -30,8 +30,8 @@ const navGroups = [
         groupLabel: 'Operation',
         items: [
             { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
-            { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
-            { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
+            // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
+            // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
         ],
     },
@@ -44,25 +44,25 @@ const navGroups = [
             { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
         ],
     },
-    {
-        groupLabel: 'Billing',
-        items: [
-            { label: 'Transactions', path: '/transactions', icon: HiOutlineListBullet },
-            { label: 'Invoices', path: '/invoices', icon: HiOutlineDocumentText },
-        ],
-    },
-    {
-        groupLabel: 'Analytics',
-        items: [
-            { label: 'Reports', path: '/reports', icon: HiOutlineChartBar },
-        ],
-    },
-    {
-        groupLabel: 'Administration',
-        items: [
-            { label: 'Users', path: '/users', icon: HiOutlineUsers },
-        ],
-    },
+    // {
+    //     groupLabel: 'Billing',
+    //     items: [
+    //         { label: 'Transactions', path: '/transactions', icon: HiOutlineListBullet },
+    //         { label: 'Invoices', path: '/invoices', icon: HiOutlineDocumentText },
+    //     ],
+    // },
+    // {
+    //     groupLabel: 'Analytics',
+    //     items: [
+    //         { label: 'Reports', path: '/reports', icon: HiOutlineChartBar },
+    //     ],
+    // },
+    // {
+    //     groupLabel: 'Administration',
+    //     items: [
+    //         { label: 'Users', path: '/users', icon: HiOutlineUsers },
+    //     ],
+    // },
 ];
 
 const SidePanel = () => {

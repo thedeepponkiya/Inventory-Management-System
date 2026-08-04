@@ -7,6 +7,7 @@ import { HiOutlinePlus, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { deletePurchaseOrder, type PurchaseOrder as PurchaseOrderType } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
@@ -18,6 +19,7 @@ import './PurchaseOrder.css';
 const PurchaseOrder = () => {
     const navigate = useNavigate();
     const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
 
@@ -50,7 +52,7 @@ const PurchaseOrder = () => {
         });
     };
 
-    const columns = getPurchaseOrderColumns();
+    const columns = getPurchaseOrderColumns(dateFormat);
 
     const actionTemplate = getActionBodyTemplate<PurchaseOrderType>({
         onEdit: (po) => navigate(`/purchase-order/${po.id}`),

@@ -9,6 +9,10 @@ export interface RawSku {
     skuName: string;
     categoryId: number | null;
     categoryName: string | null;
+    productTypeId: number | null;
+    productTypeName: string | null;
+    locationId: number | null;
+    locationName: string | null;
     unit: string;
     inventoryEntryMode: InventoryEntryMode;
     sourceType: SourceType;
@@ -29,6 +33,8 @@ export interface RawSku {
 export interface RawSkuPayload {
     skuName: string;
     categoryId: number | null;
+    productTypeId: number | null;
+    locationId: number | null;
     unit: string;
     inventoryEntryMode: InventoryEntryMode;
     sourceType: SourceType;
@@ -75,6 +81,12 @@ export async function getRawSkus(): Promise<RawSku[]> {
     const response = await fetch(`${API_BASE_URL}/raw-skus`);
     const data = await parseResponse<RawSku[]>(response);
     return data.map(normalizeRawSku);
+}
+
+export async function getNextSkuCode(): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/raw-skus/next-code`);
+    const data = await parseResponse<{ skuCode: string }>(response);
+    return data.skuCode;
 }
 
 export async function createRawSku(payload: RawSkuPayload): Promise<RawSku> {

@@ -9,9 +9,13 @@ const SELECT_WITH_JOINS = `
   SELECT
     rs.*,
     c.category AS "categoryName",
+    pt."productType" AS "productTypeName",
+    loc.location AS "locationName",
     parent."skuName" AS "rawMaterialName"
   FROM ${TABLE} rs
   LEFT JOIN ims_category c ON c.id = rs."categoryId"
+  LEFT JOIN ims_product_type pt ON pt.id = rs."productTypeId"
+  LEFT JOIN ims_location loc ON loc.id = rs."locationId"
   LEFT JOIN ${TABLE} parent ON parent.id = rs."rawMaterialId"
 `;
 
@@ -34,14 +38,16 @@ async function getNextSkuCode() {
 async function create(skuCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "skuCode", "skuName", "categoryId", unit, "inventoryEntryMode", "sourceType", "rawMaterialId",
+      "skuCode", "skuName", "categoryId", "productTypeId", "locationId", unit, "inventoryEntryMode", "sourceType", "rawMaterialId",
       "minStock", "maxStock", "reorderLevel", "openingStock", "currentStock", description, status, "createdBy"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *`,
     [
       skuCode,
       fields.skuName,
       fields.categoryId,
+      fields.productTypeId,
+      fields.locationId,
       fields.unit,
       fields.inventoryEntryMode,
       fields.sourceType,
@@ -62,14 +68,16 @@ async function create(skuCode, fields) {
 async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
-      "skuName" = $1, "categoryId" = $2, unit = $3, "inventoryEntryMode" = $4, "sourceType" = $5,
-      "rawMaterialId" = $6, "minStock" = $7, "maxStock" = $8, "reorderLevel" = $9, "openingStock" = $10,
-      "currentStock" = $11, description = $12, status = $13, "createdBy" = $14, "updatedAt" = now()
-    WHERE id = $15
+      "skuName" = $1, "categoryId" = $2, "productTypeId" = $3, "locationId" = $4, unit = $5, "inventoryEntryMode" = $6, "sourceType" = $7,
+      "rawMaterialId" = $8, "minStock" = $9, "maxStock" = $10, "reorderLevel" = $11, "openingStock" = $12,
+      "currentStock" = $13, description = $14, status = $15, "createdBy" = $16, "updatedAt" = now()
+    WHERE id = $17
     RETURNING *`,
     [
       fields.skuName,
       fields.categoryId,
+      fields.productTypeId,
+      fields.locationId,
       fields.unit,
       fields.inventoryEntryMode,
       fields.sourceType,

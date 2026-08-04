@@ -5,6 +5,7 @@ import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { type Invoice } from '../../services/invoiceService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInvoiceColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
@@ -13,6 +14,7 @@ import './Invoices.css';
 const Invoices = () => {
     const navigate = useNavigate();
     const { invoices, invoicesLoading } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
 
     const filterFields: FilterField[] = [
@@ -30,7 +32,7 @@ const Invoices = () => {
         });
     }, [invoices, filters]);
 
-    const columns = getInvoiceColumns();
+    const columns = getInvoiceColumns(dateFormat);
 
     const actionTemplate = getActionBodyTemplate<Invoice>({
         onEdit: (invoice) => navigate(`/invoices/${invoice.id}`),

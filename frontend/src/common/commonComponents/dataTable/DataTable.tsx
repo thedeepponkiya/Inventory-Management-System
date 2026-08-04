@@ -4,7 +4,7 @@ import type { DataTableFilterMeta } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { FilterMatchMode } from 'primereact/api';
 import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
-import type { ColumnBodyType, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
+import type { ColumnBodyType, DateBodyOptions, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
 import './DataTable.css';
 
 export interface ColumnConfig<T> {
@@ -23,6 +23,17 @@ function resolveColumnBody<T>(col: ColumnConfig<T>): ((row: T) => React.ReactNod
     if (col.body) return col.body;
     if (col.fieldType) return getColumnBodyTemplate<T>({ field: col.field, fieldType: col.fieldType, options: col.options } as RowDataColumn<T>);
     return undefined;
+}
+
+// PrimeReact's <Column> doesn't re-render its cached cell just because the `body` closure
+// identity changed (it isn't part of its internal prop comparison) - folding the active
+// date format into the date columns' `key` forces React to treat it as a new element and
+// remount it whenever the Settings > Date Format preference changes.
+function resolveColumnKey<T>(col: ColumnConfig<T>): string {
+    if (col.fieldType === 'date') {
+        return `${col.key ?? col.field}-${(col.options as DateBodyOptions).formatOption}`;
+    }
+    return col.key ?? col.field;
 }
 
 interface AppDataTableProps<T> {
@@ -79,7 +90,7 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             )}
             {columns.map((col) => (
                 <Column
-                    key={col.key ?? col.field}
+                    key={resolveColumnKey(col)}
                     field={col.field}
                     header={col.header}
                     sortable={col.sortable ?? (sortable && !col.key)}

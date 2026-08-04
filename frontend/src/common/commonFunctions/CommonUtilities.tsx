@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import type { IconType } from 'react-icons';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
+import { InputSwitch } from 'primereact/inputswitch';
+import { Image } from 'primereact/image';
 import {
     HiOutlinePencilSquare,
     HiOutlineTrash,
@@ -12,6 +14,7 @@ import StatusBadge from '../commonComponents/statusBadge/StatusBadge';
 import type { StatusVariant } from '../commonComponents/statusBadge/StatusBadge';
 import type { ColumnConfig } from '../commonComponents/dataTable/DataTable';
 import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
+import { formatDate, type DateFormatOption } from './dateFormat';
 
 import type { RawSku } from '../../services/rawSkuService';
 import type { Location as LocationType } from '../../services/locationService';
@@ -19,7 +22,7 @@ import type { Category as CategoryRecord } from '../../services/categoryService'
 import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
 import type { Vendor } from '../../services/vendorService';
 import type { User } from '../../mockData/userData';
-import type { InventoryItem, AssemblyLine } from '../../mockData/inventoryHomeData';
+import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { Transaction, TransactionType } from '../../mockData/transactionData';
 import type { RecentReport } from '../../mockData/reportData';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../../services/purchaseOrderService';
@@ -37,7 +40,7 @@ import type { Invoice, PaymentStatus } from '../../services/invoiceService';
 // Below that, this file also holds one getXColumns() per page's DataTable, so
 // the `columns` array itself lives here too instead of inline per page.
 
-export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'badgeCount' | 'signedQuantity';
+export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'badgeCount' | 'signedQuantity' | 'date';
 
 export interface StatusBodyOptions {
     activeValue?: string;
@@ -53,6 +56,7 @@ export interface CurrencyBodyOptions {
 export interface ImageBodyOptions<T> {
     altField?: keyof T;
     className?: string;
+    preview?: boolean;
 }
 
 export interface ActionIconConfig<T> {
@@ -79,12 +83,17 @@ export interface SignedQuantityBodyOptions<T> {
     negativeColor?: string;
 }
 
+export interface DateBodyOptions {
+    formatOption: DateFormatOption;
+}
+
 export type FieldTypeOptions<T> =
     | StatusBodyOptions
     | CurrencyBodyOptions
     | ImageBodyOptions<T>
     | BadgeCountBodyOptions
-    | SignedQuantityBodyOptions<T>;
+    | SignedQuantityBodyOptions<T>
+    | DateBodyOptions;
 
 export type RowDataColumn<T> =
     | { field: keyof T; fieldType: 'text' }
@@ -92,7 +101,8 @@ export type RowDataColumn<T> =
     | { field: keyof T; fieldType: 'currency'; options?: CurrencyBodyOptions }
     | { field: keyof T; fieldType: 'image'; options?: ImageBodyOptions<T> }
     | { field: keyof T; fieldType: 'badgeCount'; options: BadgeCountBodyOptions }
-    | { field: keyof T; fieldType: 'signedQuantity'; options: SignedQuantityBodyOptions<T> };
+    | { field: keyof T; fieldType: 'signedQuantity'; options: SignedQuantityBodyOptions<T> }
+    | { field: keyof T; fieldType: 'date'; options: DateBodyOptions };
 
 // -- plain-text resolvers: single source of truth for both the tooltip and, --
 // -- where the cell itself is text (currency), the visible content too.    --
@@ -149,6 +159,9 @@ function renderImage<T>(rowData: T, field: keyof T, options?: ImageBodyOptions<T
                 <HiOutlineCube size={16} />
             </div>
         );
+    }
+    if (options?.preview) {
+        return <Image src={src as string} alt={getImageAltText(rowData, options)} imageClassName={className} preview />;
     }
     return <img src={src as string} alt={getImageAltText(rowData, options)} className={className} />;
 }
@@ -207,6 +220,8 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return getBadgeCountText(rowData, col.field, col.options);
             case 'signedQuantity':
                 return getSignedQuantityText(rowData, col.field, col.options);
+            case 'date':
+                return formatDate(rowData[col.field] as unknown as string, col.options.formatOption);
             default:
                 return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         }
@@ -224,6 +239,8 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return renderBadgeCount(rowData, col.field, col.options);
             case 'signedQuantity':
                 return renderSignedQuantity(rowData, col.field, col.options);
+            case 'date':
+                return formatDate(rowData[col.field] as unknown as string, col.options.formatOption);
             default:
                 return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         }
@@ -264,15 +281,49 @@ export function getActionBodyTemplate<T>(options: ActionBodyOptions<T>): (row: T
 // no generic fieldType equivalent since it's bound to per-row update callbacks.
 // =====================================================================================
 
-export const getRawSkuColumns = (): ColumnConfig<RawSku>[] => [
+export const getRawSkuColumns = (onToggleStatus?: (sku: RawSku) => void): ColumnConfig<RawSku>[] => [
     { field: 'skuCode', header: 'SKU Code', fieldType: 'text' },
     { field: 'skuName', header: 'SKU Name', fieldType: 'text' },
     { field: 'categoryName', header: 'Category', fieldType: 'text' },
+    { field: 'productTypeName', header: 'Product Type', fieldType: 'text' },
+    {
+        field: 'currentStock',
+        header: 'Current Stock',
+        // At/below Min Stock = critical (red), at/above Max Stock = healthy (green),
+        // anywhere in between = watch (orange) - shown as a small colored dot next to the
+        // plain number rather than a filled pill.
+        body: (row) => {
+            const dotColor = row.currentStock <= row.minStock
+                ? 'var(--accent-danger-text)'
+                : row.currentStock >= row.maxStock
+                    ? 'var(--accent-success-text)'
+                    : 'var(--accent-warning-text)';
+            return (
+                <span className="raw-sku-stock-indicator">
+                    <span className="raw-sku-stock-dot" style={{ backgroundColor: dotColor }} />
+                    {row.currentStock}
+                </span>
+            );
+        },
+    },
     { field: 'unit', header: 'Unit', fieldType: 'text' },
-    { field: 'sourceType', header: 'Source Type', fieldType: 'status', options: { defaultVariant: 'info' } },
-    { field: 'currentStock', header: 'Current Stock', fieldType: 'text' },
+    { field: 'locationName', header: 'Location', fieldType: 'text' },
     { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text' },
-    { field: 'status', header: 'Status', fieldType: 'status' },
+    {
+        field: 'status',
+        header: 'Status',
+        filter: false,
+        body: onToggleStatus
+            ? (row) => (
+                <InputSwitch
+                    className="raw-sku-status-switch"
+                    checked={row.status === 'Active'}
+                    onChange={() => onToggleStatus(row)}
+                />
+            )
+            : undefined,
+        fieldType: 'status',
+    },
 ];
 
 export const getLocationsColumns = (): ColumnConfig<LocationType>[] => [
@@ -310,8 +361,8 @@ export const getUsersColumns = (): ColumnConfig<User>[] => [
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
-export const getInventoryHomeColumns = (): ColumnConfig<InventoryItem>[] => [
-    { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName' } },
+export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void): ColumnConfig<InventoryItem>[] => [
+    { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName', preview: true } },
     { field: 'skuId', header: 'SKU (ID)', fieldType: 'text' },
     { field: 'productName', header: 'Product Name', fieldType: 'text' },
     { field: 'categoryName', header: 'Category', fieldType: 'text' },
@@ -320,9 +371,23 @@ export const getInventoryHomeColumns = (): ColumnConfig<InventoryItem>[] => [
     { field: 'quantity', header: 'Quantity', fieldType: 'text' },
     { field: 'unit', header: 'Unit', fieldType: 'text' },
     { field: 'locationName', header: 'Location', fieldType: 'text' },
-    { field: 'status', header: 'Status', fieldType: 'status' },
+    {
+        field: 'status',
+        header: 'Status',
+        filter: false,
+        body: onToggleStatus
+            ? (row) => (
+                <InputSwitch
+                    className="inventory-home-status-switch"
+                    checked={row.status === 'Active'}
+                    onChange={() => onToggleStatus(row)}
+                />
+            )
+            : undefined,
+        fieldType: 'status',
+    },
     { field: 'unitCost', header: 'Unit Cost (Rs.)', fieldType: 'currency' },
-    { field: 'createdDate', header: 'Created Date', fieldType: 'text' },
+    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
 ];
 
@@ -351,6 +416,7 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
                 options={skusData.map((s) => ({ label: `${s.skuCode} - ${s.skuName}`, value: s.skuCode }))}
                 placeholder="Select SKU"
                 className="inventory-home-assembly-dropdown"
+                filter
             />
         ),
     },
@@ -361,11 +427,20 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
             <InputNumber value={row.quantity} onValueChange={(e) => onUpdateRow(row.rowId, { quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} inputClassName="inventory-home-assembly-qty" />
         ),
     },
+    {
+        field: 'skuCode',
+        key: 'location',
+        header: 'Location',
+        // Looked up live from the selected SKU's Raw SKU record (not persisted on the
+        // assembly line itself) so it always reflects that SKU's current location,
+        // including for rows loaded from an already-saved assembly.
+        body: (row) => skusData.find((s) => s.skuCode === row.skuCode)?.locationName ?? '—',
+    },
 ];
 
-export const getMaterialInwardColumns = (): ColumnConfig<MaterialInward>[] => [
+export const getMaterialInwardColumns = (dateFormat: DateFormatOption): ColumnConfig<MaterialInward>[] => [
     { field: 'inwardNo', header: 'Inward No.', fieldType: 'text' },
-    { field: 'receivedDate', header: 'Received Date', fieldType: 'text' },
+    { field: 'receivedDate', header: 'Received Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
     { field: 'purchaseOrderNo', header: 'PO No.', fieldType: 'text' },
     { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
@@ -376,7 +451,7 @@ export interface MaterialInwardItemRow extends MaterialInwardItem {
     rowId: number;
 }
 
-export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[]): ColumnConfig<MaterialInwardItemRow>[] => [
+export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[], dateFormat: DateFormatOption): ColumnConfig<MaterialInwardItemRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -396,7 +471,7 @@ export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[]): Co
     { field: 'gstPercent', header: 'GST %', fieldType: 'text' },
     { field: 'lineTotal', header: 'Line Total (Rs.)', fieldType: 'currency' },
     { field: 'batchNo', header: 'Batch No.', fieldType: 'text' },
-    { field: 'expiryDate', header: 'Expiry Date', fieldType: 'text' },
+    { field: 'expiryDate', header: 'Expiry Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
@@ -426,9 +501,9 @@ const paymentStatusVariant: Record<PaymentStatus, StatusVariant> = {
     Paid: 'success',
 };
 
-export const getInvoiceColumns = (): ColumnConfig<Invoice>[] => [
+export const getInvoiceColumns = (dateFormat: DateFormatOption): ColumnConfig<Invoice>[] => [
     { field: 'invoiceNo', header: 'Invoice No.', fieldType: 'text' },
-    { field: 'invoiceDate', header: 'Invoice Date', fieldType: 'text' },
+    { field: 'invoiceDate', header: 'Invoice Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'invoiceType', header: 'Type', fieldType: 'status', options: { defaultVariant: 'info' } },
     { field: 'customerSupplier', header: 'Customer / Supplier', fieldType: 'text' },
     { field: 'materialInwardNo', header: 'Material Inward No.', fieldType: 'text' },
@@ -443,11 +518,11 @@ const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
     Cancelled: 'danger',
 };
 
-export const getPurchaseOrderColumns = (): ColumnConfig<PurchaseOrder>[] => [
+export const getPurchaseOrderColumns = (dateFormat: DateFormatOption): ColumnConfig<PurchaseOrder>[] => [
     { field: 'poNo', header: 'PO No.', fieldType: 'text' },
-    { field: 'poDate', header: 'PO Date', fieldType: 'text' },
+    { field: 'poDate', header: 'PO Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
-    { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'text' },
+    { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant } },
     { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },

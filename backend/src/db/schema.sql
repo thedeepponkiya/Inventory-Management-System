@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS ims_raw_sku (
     "skuCode" VARCHAR(50) NOT NULL UNIQUE,
     "skuName" VARCHAR(150) NOT NULL,
     "categoryId" INTEGER REFERENCES ims_category(id),
+    "productTypeId" INTEGER REFERENCES ims_product_type(id),
+    "locationId" INTEGER REFERENCES ims_location(id),
     unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
     "inventoryEntryMode" VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
     "sourceType" VARCHAR(30) NOT NULL DEFAULT 'Direct Purchase',
@@ -72,6 +74,10 @@ CREATE TABLE IF NOT EXISTS ims_raw_sku (
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- ims_raw_sku already existed live before "productTypeId"/"locationId" were added to the
+-- CREATE TABLE block above, so this migrates any already-created table too.
+ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "productTypeId" INTEGER REFERENCES ims_product_type(id);
+ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "locationId" INTEGER REFERENCES ims_location(id);
 
 -- Purchase orders, backing /api/v1/purchase-orders CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -187,3 +193,31 @@ CREATE TABLE IF NOT EXISTS ims_invoices (
 -- "invoiceStatus" (Draft/Generated/Sent/Cancelled) was removed - Payment Status
 -- (Unpaid/Partial/Paid) is the invoice's only status field now.
 ALTER TABLE ims_invoices DROP COLUMN IF EXISTS "invoiceStatus";
+
+-- Inventory Home, backing /api/v1/inventories CRUD.
+-- "categoryName"/"productType"/"locationName" are stored directly (denormalized strings
+-- set by the frontend when picked from their respective master dropdowns), same
+-- "schema was specified that way" approach already used by ims_material_inward's
+-- vendorName/purchaseOrderNo - no FK/join needed.
+-- "images" is a JSONB array of image URLs; these are client-side object URLs (created via
+-- URL.createObjectURL) with no real file-upload/storage backing them yet, so they will not
+-- survive a browser restart - same Tier-1 scoping already used for Raw SKU's unused
+-- inventoryEntryMode/sourceType automation.
+-- "assembly" is a JSONB array of kit components, each shaped like { skuCode, skuName, quantity }.
+CREATE TABLE IF NOT EXISTS ims_inventories (
+    id SERIAL PRIMARY KEY,
+    images JSONB NOT NULL DEFAULT '[]',
+    "skuId" VARCHAR(50) NOT NULL UNIQUE,
+    "productName" VARCHAR(150) NOT NULL,
+    "categoryName" VARCHAR(150),
+    "productType" VARCHAR(150),
+    barcode VARCHAR(50),
+    quantity NUMERIC NOT NULL DEFAULT 0,
+    unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+    "locationName" VARCHAR(150),
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "unitCost" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "createdDate" DATE NOT NULL DEFAULT CURRENT_DATE,
+    assembly JSONB NOT NULL DEFAULT '[]',
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);

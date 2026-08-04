@@ -11,6 +11,7 @@ import { Toast } from 'primereact/toast';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
     createMaterialInward,
     updateMaterialInward,
@@ -71,6 +72,7 @@ interface MaterialInwardFormProps {
 const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
     const isEditRoute = Boolean(editingId);
     const { vendors, locations, purchaseOrders, materialInwards, rawSkus, fetchMaterialInwards, fetchPurchaseOrders, fetchInvoices } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const existingMi = useMemo(
@@ -391,7 +393,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
 
     const isPoLinked = Boolean(purchaseOrderId);
 
-    const itemColumns = getMaterialInwardItemColumns(items);
+    const itemColumns = getMaterialInwardItemColumns(items, dateFormat);
     const itemActionTemplate = getActionBodyTemplate<MaterialInwardItemRow>({ onEdit: openEditItemDialog });
 
     return (

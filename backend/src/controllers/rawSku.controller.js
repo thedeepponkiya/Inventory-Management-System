@@ -9,6 +9,15 @@ async function getRawSkus(req, res) {
   }
 }
 
+async function getNextSkuCode(req, res) {
+  try {
+    const skuCode = await RawSkuModel.getNextSkuCode();
+    res.json({ status: true, message: 'Next SKU code fetched successfully', data: { skuCode } });
+  } catch (err) {
+    res.status(500).json({ status: false, message: err.message, data: null });
+  }
+}
+
 async function createRawSku(req, res) {
   try {
     const { skuName } = req.body;
@@ -21,6 +30,8 @@ async function createRawSku(req, res) {
     const fields = {
       skuName,
       categoryId: req.body.categoryId || null,
+      productTypeId: req.body.productTypeId || null,
+      locationId: req.body.locationId || null,
       unit: req.body.unit || 'PCS',
       inventoryEntryMode: req.body.inventoryEntryMode || 'MANUAL',
       sourceType: req.body.sourceType || 'Direct Purchase',
@@ -55,6 +66,8 @@ async function updateRawSku(req, res) {
     const fields = {
       skuName: body.skuName ?? existing.skuName,
       categoryId: body.categoryId ?? existing.categoryId,
+      productTypeId: body.productTypeId ?? existing.productTypeId,
+      locationId: body.locationId ?? existing.locationId,
       unit: body.unit ?? existing.unit,
       inventoryEntryMode: body.inventoryEntryMode ?? existing.inventoryEntryMode,
       sourceType: body.sourceType ?? existing.sourceType,
@@ -91,4 +104,4 @@ async function deleteRawSku(req, res) {
   }
 }
 
-module.exports = { getRawSkus, createRawSku, updateRawSku, deleteRawSku };
+module.exports = { getRawSkus, getNextSkuCode, createRawSku, updateRawSku, deleteRawSku };

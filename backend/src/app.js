@@ -9,6 +9,7 @@ const rawSkuRoutes = require('./routes/rawSku.routes');
 const purchaseOrderRoutes = require('./routes/purchaseOrder.routes');
 const materialInwardRoutes = require('./routes/materialInward.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
+const inventoryRoutes = require('./routes/inventory.routes');
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use('/api/v1/raw-skus', rawSkuRoutes);
 app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 app.use('/api/v1/material-inwards', materialInwardRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api/v1/inventories', inventoryRoutes);
 
 module.exports = app;

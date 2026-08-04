@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chart } from 'primereact/chart';
 import type { Chart as ChartJSInstance } from 'chart.js';
@@ -15,13 +15,15 @@ import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../common/commonComponents/statusBadge/StatusBadge';
 import { dashboardKpiMockData, stockOverviewLabels, stockOverviewSeriesMockData, lowStockAlertsMockData } from '../../mockData/dashboardData';
 import { transactionMockData } from '../../mockData/transactionData';
-import { inventoryHomeMockData } from '../../mockData/inventoryHomeData';
+import { AppContext } from '../../context/AppContextDefinition';
+import type { InventoryItem } from '../../services/inventoryService';
 import './Dashboard.css';
 
 const pieColors = ['#93c5fd', '#86efac', '#fcd34d', '#c4b5fd', '#fca5a5', '#7dd3fc', '#fdba74', '#f9a8d4', '#cbd5e1'];
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { inventories } = useContext(AppContext);
     const [monthFilter, setMonthFilter] = useState('This Month');
     const [distributionView, setDistributionView] = useState<'donut' | 'pie' | 'bar'>('donut');
 
@@ -69,11 +71,12 @@ const Dashboard = () => {
 
     const locationEntries = useMemo(() => {
         const totals = new Map<string, number>();
-        inventoryHomeMockData.forEach((item) => {
-            totals.set(item.locationName, (totals.get(item.locationName) ?? 0) + 1);
+        (inventories as InventoryItem[]).forEach((item) => {
+            const locationName = item.locationName ?? 'Unassigned';
+            totals.set(locationName, (totals.get(locationName) ?? 0) + 1);
         });
         return Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
-    }, []);
+    }, [inventories]);
 
     const locationColors = useMemo(
         () => locationEntries.map((_, index) => pieColors[index % pieColors.length]),

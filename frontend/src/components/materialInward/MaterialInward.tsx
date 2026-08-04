@@ -4,6 +4,7 @@ import { HiOutlinePlus } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { type MaterialInward as MaterialInwardType } from '../../services/materialInwardService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
@@ -12,6 +13,7 @@ import './MaterialInward.css';
 
 const MaterialInward = () => {
     const { materialInwards, materialInwardsLoading } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [dialogVisible, setDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -37,7 +39,7 @@ const MaterialInward = () => {
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const columns = getMaterialInwardColumns();
+    const columns = getMaterialInwardColumns(dateFormat);
 
     const actionTemplate = getActionBodyTemplate<MaterialInwardType>({
         onEdit: openEditDialog,

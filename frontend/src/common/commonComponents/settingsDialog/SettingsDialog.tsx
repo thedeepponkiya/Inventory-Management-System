@@ -10,9 +10,18 @@ import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCirc
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
+import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
+import { formatDate, type DateFormatOption } from '../../commonFunctions/dateFormat';
 import './SettingsDialog.css';
 
 const financialYears = ['2024-2025', '2025-2026', '2026-2027'];
+
+const today = new Date().toISOString();
+const dateFormatOptions: { label: string; value: DateFormatOption }[] = [
+    { label: `Short (${formatDate(today, 'short')})`, value: 'short' },
+    { label: `Medium (${formatDate(today, 'medium')})`, value: 'medium' },
+    { label: `Long (${formatDate(today, 'long')})`, value: 'long' },
+];
 
 const tabs = [
     { key: 'general', label: 'General', icon: HiOutlineAdjustmentsHorizontal },
@@ -35,6 +44,7 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const [invoicePrefix, setInvoicePrefix] = useState(settingsMockData.invoicePrefix);
     const [financialYear, setFinancialYear] = useState(settingsMockData.financialYear);
     const { theme, setTheme } = useThemeContext();
+    const { dateFormat, setDateFormat } = useDateFormatContext();
     const [logoPreview, setLogoPreview] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const handleLogoSelect = (event: FileUploadHandlerEvent) => {
@@ -102,6 +112,10 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                 <div className="form-field">
                                     <label>Financial Year</label>
                                     <Dropdown value={financialYear} onChange={(e) => setFinancialYear(e.value)} options={financialYears} />
+                                </div>
+                                <div className="form-field">
+                                    <label>Date Format</label>
+                                    <Dropdown value={dateFormat} onChange={(e) => setDateFormat(e.value)} options={dateFormatOptions} />
                                 </div>
                             </div>
                         )}

@@ -4,19 +4,19 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
-import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark, HiOutlineTrash, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark, HiOutlineCheckCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { inventoryHomeMockData, type InventoryItem, type AssemblyLine } from '../../mockData/inventoryHomeData';
-import { categoryMockData } from '../../mockData/categoryData';
-import { productTypeMockData } from '../../mockData/productTypeData';
-import { locationMockData } from '../../mockData/locationData';
+import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import type { RawSku } from '../../services/rawSkuService';
+import type { Category } from '../../services/categoryService';
+import type { ProductType } from '../../services/productTypeService';
+import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
@@ -26,21 +26,23 @@ let nextAssemblyRowId = 1;
 const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, skuName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: 1 });
 const rowsFromAssembly = (assembly: AssemblyLine[]): AssemblyRow[] => assembly.map((line) => ({ ...line, rowId: nextAssemblyRowId++ }));
 
-const emptyForm: Omit<InventoryItem, 'id' | 'createdDate' | 'assembly'> = {
-    images: [], skuId: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, productType: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO,
+const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'> = {
+    images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO,
 };
 
 const InventoryHome = () => {
-    const { rawSkus } = useContext(AppContext);
+    const { rawSkus, categories, productTypes, locations, inventories, fetchInventories } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const [inventoryHomeItems, setInventoryHomeItems] = useState<InventoryItem[]>(inventoryHomeMockData);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [activeDialogTab, setActiveDialogTab] = useState<'details' | 'assembly'>('details');
     const [form, setForm] = useState(emptyForm);
     const [assemblyRows, setAssemblyRows] = useState<AssemblyRow[]>([]);
     const [activeImageIndex, setActiveImageIndex] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
-    const [editingId, setEditingId] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [editingSkuId, setEditingSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [previewSkuId, setPreviewSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
 
     const filterFields: FilterField[] = [
         { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by SKU ID or product name' },
@@ -48,12 +50,16 @@ const InventoryHome = () => {
 
     const filteredItems = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return inventoryHomeItems.filter((item) => {
+        return (inventories as InventoryItem[]).filter((item) => {
             return !search || item.skuId.toLowerCase().includes(search) || item.productName.toLowerCase().includes(search);
         });
-    }, [inventoryHomeItems, filters]);
+    }, [inventories, filters]);
 
     const addAssemblyRow = () => {
+        if (assemblyRows.some((row) => !row.skuCode)) {
+            showToast(toast, 'warn', 'Warning', 'Please select a SKU for the existing row before adding another');
+            return;
+        }
         setAssemblyRows((prev) => [...prev, emptyAssemblyRow()]);
     };
 
@@ -89,20 +95,26 @@ const InventoryHome = () => {
         setActiveImageIndex((prev) => (prev >= index ? Math.max(0, prev - 1) : prev));
     };
 
-    const openAddDialog = () => {
+    const openAddDialog = async () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setEditingSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         setForm(emptyForm);
         setAssemblyRows([]);
         setActiveDialogTab('details');
         setActiveImageIndex(DEFAULT_DATA_TYPE_VALUE.ZERO);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            setPreviewSkuId(await getNextSkuId());
+        } catch {
+            setPreviewSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        }
     };
 
     const openEditDialog = (item: InventoryItem) => {
         setEditingId(item.id);
+        setEditingSkuId(item.skuId);
         setForm({
             images: item.images,
-            skuId: item.skuId,
             productName: item.productName,
             categoryName: item.categoryName,
             productType: item.productType,
@@ -125,23 +137,37 @@ const InventoryHome = () => {
             header: 'Delete Inventory Item',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            accept: () => {
-                setInventoryHomeItems((prev) => prev.filter((i) => i.id !== item.id));
+            accept: async () => {
+                await deleteInventoryItem(item.id);
+                fetchInventories();
                 showToast(toast, 'success', 'Deleted', 'Inventory item deleted successfully');
             },
         });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (assemblyRows.length === 0) {
+            setActiveDialogTab('assembly');
+            showToast(toast, 'warn', 'Warning', 'Please add at least one SKU');
+            return;
+        }
+
+        const hasBlankAssemblyRow = assemblyRows.some((row) => !row.skuCode);
+        if (hasBlankAssemblyRow) {
+            setActiveDialogTab('assembly');
+            showToast(toast, 'warn', 'Warning', 'Please select a SKU for every Product Assembly row, or remove the empty one');
+            return;
+        }
+
         const assembly = assemblyRows.map(({ skuCode, skuName, quantity }) => ({ skuCode, skuName, quantity }));
         if (editingId) {
-            setInventoryHomeItems((prev) => prev.map((item) => (item.id === editingId ? { ...item, ...form, assembly } : item)));
+            await updateInventoryItem(editingId, { ...form, assembly });
             showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
         } else {
-            const createdDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            setInventoryHomeItems((prev) => [...prev, { id: form.skuId, createdDate, ...form, assembly }]);
+            await createInventoryItem({ ...form, assembly });
             showToast(toast, 'success', 'Created', 'Inventory item created successfully');
         }
+        fetchInventories();
         setForm(emptyForm);
         setAssemblyRows([]);
         setActiveDialogTab('details');
@@ -150,7 +176,15 @@ const InventoryHome = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
-    const columns = getInventoryHomeColumns();
+    const handleToggleStatus = async (item: InventoryItem) => {
+        await updateInventoryItem(item.id, { status: item.status === 'Active' ? 'Inactive' : 'Active' });
+        fetchInventories();
+        showToast(toast, 'success', 'Updated', 'Inventory item status updated successfully');
+    };
+
+    // toast.current is only read inside handleToggleStatus's own async callback, never during render
+    // eslint-disable-next-line react-hooks/refs
+    const columns = getInventoryHomeColumns(dateFormat, handleToggleStatus);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
@@ -158,7 +192,7 @@ const InventoryHome = () => {
 
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow);
 
-    const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ icons: [{ icon: HiOutlineTrash, onClick: (row) => removeAssemblyRow(row.rowId) }] });
+    const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ onDelete: (row) => removeAssemblyRow(row.rowId) });
 
     return (
         <div className="inventory-home-page">
@@ -212,7 +246,7 @@ const InventoryHome = () => {
                                     <div className="inventory-home-form-grid">
                                         <div className="form-field">
                                             <label>SKU (ID)</label>
-                                            <InputText value={form.skuId} onChange={(e) => setForm({ ...form, skuId: e.target.value })} placeholder="e.g. SKU-014" />
+                                            <InputText value={editingId ? editingSkuId : (previewSkuId || 'Generating...')} disabled />
                                         </div>
                                         <div className="form-field">
                                             <label>Product Name</label>
@@ -223,7 +257,7 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.categoryName}
                                                 onChange={(e) => setForm({ ...form, categoryName: e.value })}
-                                                options={categoryMockData.map((c) => ({ label: c.name, value: c.name }))}
+                                                options={(categories as Category[]).map((c) => ({ label: c.category, value: c.category }))}
                                                 placeholder="Select category"
                                             />
                                         </div>
@@ -232,13 +266,13 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.productType}
                                                 onChange={(e) => setForm({ ...form, productType: e.value })}
-                                                options={productTypeMockData.map((t) => ({ label: t.name, value: t.name }))}
+                                                options={(productTypes as ProductType[]).map((t) => ({ label: t.productType, value: t.productType }))}
                                                 placeholder="Select product type"
                                             />
                                         </div>
                                         <div className="form-field">
                                             <label>Barcode</label>
-                                            <InputText value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Enter barcode" />
+                                            <InputText value={form.barcode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Enter barcode" />
                                         </div>
                                         <div className="form-field">
                                             <label>Unit</label>
@@ -248,13 +282,7 @@ const InventoryHome = () => {
                                 </div>
 
                                 <div className="inventory-home-form-section">
-                                    <div className="inventory-home-form-section-header">
-                                        <h3 className="inventory-home-form-section-title">Stock &amp; Pricing</h3>
-                                        <div className="inventory-home-form-section-toggle">
-                                            <label>Active</label>
-                                            <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
-                                        </div>
-                                    </div>
+                                    <h3 className="inventory-home-form-section-title">Stock &amp; Pricing</h3>
                                     <div className="inventory-home-form-grid">
                                         <div className="form-field">
                                             <label>Quantity</label>
@@ -269,7 +297,7 @@ const InventoryHome = () => {
                                             <Dropdown
                                                 value={form.locationName}
                                                 onChange={(e) => setForm({ ...form, locationName: e.value })}
-                                                options={locationMockData.map((l) => ({ label: l.name, value: l.name }))}
+                                                options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.location }))}
                                                 placeholder="Select location"
                                             />
                                         </div>
@@ -327,7 +355,7 @@ const InventoryHome = () => {
                                 <h3>Product Assembly</h3>
                                 <span className="inventory-home-assembly-subtitle">Which SKUs (and how many of each) are used to assemble this product.</span>
                             </div>
-                            <Button label="Add Component" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={addAssemblyRow} outlined />
+                            <Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={addAssemblyRow} outlined />
                         </div>
                         <DataTable
                             value={assemblyRows}

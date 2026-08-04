@@ -6,9 +6,9 @@ import { Button } from 'primereact/button';
 import {
     HiOutlineFunnel,
     HiOutlineHome,
-    HiOutlineTruck,
+    // HiOutlineTruck, // Material Inward quick action hidden below
     HiOutlineArchiveBox,
-    HiOutlineClipboardDocumentList,
+    // HiOutlineClipboardDocumentList, // Purchase Order quick action hidden below
 } from 'react-icons/hi2';
 import { MdFilterAltOff } from 'react-icons/md';
 import './FilterBar.css';
@@ -36,8 +36,8 @@ interface FilterBarProps {
 
 const quickActions = [
     { label: 'Home', path: '/home', icon: HiOutlineHome },
-    { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-    { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
+    // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
+    // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
     { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
 ];
 

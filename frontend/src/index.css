@@ -104,6 +104,24 @@ textarea::placeholder {
     gap: 16px;
 }
 
+/* Shared table thumbnail (getColumnBodyTemplate's fieldType: 'image' in CommonUtilities.tsx) */
+.common-table-thumb {
+    width: 64px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.common-table-thumb--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-subtle-2);
+    color: var(--text-subtle);
+    cursor: default;
+}
+
 .data-table-actions {
     display: flex;
     align-items: center;
@@ -131,4 +149,31 @@ textarea::placeholder {
 
 .p-toast .p-toast-message .p-toast-message-content .p-toast-detail {
     font-size: 13px;
+}
+
+/* Thin scrollbars app-wide - anywhere that still shows a native scrollbar (dialogs,
+   dropdown panels, tables with horizontal overflow) gets a slim bar instead of the
+   OS-default thick one. Elements that intentionally hide their scrollbar entirely
+   (.app-content, .sidebar-items) override this via their own, more specific rule. */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-dashed) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--border-dashed);
+    border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
 }
