@@ -31,7 +31,7 @@ const navGroups = [
     {
         groupLabel: 'Operation',
         items: [
-            { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
+            { label: 'Inventories', path: '/home', icon: HiOutlineCube },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },

@@ -5,8 +5,8 @@ import { InputText } from 'primereact/inputtext';
 import {
     HiOutlineArchiveBox,
     HiOutlineClipboardDocumentList,
+    HiOutlineCube,
     HiOutlineFunnel,
-    HiOutlineHome, // Purchase Order quick action hidden below
     HiOutlineSquare3Stack3D,
     HiOutlineTruck, // Material Inward quick action hidden below
 } from 'react-icons/hi2';
@@ -36,7 +36,7 @@ interface FilterBarProps {
 }
 
 const quickActions = [
-    { label: 'Home', path: '/home', icon: HiOutlineHome },
+    { label: 'Inventories', path: '/home', icon: HiOutlineCube },
     { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
     { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },

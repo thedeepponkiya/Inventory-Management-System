@@ -1,7 +1,3 @@
-.bom-page {
-    padding-bottom: 24px;
-}
-
 .bom-dialog-body {
     display: flex;
     flex-direction: column;
@@ -75,6 +71,44 @@
        themeOverrides.css and wins the :root custom-property tie, so the var resolves to
        PrimeReact's default blue-500 instead of this app's actual #2563eb brand blue. */
     color: #2563eb;
+}
+
+.bom-item-qty-needed--insufficient {
+    color: var(--accent-danger-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.bom-item-qty-needed-icon {
+    flex-shrink: 0;
+}
+
+.bom-stock-error-banner {
+    background: var(--accent-danger-bg);
+    border: 1px solid var(--accent-danger-text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.bom-stock-error-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-danger-text);
+}
+
+.bom-stock-error-list {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: var(--accent-danger-text);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .bom-recipe-header {

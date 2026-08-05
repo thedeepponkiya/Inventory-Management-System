@@ -18,7 +18,7 @@
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 3fr 2fr;
     gap: 16px;
     align-items: stretch;
     margin-bottom: 24px;
@@ -42,6 +42,10 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* Keeps Recent Orders / Low Stock Alerts a consistent size whether they're full or
+       showing an empty state, instead of the card shrinking to fit whatever little content
+       is there - the two still stretch to match each other on top of this floor. */
+    min-height: 420px;
 }
 
 .dashboard-card {
@@ -60,10 +64,27 @@
 }
 
 .dashboard-card-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
+}
+
+.dashboard-card-header-icon {
+    color: var(--accent-info-text);
+    flex-shrink: 0;
+}
+
+.dashboard-card-header-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-danger-text);
+    background: var(--accent-danger-bg);
+    padding: 1px 8px;
+    border-radius: 999px;
 }
 
 .dashboard-card-link {

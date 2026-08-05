@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from 'react';
 import { Chart } from 'primereact/chart';
 import { Dropdown } from 'primereact/dropdown';
 import { MdOutlineBarChart, MdOutlineShowChart } from 'react-icons/md';
+import { HiOutlineArrowTrendingUp } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { Bom } from '../../../services/bomService';
 import { buildTrendBuckets, countByBucket, trendChartOptions } from '../dashboardUtils';
@@ -46,7 +47,7 @@ const OrdersTrend = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Orders Trend</h2>
+                <h2><HiOutlineArrowTrendingUp size={18} className="dashboard-card-header-icon" />Orders Trend</h2>
                 <div className="dashboard-card-header-actions">
                     <div className="dashboard-chart-type-toggle">
                         <button type="button" className={`dashboard-chart-type-btn${chartType === 'line' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setChartType('line')} title="Line chart">
