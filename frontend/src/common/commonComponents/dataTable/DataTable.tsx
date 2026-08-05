@@ -1,11 +1,11 @@
-import { useState, Children, isValidElement } from 'react';
-import type { ReactNode } from 'react';
-import { DataTable as PrimeDataTable } from 'primereact/datatable';
-import type { DataTableFilterMeta } from 'primereact/datatable';
-import { Column } from 'primereact/column';
 import { FilterMatchMode } from 'primereact/api';
-import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
+import { Column } from 'primereact/column';
+import type { DataTableFilterMeta } from 'primereact/datatable';
+import { DataTable as PrimeDataTable } from 'primereact/datatable';
+import type { ReactNode } from 'react';
+import { Children, isValidElement, useState } from 'react';
 import type { ColumnBodyType, DateBodyOptions, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
+import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
 import './DataTable.css';
 
 export interface ColumnConfig<T> {

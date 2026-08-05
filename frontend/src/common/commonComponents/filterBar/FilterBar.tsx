@@ -1,17 +1,17 @@
-import { NavLink } from 'react-router-dom';
-import { InputText } from 'primereact/inputtext';
-import { Dropdown } from 'primereact/dropdown';
-import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
+import { Calendar } from 'primereact/calendar';
+import { Dropdown } from 'primereact/dropdown';
+import { InputText } from 'primereact/inputtext';
 import {
-    HiOutlineFunnel,
-    HiOutlineHome,
-    // HiOutlineTruck, // Material Inward quick action hidden below
     HiOutlineArchiveBox,
-    // HiOutlineClipboardDocumentList, // Purchase Order quick action hidden below
+    HiOutlineClipboardDocumentList,
+    HiOutlineFunnel,
+    HiOutlineHome, // Purchase Order quick action hidden below
     HiOutlineSquare3Stack3D,
+    HiOutlineTruck, // Material Inward quick action hidden below
 } from 'react-icons/hi2';
 import { MdFilterAltOff } from 'react-icons/md';
+import { NavLink } from 'react-router-dom';
 import './FilterBar.css';
 
 export interface FilterOption {
@@ -37,8 +37,8 @@ interface FilterBarProps {
 
 const quickActions = [
     { label: 'Home', path: '/home', icon: HiOutlineHome },
-    // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-    // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
+    { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
+    { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
     { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
     { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
 ];

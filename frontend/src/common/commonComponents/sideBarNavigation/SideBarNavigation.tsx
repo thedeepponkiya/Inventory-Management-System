@@ -2,20 +2,20 @@ import { useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AppContext } from '../../../context/AppContextDefinition';
 import {
-    // HiOutlineTruck, // Material Inward nav item hidden below
+    HiOutlineTruck, // Material Inward nav item hidden below
     HiOutlineArchiveBox,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineCube,
     HiOutlineSquare3Stack3D,
-    // HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
+    HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
-    // HiOutlineBuildingStorefront, // Vendor nav item hidden below
-    // HiOutlineListBullet, // Transactions nav item hidden below
-    // HiOutlineDocumentText, // Invoices nav item hidden below
-    // HiOutlineChartBar, // Reports nav item hidden below
-    // HiOutlineUsers, // Users nav item hidden below
+    HiOutlineBuildingStorefront, // Vendor nav item hidden below
+    HiOutlineListBullet, // Transactions nav item hidden below
+    HiOutlineDocumentText, // Invoices nav item hidden below
+    HiOutlineChartBar, // Reports nav item hidden below
+    HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineBars3,
 } from 'react-icons/hi2';
@@ -32,8 +32,8 @@ const navGroups = [
         groupLabel: 'Operation',
         items: [
             { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
-            // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
-            // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
+            { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
+            { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
             { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
         ],
@@ -44,28 +44,28 @@ const navGroups = [
             { label: 'Locations', path: '/locations', icon: HiOutlineMapPin },
             { label: 'Category', path: '/category', icon: HiOutlineFolder },
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
-            // { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
+            { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
         ],
     },
-    // {
-    //     groupLabel: 'Billing',
-    //     items: [
-    //         { label: 'Transactions', path: '/transactions', icon: HiOutlineListBullet },
-    //         { label: 'Invoices', path: '/invoices', icon: HiOutlineDocumentText },
-    //     ],
-    // },
-    // {
-    //     groupLabel: 'Analytics',
-    //     items: [
-    //         { label: 'Reports', path: '/reports', icon: HiOutlineChartBar },
-    //     ],
-    // },
-    // {
-    //     groupLabel: 'Administration',
-    //     items: [
-    //         { label: 'Users', path: '/users', icon: HiOutlineUsers },
-    //     ],
-    // },
+    {
+        groupLabel: 'Billing',
+        items: [
+            { label: 'Transactions', path: '/transactions', icon: HiOutlineListBullet },
+            { label: 'Invoices', path: '/invoices', icon: HiOutlineDocumentText },
+        ],
+    },
+    {
+        groupLabel: 'Analytics',
+        items: [
+            { label: 'Reports', path: '/reports', icon: HiOutlineChartBar },
+        ],
+    },
+    {
+        groupLabel: 'Administration',
+        items: [
+            { label: 'Users', path: '/users', icon: HiOutlineUsers },
+        ],
+    },
 ];
 
 const SidePanel = () => {

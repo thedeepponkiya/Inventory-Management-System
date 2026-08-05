@@ -20,7 +20,8 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 16px;
-    align-items: start;
+    align-items: stretch;
+    margin-bottom: 24px;
 }
 
 @media (max-width: 1100px) {
@@ -34,6 +35,13 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.dashboard-main-col > .dashboard-card,
+.dashboard-side-col > .dashboard-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard-card {
@@ -67,6 +75,22 @@
 
 .dashboard-month-dropdown {
     min-width: 130px;
+}
+
+.dashboard-month-dropdown--sm.p-dropdown {
+    min-width: 100px;
+    font-size: 12px;
+}
+
+.dashboard-month-dropdown--sm.p-dropdown .p-dropdown-label {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.dashboard-card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .dashboard-chart-type-toggle {
@@ -126,17 +150,17 @@
     height: 340px;
 }
 
-.dashboard-pie-chart {
-    height: 340px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .dashboard-low-stock-list {
     display: flex;
     flex-direction: column;
     gap: 14px;
+}
+
+.dashboard-movement-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
 }
 
 .dashboard-low-stock-item {
@@ -169,6 +193,17 @@
     margin-bottom: 4px;
 }
 
+.dashboard-low-stock-min--positive {
+    color: var(--accent-success-text);
+    margin-bottom: 0;
+}
+
+.dashboard-empty-state {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 12px 0;
+}
+
 .dashboard-low-stock-bar {
     width: 100%;
     height: 6px;
@@ -183,3 +218,6 @@
     border-radius: 4px;
 }
 
+.dashboard-analytics-chart {
+    height: 220px;
+}
