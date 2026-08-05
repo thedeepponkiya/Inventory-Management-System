@@ -295,17 +295,26 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
         field: 'currentStock',
         header: 'Current Stock',
         // At/below Min Stock = critical (red), at/above Max Stock = healthy (green),
-        // anywhere in between = watch (orange) - shown as a small colored dot next to the
-        // plain number rather than a filled pill.
+        // anywhere in between = watch (orange) - the value's own text is bolded and
+        // colored, on a matching tinted pill background, rather than using a separate
+        // dot/badge marker.
         body: (row) => {
-            const dotColor = row.currentStock <= row.minStock
-                ? 'var(--accent-danger-text)'
+            const tone = row.currentStock <= row.minStock
+                ? 'danger'
                 : row.currentStock >= row.maxStock
-                    ? 'var(--accent-success-text)'
-                    : 'var(--accent-warning-text)';
+                    ? 'success'
+                    : 'warning';
             return (
-                <span className="raw-sku-stock-indicator">
-                    <span className="raw-sku-stock-dot" style={{ backgroundColor: dotColor }} />
+                <span
+                    style={{
+                        fontWeight: 700,
+                        color: `var(--accent-${tone}-text)`,
+                        backgroundColor: `var(--accent-${tone}-bg)`,
+                        padding: '2px 10px',
+                        borderRadius: '999px',
+                        display: 'inline-block',
+                    }}
+                >
                     {row.currentStock}
                 </span>
             );

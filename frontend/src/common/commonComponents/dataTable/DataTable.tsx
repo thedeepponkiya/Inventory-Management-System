@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, Children, isValidElement } from 'react';
+import type { ReactNode } from 'react';
 import { DataTable as PrimeDataTable } from 'primereact/datatable';
 import type { DataTableFilterMeta } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -19,8 +20,31 @@ export interface ColumnConfig<T> {
     style?: React.CSSProperties;
 }
 
+// Best-effort plain-text extraction from a custom column's rendered output, used to give
+// it a native hover tooltip for free (mirrors what getRowData already does for fieldType
+// columns). Walks down through simple wrapper elements (e.g. <span>{value}</span>) but
+// intentionally yields '' for interactive controls (Dropdown/InputNumber in editable
+// item-row tables) since those don't expose their value via `children` - no text means no
+// title gets added, so editable cells are left exactly as they were.
+function extractCellText(node: ReactNode): string {
+    if (node === null || node === undefined || typeof node === 'boolean') return '';
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(extractCellText).join(' ').trim();
+    if (isValidElement(node)) {
+        return Children.toArray((node.props as { children?: ReactNode }).children).map(extractCellText).join(' ').trim();
+    }
+    return '';
+}
+
 function resolveColumnBody<T>(col: ColumnConfig<T>): ((row: T) => React.ReactNode) | undefined {
-    if (col.body) return col.body;
+    if (col.body) {
+        const customBody = col.body;
+        return (row: T) => {
+            const content = customBody(row);
+            const text = extractCellText(content);
+            return text ? <span title={text}>{content}</span> : content;
+        };
+    }
     if (col.fieldType) return getColumnBodyTemplate<T>({ field: col.field, fieldType: col.fieldType, options: col.options } as RowDataColumn<T>);
     return undefined;
 }
@@ -71,7 +95,6 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             rows={rows}
             rowsPerPageOptions={[10, 25, 50]}
             responsiveLayout="scroll"
-            stripedRows
             loading={loading}
             emptyMessage={emptyMessage}
             dataKey={dataKey}
