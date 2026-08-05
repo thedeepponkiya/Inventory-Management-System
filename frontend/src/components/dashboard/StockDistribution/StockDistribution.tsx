@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from 'react';
 import { Chart } from 'primereact/chart';
 import type { Chart as ChartJSInstance } from 'chart.js';
 import { MdOutlineDonutLarge, MdOutlinePieChart, MdOutlineBarChart } from 'react-icons/md';
+import { HiOutlineMapPin } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { InventoryItem } from '../../../services/inventoryService';
 import { pieColors } from '../dashboardUtils';
@@ -13,21 +14,17 @@ const StockDistribution = () => {
     const inventoryList = inventories as InventoryItem[];
     const [distributionView, setDistributionView] = useState<'donut' | 'pie' | 'bar'>('donut');
 
-    // Caps the chart/legend to the busiest locations - with hundreds of real locations now
-    // seeded, showing one slice per location would produce an unreadable legend with
-    // hundreds of entries, so anything past the top 9 gets folded into a single "Other" slice.
+    // Every real location, by name - no top-N folding into "Other" anymore. The legend
+    // below is a scrollable HTML list (not Chart.js's own canvas-drawn legend), so showing
+    // all of them doesn't turn into an unreadable wall of text like it would inside the
+    // chart itself.
     const locationEntries = useMemo(() => {
         const totals = new Map<string, number>();
         inventoryList.forEach((item) => {
             const locationName = item.locationName ?? 'Unassigned';
             totals.set(locationName, (totals.get(locationName) ?? 0) + 1);
         });
-        const sorted = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
-        const TOP_N = 9;
-        if (sorted.length <= TOP_N + 1) return sorted;
-        const top = sorted.slice(0, TOP_N);
-        const otherTotal = sorted.slice(TOP_N).reduce((sum, [, value]) => sum + value, 0);
-        return [...top, ['Other', otherTotal] as [string, number]];
+        return Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
     }, [inventoryList]);
 
     const locationColors = useMemo(
@@ -116,26 +113,13 @@ const StockDistribution = () => {
         },
     };
 
-    const pieOptions = {
+    // Chart.js's own legend is canvas-drawn, so it can't scroll - the location list is
+    // rendered as a separate HTML legend instead (below), so both pie/donut hide the
+    // built-in one here.
+    const sliceOptions = {
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                position: 'right' as const,
-                labels: {
-                    boxWidth: 10,
-                    font: { size: 11 },
-                    generateLabels: (chart: { data: { labels?: unknown[]; datasets: { data: unknown[]; backgroundColor: string[] }[] } }) => {
-                        const { labels = [], datasets } = chart.data;
-                        const values = datasets[0]?.data as number[];
-                        const colors = datasets[0]?.backgroundColor;
-                        return (labels as string[]).map((label, index) => ({
-                            text: `${label} - ${values[index]} SKU`,
-                            fillStyle: colors[index],
-                            index,
-                        }));
-                    },
-                },
-            },
+            legend: { display: false },
             tooltip: {
                 callbacks: {
                     label: (context: { label?: string; parsed: number }) => `${context.label}: ${context.parsed} SKU`,
@@ -144,12 +128,24 @@ const StockDistribution = () => {
         },
     };
 
-    const donutOptions = { ...pieOptions, cutout: '68%' };
+    const donutOptions = { ...sliceOptions, cutout: '68%' };
+
+    const renderLegend = () => (
+        <div className="dashboard-location-legend">
+            {locationEntries.map(([label, value], index) => (
+                <div className="dashboard-location-legend-item" key={label}>
+                    <span className="dashboard-location-legend-swatch" style={{ background: locationColors[index] }} />
+                    <span className="dashboard-location-legend-label">{label}</span>
+                    <span className="dashboard-location-legend-count">{value} SKU</span>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Stock Distribution</h2>
+                <h2><HiOutlineMapPin size={18} className="dashboard-card-header-icon" />Location Wise SKU</h2>
                 <div className="dashboard-chart-type-toggle">
                     <button type="button" className={`dashboard-chart-type-btn${distributionView === 'donut' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setDistributionView('donut')} title="Donut chart">
                         <MdOutlineDonutLarge size={16} />
@@ -164,11 +160,17 @@ const StockDistribution = () => {
             </div>
 
             {distributionView === 'donut' && (
-                <Chart key={`donut-${inventoryList.length}`} type="doughnut" data={donutData} options={donutOptions} plugins={[centerTextPlugin]} className="dashboard-pie-chart" />
+                <div className="dashboard-location-row">
+                    <Chart key={`donut-${inventoryList.length}`} type="doughnut" data={donutData} options={donutOptions} plugins={[centerTextPlugin]} className="dashboard-pie-chart" />
+                    {renderLegend()}
+                </div>
             )}
 
             {distributionView === 'pie' && (
-                <Chart key={`pie-${inventoryList.length}`} type="pie" data={pieData} options={pieOptions} className="dashboard-pie-chart" />
+                <div className="dashboard-location-row">
+                    <Chart key={`pie-${inventoryList.length}`} type="pie" data={pieData} options={sliceOptions} className="dashboard-pie-chart" />
+                    {renderLegend()}
+                </div>
             )}
 
             {distributionView === 'bar' && (

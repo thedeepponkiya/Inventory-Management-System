@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chart } from 'primereact/chart';
 import { MdOutlineDonutLarge, MdOutlineBarChart } from 'react-icons/md';
+import { HiOutlineDocumentChartBar } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../../services/purchaseOrderService';
 import '../Dashboard.css';
@@ -78,7 +79,7 @@ const PurchaseOrderAnalytics = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Purchase Order Analytics</h2>
+                <h2><HiOutlineDocumentChartBar size={18} className="dashboard-card-header-icon" />Purchase Order Analytics</h2>
                 <span className="dashboard-card-link" onClick={() => navigate('/purchase-order')}>View all</span>
             </div>
             <div className="dashboard-stock-summary">

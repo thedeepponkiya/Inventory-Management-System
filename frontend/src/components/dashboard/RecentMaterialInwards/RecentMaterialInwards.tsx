@@ -1,5 +1,6 @@
 import { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HiOutlineInboxArrowDown } from 'react-icons/hi2';
 import DataTable from '../../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { MaterialInward } from '../../../services/materialInwardService';
@@ -29,7 +30,7 @@ const RecentMaterialInwards = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Recent Material Inwards</h2>
+                <h2><HiOutlineInboxArrowDown size={18} className="dashboard-card-header-icon" />Recent Material Inwards</h2>
                 <span className="dashboard-card-link" onClick={() => navigate('/material-inward')}>View all</span>
             </div>
             <DataTable value={recentInwards} columns={recentInwardsColumns} paginator={false} />

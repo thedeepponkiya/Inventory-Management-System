@@ -2,6 +2,7 @@ import { useContext, useMemo, useState } from 'react';
 import { Chart } from 'primereact/chart';
 import { Dropdown } from 'primereact/dropdown';
 import { MdOutlineBarChart, MdOutlineShowChart } from 'react-icons/md';
+import { HiOutlineTruck } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { MaterialInward } from '../../../services/materialInwardService';
 import { buildTrendBuckets, countByBucket, isSameMonth, trendChartOptions } from '../dashboardUtils';
@@ -44,7 +45,7 @@ const MaterialInwardAnalytics = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Material Inward Analytics</h2>
+                <h2><HiOutlineTruck size={18} className="dashboard-card-header-icon" />Material Inward Analytics</h2>
                 <div className="dashboard-card-header-actions">
                     <div className="dashboard-chart-type-toggle">
                         <button type="button" className={`dashboard-chart-type-btn${inwardTrendChartType === 'line' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setInwardTrendChartType('line')} title="Line chart">

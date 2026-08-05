@@ -1,5 +1,6 @@
 import { useContext, useMemo, useState } from 'react';
 import { Dropdown } from 'primereact/dropdown';
+import { HiOutlineArrowsRightLeft } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { RawSku } from '../../../services/rawSkuService';
 import type { Bom } from '../../../services/bomService';
@@ -20,7 +21,7 @@ const SkuMovement = () => {
     const skuMovement = useMemo(() => {
         const { start, end } = getFilterRange(movementFilter);
 
-        const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number }>();
+        const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number; locationName: string | null }>();
         bomList
             .filter((bom) => bom.status === 'Dispatch' && new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
             .forEach((bom) => {
@@ -30,7 +31,10 @@ const SkuMovement = () => {
                     if (existing) {
                         existing.total += consumedQty;
                     } else {
-                        consumedBySku.set(item.rawSkuCode, { rawSkuName: item.rawSkuName, unit: item.unit, total: consumedQty });
+                        // BomItem has no location of its own - look it up from the Raw SKU
+                        // master, same denormalize-at-read approach used everywhere else.
+                        const locationName = rawSkuList.find((sku) => sku.skuCode === item.rawSkuCode)?.locationName ?? null;
+                        consumedBySku.set(item.rawSkuCode, { rawSkuName: item.rawSkuName, unit: item.unit, total: consumedQty, locationName });
                     }
                 });
             });
@@ -51,7 +55,7 @@ const SkuMovement = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>SKU Movement</h2>
+                <h2><HiOutlineArrowsRightLeft size={18} className="dashboard-card-header-icon" />SKU Movement</h2>
                 <Dropdown
                     value={movementFilter}
                     onChange={(e) => setMovementFilter(e.value)}
@@ -71,6 +75,7 @@ const SkuMovement = () => {
                                     <div className="dashboard-low-stock-info">
                                         <div className="dashboard-low-stock-name">{sku.skuName}</div>
                                         <div className="dashboard-low-stock-sub">#{sku.skuCode}</div>
+                                        <div className="dashboard-low-stock-sub">Location: {sku.locationName ?? '—'}</div>
                                     </div>
                                     <div className="dashboard-low-stock-meta">
                                         <div className="dashboard-low-stock-min">{sku.currentStock} {sku.unit}</div>
@@ -92,6 +97,7 @@ const SkuMovement = () => {
                                     <div className="dashboard-low-stock-info">
                                         <div className="dashboard-low-stock-name">{sku.rawSkuName}</div>
                                         <div className="dashboard-low-stock-sub">#{sku.skuCode}</div>
+                                        <div className="dashboard-low-stock-sub">Location: {sku.locationName ?? '—'}</div>
                                     </div>
                                     <div className="dashboard-low-stock-meta">
                                         <div className="dashboard-low-stock-min dashboard-low-stock-min--positive">

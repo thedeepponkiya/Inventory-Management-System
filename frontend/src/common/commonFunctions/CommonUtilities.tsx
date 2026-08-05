@@ -8,6 +8,7 @@ import {
     HiOutlineTrash,
     HiOutlineEye,
     HiOutlineCube,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import StatusBadge from '../commonComponents/statusBadge/StatusBadge';
 import type { StatusVariant } from '../commonComponents/statusBadge/StatusBadge';
@@ -719,10 +720,22 @@ export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSku
         key: 'qtyNeeded',
         header: 'Qty Needed',
         // Scaled for the BOM's current Output Qty - preview-only, never persisted (see
-        // ims_bom's schema comment in schema.sql).
+        // ims_bom's schema comment in schema.sql). Flagged red when it exceeds the Raw
+        // SKU's current stock, since dispatching this order later would need more than is
+        // actually available.
         body: (row) => {
             const needed = row.requiredQty * outputQty;
-            return <span className="bom-item-qty-needed">{Number.isFinite(needed) ? Number(needed.toFixed(2)) : 0} {row.unit}</span>;
+            const stock = rawSkus.find((sku) => sku.skuCode === row.rawSkuCode);
+            const insufficient = Boolean(stock) && needed > stock!.currentStock;
+            return (
+                <span
+                    className={`bom-item-qty-needed${insufficient ? ' bom-item-qty-needed--insufficient' : ''}`}
+                    title={insufficient ? `Only ${stock!.currentStock} ${row.unit} in stock` : undefined}
+                >
+                    {Number.isFinite(needed) ? Number(needed.toFixed(2)) : 0} {row.unit}
+                    {insufficient && <HiOutlineExclamationTriangle size={13} className="bom-item-qty-needed-icon" />}
+                </span>
+            );
         },
     },
 ];

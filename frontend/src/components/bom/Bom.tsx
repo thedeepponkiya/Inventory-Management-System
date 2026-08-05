@@ -16,6 +16,7 @@ import {
     HiOutlineTrash,
     HiOutlineTruck,
     HiOutlineArrowUturnLeft,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
@@ -50,6 +51,13 @@ interface BomForm {
 // fixed at '1.0' - neither is user-editable anymore, but BomPayload still requires them.
 const BOM_VERSION = '1.0';
 
+interface StockShortfall {
+    name: string;
+    needed: number;
+    available: number;
+    unit: string;
+}
+
 const emptyForm: BomForm = {
     productSku: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
@@ -73,6 +81,7 @@ const Bom = () => {
     const [editingBomCode, setEditingBomCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewBomCode, setPreviewBomCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [recipeBom, setRecipeBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [stockErrors, setStockErrors] = useState<StockShortfall[]>([]);
     const menuRef = useRef<Menu>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const menuTargetRef = useRef<SVGElement | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [menuBom, setMenuBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -93,6 +102,7 @@ const Bom = () => {
         setEditingBomCode(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         setForm(emptyForm);
         setItems([]);
+        setStockErrors([]);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
             setPreviewBomCode(await getNextBomCode());
@@ -113,6 +123,7 @@ const Bom = () => {
             status: bom.status,
         });
         setItems(rowsFromItems(bom.items));
+        setStockErrors([]);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
@@ -143,6 +154,25 @@ const Bom = () => {
 
         if (items.length === 0) {
             showToast(toast, 'warn', 'Warning', 'Please add at least one SKU');
+            return;
+        }
+
+        // Blocks saving an Order that needs more of a Raw SKU than is actually in stock -
+        // dispatching it later would deduct more than is available. Checked against live
+        // rawSkus, not a frozen snapshot, so this stays accurate as stock changes.
+        const rawSkuList = rawSkus as RawSku[];
+        const insufficientItems = items
+            .map((item) => {
+                const sku = rawSkuList.find((s) => s.skuCode === item.rawSkuCode);
+                const needed = item.requiredQty * form.outputQty;
+                return sku && needed > sku.currentStock
+                    ? { name: item.rawSkuName, needed: Number(needed.toFixed(2)), available: sku.currentStock, unit: item.unit }
+                    : null;
+            })
+            .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+        setStockErrors(insufficientItems);
+        if (insufficientItems.length > 0) {
             return;
         }
 
@@ -281,12 +311,27 @@ const Bom = () => {
                 style={{ width: '960px', maxWidth: '95vw' }}
                 footer={
                     <>
-                        <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
+                        <Button label="Cancel" outlined onClick={() => { setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE); setStockErrors([]); }} />
                         <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                     </>
                 }
             >
                 <div className="bom-dialog-body">
+                    {stockErrors.length > 0 && (
+                        <div className="bom-stock-error-banner">
+                            <div className="bom-stock-error-title">
+                                <HiOutlineExclamationTriangle size={16} />
+                                Insufficient Stock - cannot save this Order
+                            </div>
+                            <ul className="bom-stock-error-list">
+                                {stockErrors.map((entry) => (
+                                    <li key={entry.name}>
+                                        <strong>{entry.name}</strong>: need {entry.needed} {entry.unit}, have {entry.available} {entry.unit}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <div className="bom-form-section">
                         <h3 className="bom-form-section-title">Basic Information</h3>
                         <div className="bom-dialog-grid">

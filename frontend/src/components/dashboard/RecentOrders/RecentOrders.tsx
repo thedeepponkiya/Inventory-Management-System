@@ -1,5 +1,6 @@
 import { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HiOutlineClipboardDocumentList } from 'react-icons/hi2';
 import DataTable from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { AppContext } from '../../../context/AppContextDefinition';
@@ -30,7 +31,7 @@ const RecentOrders = () => {
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2>Recent Orders</h2>
+                <h2><HiOutlineClipboardDocumentList size={18} className="dashboard-card-header-icon" />Recent Orders</h2>
                 <span className="dashboard-card-link" onClick={() => navigate('/bom')}>View all</span>
             </div>
             <DataTable value={recentOrders} columns={recentOrdersColumns} paginator={false} />

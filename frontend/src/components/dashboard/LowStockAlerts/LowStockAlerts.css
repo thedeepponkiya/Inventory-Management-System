@@ -3,3 +3,33 @@
     overflow-y: auto;
     padding-right: 6px;
 }
+
+.dashboard-low-stock-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.dashboard-low-stock-search {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.dashboard-low-stock-search .p-inputtext {
+    width: 100%;
+    padding-left: 30px;
+    font-size: 12px;
+}
+
+.dashboard-low-stock-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    font-size: 14px;
+    pointer-events: none;
+}
