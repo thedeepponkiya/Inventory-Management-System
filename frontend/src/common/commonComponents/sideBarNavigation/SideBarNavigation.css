@@ -12,31 +12,50 @@
 }
 
 .side-panel--expanded {
-    width: 224px;
+    width: 240px;
     align-items: stretch;
     padding: 12px 0;
 }
 
 .sidebar-logo {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    /* flex-start (not center) - the wordmark is naturally taller than the icon (it has to
+       be, to fit the checkmark's upward spike without clipping it), so centering would make
+       the row grow to the wordmark's height and re-center the icon within it, visibly
+       shifting the icon down the moment the sidebar expands. Top-aligning both means the
+       icon's own position never moves; only the row (and the wordmark within it) grows. */
+    align-items: flex-start;
+    gap: 8px;
     width: 100%;
-    padding: 0 10px 14px;
+    /* Same padding/alignment in both collapsed and expanded states - the icon's own
+       position never has to jump when toggling, only the width transitions (smoothly,
+       via .side-panel's own transition) and the wordmark fades in/out next to it. Using
+       different justify-content per state (center vs flex-start) used to snap instantly
+       on class toggle, before the width transition caught up, which read as the icon
+       "flickering" in size. */
+    justify-content: flex-start;
+    padding: 0 6px 14px;
     cursor: pointer;
     user-select: none;
-    justify-content: center;
+    /* Fixed to the taller (expanded, wordmark-inclusive) height in BOTH states - the
+       wordmark can't be shrunk to fit the collapsed height without becoming unreadably
+       small, so instead the collapsed row reserves the same space up front. Otherwise the
+       header row is shorter with the icon alone and taller once the wordmark appears,
+       which shoves every nav item below it down the moment the sidebar expands - the menu
+       icons would settle into a different position than where they sat while collapsed. */
+    height: 62px;
+    box-sizing: border-box;
 }
 
-.side-panel--expanded .sidebar-logo {
-    justify-content: flex-start;
-    padding: 0 16px 14px;
-}
-
-.sidebar-logo img {
+/* Scoped to its own class (not the bare "img" tag) so it can never out-specificity
+   .sidebar-logo-title - a descendant tag selector like ".sidebar-logo img" has higher
+   specificity than a single class and would win over .sidebar-logo-title regardless of
+   source order, since both are <img> elements inside .sidebar-logo. */
+.sidebar-logo-icon {
     display: block;
-    width: 35px;
-    height: 35px;
+    width: 44px;
+    height: 37px;
+    object-fit: contain;
     flex-shrink: 0;
 }
 
@@ -47,10 +66,11 @@
 
 .sidebar-logo-title {
     display: none;
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 15px;
-    white-space: nowrap;
+    width: 125px;
+    height: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+    margin-top: -5px;
 }
 
 .side-panel--expanded .sidebar-logo-title {
@@ -91,16 +111,21 @@
     margin: 6px 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
+    /* Was an instant 0 -> 26px jump on class toggle, independent of .side-panel's own
+       width transition - with two nav groups that's ~52px of sudden vertical growth
+       shoving the whole item list down the moment the sidebar expands, which read as the
+       menu "flickering" top to bottom. Animating height/margin here keeps it in sync. */
+    transition: height 0.2s ease, margin 0.2s ease, border-color 0.2s ease;
 }
 
 .side-panel--expanded .sidebar-group-divider {
     height: 26px;
     margin: 4px 8px 2px;
-    border-top: none;
+    border-top-color: transparent;
 }
 
 .sidebar-group-label {
-    display: none;
+    display: block;
     padding: 0 2px;
     font-size: 10.5px;
     font-weight: 700;
@@ -108,10 +133,15 @@
     text-transform: uppercase;
     color: #6b7593;
     white-space: nowrap;
+    /* display:none/block can't be transitioned (and was part of the same instant-jump
+       problem) - opacity fades the label in instead, once the divider has grown enough
+       for it to have somewhere to sit. */
+    opacity: 0;
+    transition: opacity 0.15s ease;
 }
 
 .side-panel--expanded .sidebar-group-label {
-    display: block;
+    opacity: 1;
 }
 
 .sidebar-item {

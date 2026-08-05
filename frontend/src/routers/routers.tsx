@@ -9,6 +9,7 @@ import Category from '../components/category/Category';
 import ProductType from '../components/productType/ProductType';
 import Vendor from '../components/vendor/Vendor';
 import InventoryHome from '../components/inventory/InventoryHome';
+import Bom from '../components/bom/Bom';
 import Transactions from '../components/transactions/Transactions';
 import Invoices from '../components/invoices/Invoices';
 import InvoiceForm from '../components/invoices/InvoiceForm';
@@ -46,12 +47,13 @@ const AppRoutes = () => {
                     <Routes>
                         <Route path='/' element={<Dashboard />}></Route>
                         <Route path='/material-inward' element={<MaterialInward />}></Route>
-                        <Route path='/sku-master' element={<RawSku />}></Route>
+                        <Route path='/raw-sku' element={<RawSku />}></Route>
                         <Route path='/locations' element={<Locations />}></Route>
                         <Route path='/category' element={<Category />}></Route>
                         <Route path='/product-type' element={<ProductType />}></Route>
                         <Route path='/vendor' element={<Vendor />}></Route>
                         <Route path='/home' element={<InventoryHome />}></Route>
+                        <Route path='/bom' element={<Bom />}></Route>
                         <Route path='/transactions' element={<Transactions />}></Route>
                         <Route path='/invoices' element={<Invoices />}></Route>
                         <Route path='/invoices/new' element={<InvoiceForm />}></Route>

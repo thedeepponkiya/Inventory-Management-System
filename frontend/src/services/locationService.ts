@@ -4,6 +4,7 @@ export interface Location {
     id: number;
     location: string;
     status: 'Active' | 'Inactive';
+    createdAt: string;
 }
 
 export interface LocationPayload {

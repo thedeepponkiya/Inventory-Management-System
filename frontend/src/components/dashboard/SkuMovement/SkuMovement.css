@@ -1,0 +1,30 @@
+.dashboard-movement-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .dashboard-movement-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+.dashboard-movement-col {
+    min-width: 0;
+}
+
+.dashboard-movement-col:first-child {
+    padding-right: 24px;
+    border-right: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 900px) {
+    .dashboard-movement-col:first-child {
+        padding-right: 0;
+        border-right: none;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+}

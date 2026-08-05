@@ -304,10 +304,10 @@ const PurchaseOrderForm = () => {
     // (the edit form still offers all four, since an existing PO may already be in either).
     const statusOptionsForForm = isEditRoute ? statusOptions : statusOptions.filter((option) => option !== 'Received' && option !== 'Cancelled');
 
-    const itemColumns = getPurchaseOrderItemColumns(items);
+    const itemColumns = getPurchaseOrderItemColumns(items, isLocked ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : openEditItemDialog);
     const itemActionTemplate = isLocked
         ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED
-        : getActionBodyTemplate<PurchaseOrderItemRow>({ onEdit: openEditItemDialog, onDelete: (row) => removeItem(row.rowId) });
+        : getActionBodyTemplate<PurchaseOrderItemRow>({ onDelete: (row) => removeItem(row.rowId) });
 
     if (isEditRoute && purchaseOrdersLoading) {
         return <div className="purchase-order-form-page">Loading purchase order…</div>;

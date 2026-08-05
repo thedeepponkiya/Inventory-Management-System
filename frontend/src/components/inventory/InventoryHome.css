@@ -52,17 +52,6 @@
     padding: 14px 16px;
 }
 
-.inventory-home-form-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-.inventory-home-form-section-header .inventory-home-form-section-title {
-    margin-bottom: 0;
-}
-
 .inventory-home-form-section-title {
     font-size: 13px;
     font-weight: 700;
@@ -70,16 +59,9 @@
     margin: 0 0 12px;
 }
 
-.inventory-home-form-section-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.inventory-home-form-section-toggle label {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin: 0;
+.inventory-home-status-switch.p-inputswitch {
+    transform: scale(0.7);
+    transform-origin: left center;
 }
 
 .inventory-home-image-dropzone {

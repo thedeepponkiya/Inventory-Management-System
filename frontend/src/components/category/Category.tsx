@@ -9,6 +9,7 @@ import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createCategory, updateCategory, deleteCategory, type Category as CategoryType, type CategoryPayload } from '../../services/categoryService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getCategoryColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
@@ -22,6 +23,7 @@ const emptyForm: CategoryPayload = {
 
 const Category = () => {
     const { categories, categoriesLoading, fetchCategories } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -90,11 +92,11 @@ const Category = () => {
         }
     };
 
-    const columns = getCategoryColumns();
+    const columns = getCategoryColumns(dateFormat, openEditDialog);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<CategoryType>({ onEdit: openEditDialog, onDelete: handleDelete });
+    const actionTemplate = getActionBodyTemplate<CategoryType>({ onDelete: handleDelete });
 
     return (
         <div className="category-page">

@@ -2,23 +2,25 @@ import { useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AppContext } from '../../../context/AppContextDefinition';
 import {
-    HiOutlineTruck,
+    HiOutlineTruck, // Material Inward nav item hidden below
     HiOutlineArchiveBox,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineCube,
-    HiOutlineClipboardDocumentList,
+    HiOutlineSquare3Stack3D,
+    HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
-    HiOutlineBuildingStorefront,
-    HiOutlineListBullet,
-    HiOutlineDocumentText,
-    HiOutlineChartBar,
-    HiOutlineUsers,
+    HiOutlineBuildingStorefront, // Vendor nav item hidden below
+    HiOutlineListBullet, // Transactions nav item hidden below
+    HiOutlineDocumentText, // Invoices nav item hidden below
+    HiOutlineChartBar, // Reports nav item hidden below
+    HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineBars3,
 } from 'react-icons/hi2';
-import inventoryLogo from '../../../assets/inventoryLogo.svg';
+import inventoryLogo from '../../../assets/inventoryLogo.png';
+import inventoryWordmark from '../../../assets/inventoryWordmark.png';
 import SettingsDialog from '../settingsDialog/SettingsDialog';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import './SideBarNavigation.css';
@@ -32,7 +34,8 @@ const navGroups = [
             { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-            { label: 'SKU Master', path: '/sku-master', icon: HiOutlineArchiveBox },
+            { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+            { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
         ],
     },
     {
@@ -110,8 +113,8 @@ const SidePanel = () => {
                         }
                     }}
                 >
-                    <img src={inventoryLogo} alt="Inventory System logo" width={35} height={35} />
-                    <span className="sidebar-logo-title">Inventory System</span>
+                    <img src={inventoryLogo} alt="Inventory System logo" className="sidebar-logo-icon" width={44} height={43} />
+                    <img src={inventoryWordmark} alt="Inventory System" className="sidebar-logo-title" />
                 </div>
 
                 <div className="sidebar-items">

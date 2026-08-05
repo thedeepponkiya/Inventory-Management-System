@@ -7,6 +7,9 @@ import { getVendors, type Vendor } from '../services/vendorService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
 import { getInvoices, type Invoice } from '../services/invoiceService';
+import { getRawSkus, type RawSku } from '../services/rawSkuService';
+import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
+import { getBoms, type Bom } from '../services/bomService';
 import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
@@ -25,6 +28,12 @@ const AppContextProvider = (props: any) => {
     const [materialInwardsLoading, setMaterialInwardsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [invoices, setInvoices] = React.useState<Invoice[]>([]);
     const [invoicesLoading, setInvoicesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [rawSkus, setRawSkus] = React.useState<RawSku[]>([]);
+    const [rawSkusLoading, setRawSkusLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [inventories, setInventories] = React.useState<InventoryItem[]>([]);
+    const [inventoriesLoading, setInventoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [boms, setBoms] = React.useState<Bom[]>([]);
+    const [bomsLoading, setBomsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -75,6 +84,27 @@ const AppContextProvider = (props: any) => {
             .finally(() => setInvoicesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchRawSkus = React.useCallback(() => {
+        getRawSkus()
+            .then((data) => setRawSkus(data))
+            .catch(() => setRawSkus([]))
+            .finally(() => setRawSkusLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchInventories = React.useCallback(() => {
+        getInventoryItems()
+            .then((data) => setInventories(data))
+            .catch(() => setInventories([]))
+            .finally(() => setInventoriesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchBoms = React.useCallback(() => {
+        getBoms()
+            .then((data) => setBoms(data))
+            .catch(() => setBoms([]))
+            .finally(() => setBomsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
@@ -83,7 +113,10 @@ const AppContextProvider = (props: any) => {
         fetchPurchaseOrders();
         fetchMaterialInwards();
         fetchInvoices();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices]);
+        fetchRawSkus();
+        fetchInventories();
+        fetchBoms();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms]);
 
     return (
         <>
@@ -112,6 +145,15 @@ const AppContextProvider = (props: any) => {
                     invoices,
                     invoicesLoading,
                     fetchInvoices,
+                    rawSkus,
+                    rawSkusLoading,
+                    fetchRawSkus,
+                    inventories,
+                    inventoriesLoading,
+                    fetchInventories,
+                    boms,
+                    bomsLoading,
+                    fetchBoms,
                 }}>
                 {props.children}
             </AppContext.Provider >

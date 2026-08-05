@@ -1,18 +1,29 @@
 import { useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { SelectButton } from 'primereact/selectbutton';
-import { FileUpload, type FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
-import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle, HiOutlineBuildingOffice2, HiOutlineXMark } from 'react-icons/hi2';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
+import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
+import { useCompanyLogoContext } from '../../../context/CompanyLogoContextDefinition';
+import { useCompanySettingsContext } from '../../../context/CompanySettingsContextDefinition';
+import { formatDate, type DateFormatOption } from '../../commonFunctions/dateFormat';
 import './SettingsDialog.css';
 
 const financialYears = ['2024-2025', '2025-2026', '2026-2027'];
+
+const today = new Date().toISOString();
+const dateFormatOptions: { label: string; value: DateFormatOption }[] = [
+    { label: `Short (${formatDate(today, 'short')})`, value: 'short' },
+    { label: `Medium (${formatDate(today, 'medium')})`, value: 'medium' },
+    { label: `Long (${formatDate(today, 'long')})`, value: 'long' },
+];
 
 const tabs = [
     { key: 'general', label: 'General', icon: HiOutlineAdjustmentsHorizontal },
@@ -29,21 +40,38 @@ interface SettingsDialogProps {
 const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [activeTab, setActiveTab] = useState<TabKey>('general');
-    const [companyName, setCompanyName] = useState(settingsMockData.companyName);
-    const [address, setAddress] = useState(settingsMockData.address);
+    const { companyName, setCompanyName, address, setAddress } = useCompanySettingsContext();
     const [gstNumber, setGstNumber] = useState(settingsMockData.gstNumber);
     const [invoicePrefix, setInvoicePrefix] = useState(settingsMockData.invoicePrefix);
     const [financialYear, setFinancialYear] = useState(settingsMockData.financialYear);
     const { theme, setTheme } = useThemeContext();
-    const [logoPreview, setLogoPreview] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const { dateFormat, setDateFormat } = useDateFormatContext();
+    const { companyLogo, setCompanyLogo } = useCompanyLogoContext();
 
-    const handleLogoSelect = (event: FileUploadHandlerEvent) => {
-        const file = event.files[0];
-        if (file) setLogoPreview(URL.createObjectURL(file));
+    // Read as a base64 data: URL (not URL.createObjectURL) so the logo can be persisted to
+    // localStorage and embedded directly into jsPDF documents via doc.addImage() - applied
+    // immediately (not deferred to the Save button) so it takes effect across the system
+    // as soon as it's chosen.
+    const readLogoFile = (file: File | undefined) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => setCompanyLogo(reader.result as string);
+        reader.readAsDataURL(file);
+    };
+
+    const handleLogoSelect = (e: ChangeEvent<HTMLInputElement>) => {
+        readLogoFile(e.target.files?.[0]);
+        e.target.value = DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
+    };
+
+    const handleLogoDrop = (e: DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+        readLogoFile(e.dataTransfer.files?.[0]);
     };
 
     const handleSave = () => {
         toast.current?.show({ severity: 'success', summary: 'Settings saved', life: 3000 });
+        onHide();
     };
 
     return (
@@ -103,6 +131,34 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                     <label>Financial Year</label>
                                     <Dropdown value={financialYear} onChange={(e) => setFinancialYear(e.value)} options={financialYears} />
                                 </div>
+                                <div className="form-field">
+                                    <label>Date Format</label>
+                                    <Dropdown value={dateFormat} onChange={(e) => setDateFormat(e.value)} options={dateFormatOptions} />
+                                </div>
+                                <div className="form-field settings-dialog-full">
+                                    <label>Company Logo</label>
+                                    <label className="settings-dialog-logo-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleLogoDrop}>
+                                        {companyLogo ? (
+                                            <>
+                                                <img src={companyLogo} alt="Company logo preview" />
+                                                <span className="settings-dialog-logo-dropzone-hint">Drag &amp; drop or click to replace</span>
+                                                <button
+                                                    type="button"
+                                                    className="settings-dialog-logo-remove"
+                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCompanyLogo(null); }}
+                                                >
+                                                    <HiOutlineXMark size={12} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="settings-dialog-logo-dropzone-empty">
+                                                <HiOutlineBuildingOffice2 size={26} />
+                                                <span>Drag &amp; drop logo here or click to upload</span>
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/*" hidden onChange={handleLogoSelect} />
+                                    </label>
+                                </div>
                             </div>
                         )}
 
@@ -115,11 +171,6 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                         onChange={(e) => e.value && setTheme(e.value === 'Dark' ? 'dark' : 'light')}
                                         options={['Light', 'Dark']}
                                     />
-                                </div>
-                                <div className="form-field settings-dialog-full">
-                                    <label>Logo Upload</label>
-                                    <FileUpload mode="basic" name="logo" accept="image/*" maxFileSize={2000000} chooseLabel="Choose Logo" customUpload uploadHandler={handleLogoSelect} auto />
-                                    {logoPreview && <img src={logoPreview} alt="Company logo preview" className="settings-dialog-logo-preview" />}
                                 </div>
                             </div>
                         )}

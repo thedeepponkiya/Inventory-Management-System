@@ -4,6 +4,7 @@ export interface ProductType {
     id: number;
     productType: string;
     status: 'Active' | 'Inactive';
+    createdAt: string;
 }
 
 export interface ProductTypePayload {

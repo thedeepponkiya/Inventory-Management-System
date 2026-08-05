@@ -1,3 +1,34 @@
-.sku-master-page {
+.raw-sku-page {
     padding-bottom: 24px;
 }
+
+.raw-sku-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.raw-sku-form-section {
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.raw-sku-form-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+}
+
+.raw-sku-dialog-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.raw-sku-status-switch.p-inputswitch {
+    transform: scale(0.7);
+    transform-origin: left center;
+}
+
