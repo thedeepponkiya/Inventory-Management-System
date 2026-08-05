@@ -4,6 +4,7 @@ export interface AssemblyLine {
     skuCode: string;
     skuName: string;
     quantity: number;
+    unit: string;
 }
 
 export interface InventoryItem {
@@ -98,4 +99,20 @@ export async function deleteInventoryItem(id: number): Promise<void> {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
+}
+
+// Uploads a product image file to the backend (saved under backend/uploads/products) and
+// returns just its relative path (e.g. /uploads/products/xxx.jpg) - that's what gets stored
+// in InventoryItem.images, never the file's binary content or a client-side blob: URL (which
+// wouldn't survive a page reload). Rendering it back requires resolveImageUrl (commonFunction.ts)
+// to turn the relative path into a full URL.
+export async function uploadProductImage(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${API_BASE_URL}/uploads/product-image`, {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await parseResponse<{ path: string }>(response);
+    return data.path;
 }

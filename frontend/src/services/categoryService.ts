@@ -4,6 +4,7 @@ export interface Category {
     id: number;
     category: string;
     status: 'Active' | 'Inactive';
+    createdAt: string;
 }
 
 export interface CategoryPayload {

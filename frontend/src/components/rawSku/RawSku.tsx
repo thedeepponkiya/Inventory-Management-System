@@ -11,6 +11,7 @@ import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createRawSku, updateRawSku, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
@@ -54,6 +55,7 @@ const emptyForm: RawSkuForm = {
 
 const RawSku = () => {
     const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, locations } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -180,11 +182,11 @@ const RawSku = () => {
 
     // toast.current is only read inside handleToggleStatus's own async callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getRawSkuColumns(handleToggleStatus);
+    const columns = getRawSkuColumns(dateFormat, handleToggleStatus, openEditDialog);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<RawSkuType>({ onEdit: openEditDialog, onDelete: handleDelete });
+    const actionTemplate = getActionBodyTemplate<RawSkuType>({ onDelete: handleDelete });
 
     return (
         <div className="raw-sku-page">

@@ -99,11 +99,11 @@ const Users = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
 
-    const columns = getUsersColumns();
+    const columns = getUsersColumns(openEditDialog);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<User>({ onEdit: openEditDialog, onDelete: handleDelete });
+    const actionTemplate = getActionBodyTemplate<User>({ onDelete: handleDelete });
 
     return (
         <div className="users-page">

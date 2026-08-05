@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
@@ -10,11 +11,17 @@ const purchaseOrderRoutes = require('./routes/purchaseOrder.routes');
 const materialInwardRoutes = require('./routes/materialInward.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
+const bomRoutes = require('./routes/bom.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Serves uploaded product images (backend/uploads/products) - the DB only ever stores this
+// relative path (e.g. /uploads/products/xxx.jpg), never the file itself.
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Server is running' });
@@ -30,5 +37,7 @@ app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 app.use('/api/v1/material-inwards', materialInwardRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/inventories', inventoryRoutes);
+app.use('/api/v1/boms', bomRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
 
 module.exports = app;

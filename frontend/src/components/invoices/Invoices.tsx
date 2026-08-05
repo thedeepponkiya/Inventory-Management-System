@@ -8,7 +8,7 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { type Invoice } from '../../services/invoiceService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInvoiceColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getInvoiceColumns } from '../../common/commonFunctions/CommonUtilities';
 import './Invoices.css';
 
 const Invoices = () => {
@@ -32,11 +32,7 @@ const Invoices = () => {
         });
     }, [invoices, filters]);
 
-    const columns = getInvoiceColumns(dateFormat);
-
-    const actionTemplate = getActionBodyTemplate<Invoice>({
-        onEdit: (invoice) => navigate(`/invoices/${invoice.id}`),
-    });
+    const columns = getInvoiceColumns(dateFormat, (invoice) => navigate(`/invoices/${invoice.id}`));
 
     return (
         <div className="invoices-page">
@@ -48,7 +44,7 @@ const Invoices = () => {
                 actions={<Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/invoices/new')} size="small" outlined />}
             />
 
-            <DataTable value={filteredInvoices} columns={columns} loading={invoicesLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable value={filteredInvoices} columns={columns} loading={invoicesLoading} />
         </div>
     );
 };

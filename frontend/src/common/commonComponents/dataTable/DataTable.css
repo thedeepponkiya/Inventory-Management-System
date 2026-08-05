@@ -66,6 +66,14 @@
     padding: 0.55rem 0.85rem;
 }
 
+/* Clicking the row's ID/code cell opens Edit - replaces the old pencil action icon. */
+.common-table-id-link {
+    color: #2563eb;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 .app-data-table .p-datatable-tbody > tr:nth-child(even) {
     background: var(--surface-subtle);
 }

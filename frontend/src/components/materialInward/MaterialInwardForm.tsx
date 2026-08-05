@@ -24,7 +24,7 @@ import type { Vendor } from '../../services/vendorService';
 import type { Location as LocationType } from '../../services/locationService';
 import type { RawSku } from '../../services/rawSkuService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getMaterialInwardItemColumns, getActionBodyTemplate, type MaterialInwardItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { getMaterialInwardItemColumns, type MaterialInwardItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './MaterialInwardForm.css';
 
@@ -393,8 +393,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
 
     const isPoLinked = Boolean(purchaseOrderId);
 
-    const itemColumns = getMaterialInwardItemColumns(items, dateFormat);
-    const itemActionTemplate = getActionBodyTemplate<MaterialInwardItemRow>({ onEdit: openEditItemDialog });
+    const itemColumns = getMaterialInwardItemColumns(items, dateFormat, openEditItemDialog);
 
     return (
         <Dialog
@@ -483,7 +482,6 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                     <DataTable
                         value={items}
                         columns={itemColumns}
-                        actionBodyTemplate={itemActionTemplate}
                         paginator={false}
                         sortable={false}
                         filterable={false}

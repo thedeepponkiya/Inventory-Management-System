@@ -8,3 +8,8 @@ build/
 
 # Logs
 *.log
+
+# Uploaded product images (backend/uploads/products) - keep the folder structure tracked
+# via .gitkeep, but not the actual uploaded files.
+backend/uploads/products/*
+!backend/uploads/products/.gitkeep

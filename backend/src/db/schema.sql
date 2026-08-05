@@ -15,25 +15,33 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS ims_location (
     id SERIAL PRIMARY KEY,
     location VARCHAR(150) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active'
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_location_location_lower_idx ON ims_location (LOWER(location));
+-- ims_location already existed live before "createdAt" was added to the CREATE TABLE block
+-- above, so this migrates any already-created table too (same pattern used by ims_raw_sku).
+ALTER TABLE ims_location ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- Categories master, backing /api/v1/categories CRUD.
 CREATE TABLE IF NOT EXISTS ims_category (
     id SERIAL PRIMARY KEY,
     category VARCHAR(150) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active'
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_category_category_lower_idx ON ims_category (LOWER(category));
+ALTER TABLE ims_category ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- Product types master, backing /api/v1/product-types CRUD.
 CREATE TABLE IF NOT EXISTS ims_product_type (
     id SERIAL PRIMARY KEY,
     "productType" VARCHAR(150) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active'
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_product_type_lower_idx ON ims_product_type (LOWER("productType"));
+ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- Vendors master, backing /api/v1/vendors CRUD.
 CREATE TABLE IF NOT EXISTS ims_vendor (
@@ -43,9 +51,11 @@ CREATE TABLE IF NOT EXISTS ims_vendor (
     "phoneNumber" VARCHAR(20),
     address TEXT,
     city VARCHAR(100),
-    "zipCode" VARCHAR(20)
+    "zipCode" VARCHAR(20),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_vendor_vendorname_lower_idx ON ims_vendor (LOWER("vendorName"));
+ALTER TABLE ims_vendor ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- Raw SKU master, backing /api/v1/raw-skus CRUD. "rawMaterialId" self-references this same
 -- table (a "Processed" SKU can point at a parent raw material, e.g. Door Stopper <- Steel Rod).
@@ -221,3 +231,37 @@ CREATE TABLE IF NOT EXISTS ims_inventories (
     assembly JSONB NOT NULL DEFAULT '[]',
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Bill of Materials, backing /api/v1/boms CRUD.
+-- "productSku"/"productName"/"categoryName" are stored directly (denormalized strings set
+-- by the frontend when a finished-good Product is picked from Inventory Home), same
+-- "schema was specified that way" approach already used by ims_material_inward's
+-- vendorName/purchaseOrderNo and ims_inventories' own categoryName/locationName.
+-- "items" is a JSONB array of raw-material lines, each shaped like:
+-- { rawSkuCode, rawSkuName, requiredQty, unit, remarks }
+-- The scaled "quantity needed" for a given production run (requiredQty * outputQty) is
+-- computed client-side from "items" + "outputQty" and never persisted - same trust model
+-- as every other computed total in this app.
+CREATE TABLE IF NOT EXISTS ims_bom (
+    id SERIAL PRIMARY KEY,
+    "bomCode" VARCHAR(50) NOT NULL UNIQUE,
+    "productSku" VARCHAR(50) NOT NULL,
+    "productName" VARCHAR(150) NOT NULL,
+    "categoryName" VARCHAR(150),
+    version VARCHAR(20) NOT NULL DEFAULT '1.0',
+    "outputQty" NUMERIC NOT NULL DEFAULT 1,
+    unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+    status VARCHAR(20) NOT NULL DEFAULT 'Process',
+    items JSONB NOT NULL DEFAULT '[]',
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- "status" changed from Active/Inactive (was a template-usable toggle) to a Process/
+-- Dispatch order lifecycle: a BOM starts Process, and moving it to Dispatch (via the
+-- dedicated /:id/dispatch endpoint below) deducts each component's scaled quantity from
+-- the matching Raw SKU's currentStock; reverting to Process (via /:id/revert) adds it
+-- back. Migrates any rows saved under the old Active/Inactive values.
+ALTER TABLE ims_bom ALTER COLUMN status SET DEFAULT 'Process';
+UPDATE ims_bom SET status = 'Process' WHERE status = 'Active';
+UPDATE ims_bom SET status = 'Dispatch' WHERE status = 'Inactive';

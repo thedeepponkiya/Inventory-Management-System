@@ -10,7 +10,7 @@ import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark, HiOutlineCheckCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
-import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
+import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import type { RawSku } from '../../services/rawSkuService';
@@ -19,11 +19,11 @@ import type { ProductType } from '../../services/productTypeService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
-import { showToast } from '../../common/commonFunctions/commonFunction';
+import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './InventoryHome.css';
 
 let nextAssemblyRowId = 1;
-const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, skuName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: 1 });
+const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, skuName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: 1, unit: 'PCS' });
 const rowsFromAssembly = (assembly: AssemblyLine[]): AssemblyRow[] => assembly.map((line) => ({ ...line, rowId: nextAssemblyRowId++ }));
 
 const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'> = {
@@ -40,6 +40,7 @@ const InventoryHome = () => {
     const [form, setForm] = useState(emptyForm);
     const [assemblyRows, setAssemblyRows] = useState<AssemblyRow[]>([]);
     const [activeImageIndex, setActiveImageIndex] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [uploadingImages, setUploadingImages] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingSkuId, setEditingSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewSkuId, setPreviewSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
@@ -71,13 +72,23 @@ const InventoryHome = () => {
         setAssemblyRows((prev) => prev.filter((row) => row.rowId !== rowId));
     };
 
-    const addImages = (files: FileList | null) => {
+    // Uploads each file to the backend (see inventoryService.ts's uploadProductImage) and
+    // stores only the returned relative path - not a client-side blob: URL, which never
+    // survives a page reload since it's never actually saved anywhere.
+    const addImages = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
-        const newUrls = Array.from(files).map((file) => URL.createObjectURL(file));
-        setForm((prev) => {
-            setActiveImageIndex(prev.images.length);
-            return { ...prev, images: [...prev.images, ...newUrls] };
-        });
+        setUploadingImages(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            const uploadedPaths = await Promise.all(Array.from(files).map((file) => uploadProductImage(file)));
+            setForm((prev) => {
+                setActiveImageIndex(prev.images.length);
+                return { ...prev, images: [...prev.images, ...uploadedPaths] };
+            });
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Image upload failed');
+        } finally {
+            setUploadingImages(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        }
     };
 
     const handleImagesSelect = (e: ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +170,7 @@ const InventoryHome = () => {
             return;
         }
 
-        const assembly = assemblyRows.map(({ skuCode, skuName, quantity }) => ({ skuCode, skuName, quantity }));
+        const assembly = assemblyRows.map(({ skuCode, skuName, quantity, unit }) => ({ skuCode, skuName, quantity, unit }));
         if (editingId) {
             await updateInventoryItem(editingId, { ...form, assembly });
             showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
@@ -184,11 +195,11 @@ const InventoryHome = () => {
 
     // toast.current is only read inside handleToggleStatus's own async callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getInventoryHomeColumns(dateFormat, handleToggleStatus);
+    const columns = getInventoryHomeColumns(dateFormat, handleToggleStatus, openEditDialog);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<InventoryItem>({ onEdit: openEditDialog, onDelete: handleDelete });
+    const actionTemplate = getActionBodyTemplate<InventoryItem>({ onDelete: handleDelete });
 
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow);
 
@@ -310,9 +321,13 @@ const InventoryHome = () => {
                                     <h3 className="inventory-home-form-section-title">Product Image</h3>
 
                                     <label className="inventory-home-image-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop}>
-                                        {form.images.length > 0 ? (
+                                        {uploadingImages ? (
+                                            <div className="inventory-home-image-dropzone-empty">
+                                                <span>Uploading…</span>
+                                            </div>
+                                        ) : form.images.length > 0 ? (
                                             <>
-                                                <img src={form.images[Math.min(activeImageIndex, form.images.length - 1)]} alt="Selected product" />
+                                                <img src={resolveImageUrl(form.images[Math.min(activeImageIndex, form.images.length - 1)])} alt="Selected product" />
                                                 <span className="inventory-home-image-dropzone-hint">Drag &amp; drop or click to add more</span>
                                             </>
                                         ) : (
@@ -321,7 +336,7 @@ const InventoryHome = () => {
                                                 <span>Drag &amp; drop image here or click to upload</span>
                                             </div>
                                         )}
-                                        <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} />
+                                        <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} disabled={uploadingImages} />
                                     </label>
 
                                     <div className="inventory-home-image-strip">
@@ -331,7 +346,7 @@ const InventoryHome = () => {
                                                 className={`inventory-home-image-preview${index === activeImageIndex ? ' inventory-home-image-preview--active' : ''}`}
                                                 onClick={() => setActiveImageIndex(index)}
                                             >
-                                                <img src={src} alt={`Product ${index + 1}`} />
+                                                <img src={resolveImageUrl(src)} alt={`Product ${index + 1}`} />
                                                 <button type="button" className="inventory-home-image-remove" onClick={(e) => { e.stopPropagation(); removeImage(index); }}>
                                                     <HiOutlineXMark size={12} />
                                                 </button>

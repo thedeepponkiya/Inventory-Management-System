@@ -7,10 +7,11 @@ import {
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineCube,
+    HiOutlineSquare3Stack3D,
     // HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
-    HiOutlineBuildingStorefront,
+    // HiOutlineBuildingStorefront, // Vendor nav item hidden below
     // HiOutlineListBullet, // Transactions nav item hidden below
     // HiOutlineDocumentText, // Invoices nav item hidden below
     // HiOutlineChartBar, // Reports nav item hidden below
@@ -18,7 +19,8 @@ import {
     HiOutlineCog6Tooth,
     HiOutlineBars3,
 } from 'react-icons/hi2';
-import inventoryLogo from '../../../assets/inventoryLogo.svg';
+import inventoryLogo from '../../../assets/inventoryLogo.png';
+import inventoryWordmark from '../../../assets/inventoryWordmark.png';
 import SettingsDialog from '../settingsDialog/SettingsDialog';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import './SideBarNavigation.css';
@@ -32,7 +34,8 @@ const navGroups = [
             { label: 'Inventory Home', path: '/home', icon: HiOutlineCube },
             // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-            { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+            { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+            { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
         ],
     },
     {
@@ -41,7 +44,7 @@ const navGroups = [
             { label: 'Locations', path: '/locations', icon: HiOutlineMapPin },
             { label: 'Category', path: '/category', icon: HiOutlineFolder },
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
-            { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
+            // { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
         ],
     },
     // {
@@ -110,8 +113,8 @@ const SidePanel = () => {
                         }
                     }}
                 >
-                    <img src={inventoryLogo} alt="Inventory System logo" width={35} height={35} />
-                    <span className="sidebar-logo-title">Inventory System</span>
+                    <img src={inventoryLogo} alt="Inventory System logo" className="sidebar-logo-icon" width={44} height={43} />
+                    <img src={inventoryWordmark} alt="Inventory System" className="sidebar-logo-title" />
                 </div>
 
                 <div className="sidebar-items">

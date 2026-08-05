@@ -100,4 +100,10 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, getNextSkuCode, create, update, remove };
+// Atomic increment/decrement (delta can be negative) used by BOM dispatch/revert to adjust
+// a Raw SKU's stock without a read-then-write race. No-ops if skuCode doesn't match any row.
+async function adjustStockBySkuCode(skuCode, delta) {
+  await pool.query(`UPDATE ${TABLE} SET "currentStock" = "currentStock" + $1, "updatedAt" = now() WHERE "skuCode" = $2`, [delta, skuCode]);
+}
+
+module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode };

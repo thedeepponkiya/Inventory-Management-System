@@ -7,7 +7,7 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { type MaterialInward as MaterialInwardType } from '../../services/materialInwardService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getMaterialInwardColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getMaterialInwardColumns } from '../../common/commonFunctions/CommonUtilities';
 import MaterialInwardForm from './MaterialInwardForm';
 import './MaterialInward.css';
 
@@ -39,11 +39,7 @@ const MaterialInward = () => {
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const columns = getMaterialInwardColumns(dateFormat);
-
-    const actionTemplate = getActionBodyTemplate<MaterialInwardType>({
-        onEdit: openEditDialog,
-    });
+    const columns = getMaterialInwardColumns(dateFormat, openEditDialog);
 
     return (
         <div className="material-inward-page">
@@ -55,7 +51,7 @@ const MaterialInward = () => {
                 actions={<Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} size="small" outlined />}
             />
 
-            <DataTable value={filteredMaterialInwards} columns={columns} loading={materialInwardsLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable value={filteredMaterialInwards} columns={columns} loading={materialInwardsLoading} />
 
             {dialogVisible && <MaterialInwardForm editingId={editingId} onHide={() => setDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />}
         </div>

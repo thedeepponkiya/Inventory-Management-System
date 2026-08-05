@@ -73,13 +73,70 @@
     grid-column: 1 / -1;
 }
 
-.settings-dialog-logo-preview {
-    width: 72px;
-    height: 72px;
-    object-fit: cover;
-    border-radius: 12px;
-    margin-top: 12px;
-    border: 1px solid var(--border-default);
+.settings-dialog-logo-dropzone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+    border: 1.5px dashed var(--border-dashed);
+    border-radius: 8px;
+    background: var(--surface-subtle);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.settings-dialog-logo-dropzone:hover {
+    border-color: #2563eb;
+}
+
+.settings-dialog-logo-dropzone img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.settings-dialog-logo-dropzone-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--text-subtle);
+}
+
+.settings-dialog-logo-dropzone-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.settings-dialog-logo-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    padding: 0;
 }
 
 .settings-dialog-cancel,

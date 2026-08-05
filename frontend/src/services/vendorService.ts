@@ -8,6 +8,7 @@ export interface Vendor {
     address: string;
     city: string;
     zipCode: string;
+    createdAt: string;
 }
 
 export interface VendorPayload {

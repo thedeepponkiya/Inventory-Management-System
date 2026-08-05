@@ -9,6 +9,7 @@ import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createProductType, updateProductType, deleteProductType, type ProductType as ProductTypeModel, type ProductTypePayload } from '../../services/productTypeService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getProductTypeColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
@@ -22,6 +23,7 @@ const emptyForm: ProductTypePayload = {
 
 const ProductType = () => {
     const { productTypes, productTypesLoading, fetchProductTypes } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -90,11 +92,11 @@ const ProductType = () => {
         }
     };
 
-    const columns = getProductTypeColumns();
+    const columns = getProductTypeColumns(dateFormat, openEditDialog);
 
     // toast.current is only read inside handleDelete's own click callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<ProductTypeModel>({ onEdit: openEditDialog, onDelete: handleDelete });
+    const actionTemplate = getActionBodyTemplate<ProductTypeModel>({ onDelete: handleDelete });
 
     return (
         <div className="product-type-page">

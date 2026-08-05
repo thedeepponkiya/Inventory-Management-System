@@ -9,6 +9,7 @@ import { getMaterialInwards, type MaterialInward } from '../services/materialInw
 import { getInvoices, type Invoice } from '../services/invoiceService';
 import { getRawSkus, type RawSku } from '../services/rawSkuService';
 import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
+import { getBoms, type Bom } from '../services/bomService';
 import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
@@ -31,6 +32,8 @@ const AppContextProvider = (props: any) => {
     const [rawSkusLoading, setRawSkusLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [inventories, setInventories] = React.useState<InventoryItem[]>([]);
     const [inventoriesLoading, setInventoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [boms, setBoms] = React.useState<Bom[]>([]);
+    const [bomsLoading, setBomsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -95,6 +98,13 @@ const AppContextProvider = (props: any) => {
             .finally(() => setInventoriesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchBoms = React.useCallback(() => {
+        getBoms()
+            .then((data) => setBoms(data))
+            .catch(() => setBoms([]))
+            .finally(() => setBomsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
@@ -105,7 +115,8 @@ const AppContextProvider = (props: any) => {
         fetchInvoices();
         fetchRawSkus();
         fetchInventories();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories]);
+        fetchBoms();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms]);
 
     return (
         <>
@@ -140,6 +151,9 @@ const AppContextProvider = (props: any) => {
                     inventories,
                     inventoriesLoading,
                     fetchInventories,
+                    boms,
+                    bomsLoading,
+                    fetchBoms,
                 }}>
                 {props.children}
             </AppContext.Provider >

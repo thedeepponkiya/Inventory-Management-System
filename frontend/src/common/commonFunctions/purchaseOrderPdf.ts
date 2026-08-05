@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { PurchaseOrder } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
+import { drawPdfLogo } from './pdfLogo';
 
 const formatCurrency = (value: number): string => `Rs. ${value.toLocaleString('en-IN', { minimumFractionDigits: value % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
 
@@ -23,7 +24,7 @@ const PAGE_WIDTH = 210;
 const RIGHT_EDGE = PAGE_WIDTH - MARGIN;
 const CONTENT_WIDTH = RIGHT_EDGE - MARGIN;
 
-export function exportPurchaseOrderPdf(po: PurchaseOrder, vendor?: Vendor): void {
+export function exportPurchaseOrderPdf(po: PurchaseOrder, vendor?: Vendor, logoDataUrl?: string | null): void {
     const doc = new jsPDF();
     let y = 22;
 
@@ -34,16 +35,19 @@ export function exportPurchaseOrderPdf(po: PurchaseOrder, vendor?: Vendor): void
         doc.text(label.toUpperCase(), atX, atY);
     };
 
+    const logoWidth = drawPdfLogo(doc, logoDataUrl, MARGIN, 6, 16);
+    const titleX = logoWidth ? MARGIN + logoWidth + 6 : MARGIN;
+
     // Header: title + PO No. on the left, status badge on the right
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(...COLOR.title);
-    doc.text('Purchase Order', MARGIN, y);
+    doc.text('Purchase Order', titleX, y);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...COLOR.subtitle);
-    doc.text(`#${po.poNo}`, MARGIN, y + 7);
+    doc.text(`#${po.poNo}`, titleX, y + 7);
 
     const badgeWidth = doc.getTextWidth(po.status) + 10;
     doc.setFillColor(...COLOR.badgeBg);

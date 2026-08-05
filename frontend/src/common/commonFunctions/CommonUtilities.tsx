@@ -5,7 +5,6 @@ import { InputNumber } from 'primereact/inputnumber';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Image } from 'primereact/image';
 import {
-    HiOutlinePencilSquare,
     HiOutlineTrash,
     HiOutlineEye,
     HiOutlineCube,
@@ -15,6 +14,7 @@ import type { StatusVariant } from '../commonComponents/statusBadge/StatusBadge'
 import type { ColumnConfig } from '../commonComponents/dataTable/DataTable';
 import { DEFAULT_DATA_TYPE_VALUE } from '../constants/commonConstant';
 import { formatDate, type DateFormatOption } from './dateFormat';
+import { resolveImageUrl } from './commonFunction';
 
 import type { RawSku } from '../../services/rawSkuService';
 import type { Location as LocationType } from '../../services/locationService';
@@ -28,6 +28,7 @@ import type { RecentReport } from '../../mockData/reportData';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../../services/purchaseOrderService';
 import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
 import type { Invoice, PaymentStatus } from '../../services/invoiceService';
+import type { Bom, BomItem } from '../../services/bomService';
 
 // Every DataTable column body in the app boils down to a handful of shapes
 // (status pill, currency, thumbnail, edit/delete icons, "N items" badge, plain
@@ -67,7 +68,6 @@ export interface ActionIconConfig<T> {
 
 export interface ActionBodyOptions<T> {
     onView?: (row: T) => void;
-    onEdit?: (row: T) => void;
     onDelete?: (row: T) => void;
     icons?: ActionIconConfig<T>[];
 }
@@ -160,17 +160,17 @@ function renderImage<T>(rowData: T, field: keyof T, options?: ImageBodyOptions<T
             </div>
         );
     }
+    const resolvedSrc = resolveImageUrl(src as string);
     if (options?.preview) {
-        return <Image src={src as string} alt={getImageAltText(rowData, options)} imageClassName={className} preview />;
+        return <Image src={resolvedSrc} alt={getImageAltText(rowData, options)} imageClassName={className} preview />;
     }
-    return <img src={src as string} alt={getImageAltText(rowData, options)} className={className} />;
+    return <img src={resolvedSrc} alt={getImageAltText(rowData, options)} className={className} />;
 }
 
 function renderAction<T>(rowData: T, options: ActionBodyOptions<T>): ReactNode {
     return (
         <div className="data-table-actions">
             {options.onView && <HiOutlineEye size={16} onClick={() => options.onView?.(rowData)} />}
-            {options.onEdit && <HiOutlinePencilSquare size={16} onClick={() => options.onEdit?.(rowData)} />}
             {options.onDelete && <HiOutlineTrash size={16} color="#dc2626" onClick={() => options.onDelete?.(rowData)} />}
             {options.icons?.map(({ icon: Icon, title, onClick }, index) => (
                 <Icon key={index} size={16} title={title} onClick={onClick ? () => onClick(rowData) : undefined} />
@@ -281,8 +281,13 @@ export function getActionBodyTemplate<T>(options: ActionBodyOptions<T>): (row: T
 // no generic fieldType equivalent since it's bound to per-row update callbacks.
 // =====================================================================================
 
-export const getRawSkuColumns = (onToggleStatus?: (sku: RawSku) => void): ColumnConfig<RawSku>[] => [
-    { field: 'skuCode', header: 'SKU Code', fieldType: 'text' },
+export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: (sku: RawSku) => void, onEditClick?: (sku: RawSku) => void): ColumnConfig<RawSku>[] => [
+    {
+        field: 'skuCode',
+        header: 'SKU Code',
+        fieldType: 'text',
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.skuCode}</span>,
+    },
     { field: 'skuName', header: 'SKU Name', fieldType: 'text' },
     { field: 'categoryName', header: 'Category', fieldType: 'text' },
     { field: 'productTypeName', header: 'Product Type', fieldType: 'text' },
@@ -309,6 +314,7 @@ export const getRawSkuColumns = (onToggleStatus?: (sku: RawSku) => void): Column
     { field: 'unit', header: 'Unit', fieldType: 'text' },
     { field: 'locationName', header: 'Location', fieldType: 'text' },
     { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
     {
         field: 'status',
         header: 'Status',
@@ -326,44 +332,84 @@ export const getRawSkuColumns = (onToggleStatus?: (sku: RawSku) => void): Column
     },
 ];
 
-export const getLocationsColumns = (): ColumnConfig<LocationType>[] => [
-    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+export const getLocationsColumns = (dateFormat: DateFormatOption, onEditClick?: (location: LocationType) => void): ColumnConfig<LocationType>[] => [
+    {
+        field: 'id',
+        header: 'ID',
+        fieldType: 'text',
+        style: { width: '70px' },
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.id}</span>,
+    },
     { field: 'location', header: 'Location', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
-export const getCategoryColumns = (): ColumnConfig<CategoryRecord>[] => [
-    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+export const getCategoryColumns = (dateFormat: DateFormatOption, onEditClick?: (category: CategoryRecord) => void): ColumnConfig<CategoryRecord>[] => [
+    {
+        field: 'id',
+        header: 'ID',
+        fieldType: 'text',
+        style: { width: '70px' },
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.id}</span>,
+    },
     { field: 'category', header: 'Category', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
-export const getProductTypeColumns = (): ColumnConfig<ProductTypeModel>[] => [
-    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+export const getProductTypeColumns = (dateFormat: DateFormatOption, onEditClick?: (type: ProductTypeModel) => void): ColumnConfig<ProductTypeModel>[] => [
+    {
+        field: 'id',
+        header: 'ID',
+        fieldType: 'text',
+        style: { width: '70px' },
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.id}</span>,
+    },
     { field: 'productType', header: 'Product Type', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
-export const getVendorColumns = (): ColumnConfig<Vendor>[] => [
-    { field: 'id', header: 'ID', fieldType: 'text', style: { width: '70px' } },
+export const getVendorColumns = (dateFormat: DateFormatOption, onEditClick?: (vendor: Vendor) => void): ColumnConfig<Vendor>[] => [
+    {
+        field: 'id',
+        header: 'ID',
+        fieldType: 'text',
+        style: { width: '70px' },
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.id}</span>,
+    },
     { field: 'vendorName', header: 'Vendor Name', fieldType: 'text' },
     { field: 'email', header: 'Email', fieldType: 'text' },
     { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text' },
     { field: 'address', header: 'Address', fieldType: 'text' },
     { field: 'city', header: 'City', fieldType: 'text' },
     { field: 'zipCode', header: 'Zip Code', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
-export const getUsersColumns = (): ColumnConfig<User>[] => [
-    { field: 'name', header: 'Name', fieldType: 'text' },
+export const getUsersColumns = (onEditClick?: (user: User) => void): ColumnConfig<User>[] => [
+    {
+        field: 'name',
+        header: 'Name',
+        fieldType: 'text',
+        // No dedicated ID column on this (mock) table - Name is the closest identifying
+        // field, so it takes over the click-to-edit role the ID column plays elsewhere.
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.name}</span>,
+    },
     { field: 'email', header: 'Email', fieldType: 'text' },
     { field: 'role', header: 'Role', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
-export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void): ColumnConfig<InventoryItem>[] => [
+export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void, onEditClick?: (item: InventoryItem) => void): ColumnConfig<InventoryItem>[] => [
     { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName', preview: true } },
-    { field: 'skuId', header: 'SKU (ID)', fieldType: 'text' },
+    {
+        field: 'skuId',
+        header: 'SKU (ID)',
+        fieldType: 'text',
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.skuId}</span>,
+    },
     { field: 'productName', header: 'Product Name', fieldType: 'text' },
     { field: 'categoryName', header: 'Category', fieldType: 'text' },
     { field: 'productType', header: 'Product Type', fieldType: 'text' },
@@ -395,6 +441,8 @@ export interface AssemblyRow extends AssemblyLine {
     rowId: number;
 }
 
+const assemblyUnitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
+
 export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: RawSku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void): ColumnConfig<AssemblyRow>[] => [
     {
         field: 'rowId',
@@ -411,7 +459,11 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
                 value={row.skuCode || DEFAULT_DATA_TYPE_VALUE.NULL}
                 onChange={(e) => {
                     const sku = skusData.find((s) => s.skuCode === e.value);
-                    onUpdateRow(row.rowId, { skuCode: e.value, skuName: sku?.skuName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    onUpdateRow(row.rowId, {
+                        skuCode: e.value,
+                        skuName: sku?.skuName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                        unit: sku?.unit ?? row.unit,
+                    });
                 }}
                 options={skusData.map((s) => ({ label: `${s.skuCode} - ${s.skuName}`, value: s.skuCode }))}
                 placeholder="Select SKU"
@@ -428,6 +480,21 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
         ),
     },
     {
+        field: 'unit',
+        header: 'Unit',
+        // Auto-filled from the selected SKU above but independently selectable, in case
+        // the component is measured differently in this assembly than its master unit.
+        body: (row) => (
+            <Dropdown
+                value={row.unit || DEFAULT_DATA_TYPE_VALUE.NULL}
+                onChange={(e) => onUpdateRow(row.rowId, { unit: e.value })}
+                options={assemblyUnitOptions}
+                placeholder="Select unit"
+                className="inventory-home-assembly-dropdown"
+            />
+        ),
+    },
+    {
         field: 'skuCode',
         key: 'location',
         header: 'Location',
@@ -438,20 +505,26 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
     },
 ];
 
-export const getMaterialInwardColumns = (dateFormat: DateFormatOption): ColumnConfig<MaterialInward>[] => [
-    { field: 'inwardNo', header: 'Inward No.', fieldType: 'text' },
+export const getMaterialInwardColumns = (dateFormat: DateFormatOption, onEditClick?: (mi: MaterialInward) => void): ColumnConfig<MaterialInward>[] => [
+    {
+        field: 'inwardNo',
+        header: 'Inward No.',
+        fieldType: 'text',
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.inwardNo}</span>,
+    },
     { field: 'receivedDate', header: 'Received Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
     { field: 'purchaseOrderNo', header: 'PO No.', fieldType: 'text' },
     { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'receivedBy', header: 'Received By', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
 export interface MaterialInwardItemRow extends MaterialInwardItem {
     rowId: number;
 }
 
-export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[], dateFormat: DateFormatOption): ColumnConfig<MaterialInwardItemRow>[] => [
+export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[], dateFormat: DateFormatOption, onEditClick?: (item: MaterialInwardItemRow) => void): ColumnConfig<MaterialInwardItemRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -459,7 +532,14 @@ export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[], dat
         style: { width: '44px' },
         body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
     },
-    { field: 'itemName', header: 'Item Name', fieldType: 'text' },
+    {
+        field: 'itemName',
+        header: 'Item Name',
+        fieldType: 'text',
+        // No dedicated ID column on this line-item grid - Item Name is the closest
+        // identifying field, so it takes over the click-to-edit role.
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.itemName}</span>,
+    },
     { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
     { field: 'previousReceivedQty', header: 'Prev. Received', fieldType: 'text' },
     { field: 'receivedQty', header: 'Received Qty', fieldType: 'text' },
@@ -501,14 +581,20 @@ const paymentStatusVariant: Record<PaymentStatus, StatusVariant> = {
     Paid: 'success',
 };
 
-export const getInvoiceColumns = (dateFormat: DateFormatOption): ColumnConfig<Invoice>[] => [
-    { field: 'invoiceNo', header: 'Invoice No.', fieldType: 'text' },
+export const getInvoiceColumns = (dateFormat: DateFormatOption, onEditClick?: (invoice: Invoice) => void): ColumnConfig<Invoice>[] => [
+    {
+        field: 'invoiceNo',
+        header: 'Invoice No.',
+        fieldType: 'text',
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.invoiceNo}</span>,
+    },
     { field: 'invoiceDate', header: 'Invoice Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'invoiceType', header: 'Type', fieldType: 'status', options: { defaultVariant: 'info' } },
     { field: 'customerSupplier', header: 'Customer / Supplier', fieldType: 'text' },
     { field: 'materialInwardNo', header: 'Material Inward No.', fieldType: 'text' },
     { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant } },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
 const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
@@ -518,21 +604,27 @@ const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
     Cancelled: 'danger',
 };
 
-export const getPurchaseOrderColumns = (dateFormat: DateFormatOption): ColumnConfig<PurchaseOrder>[] => [
-    { field: 'poNo', header: 'PO No.', fieldType: 'text' },
+export const getPurchaseOrderColumns = (dateFormat: DateFormatOption, onEditClick?: (po: PurchaseOrder) => void): ColumnConfig<PurchaseOrder>[] => [
+    {
+        field: 'poNo',
+        header: 'PO No.',
+        fieldType: 'text',
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.poNo}</span>,
+    },
     { field: 'poDate', header: 'PO Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
     { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant } },
     { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
 export interface PurchaseOrderItemRow extends PurchaseOrderItem {
     rowId: number;
 }
 
-export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[]): ColumnConfig<PurchaseOrderItemRow>[] => [
+export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[], onEditClick?: (item: PurchaseOrderItemRow) => void): ColumnConfig<PurchaseOrderItemRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -540,13 +632,90 @@ export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[]): Colu
         style: { width: '44px' },
         body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
     },
-    { field: 'itemName', header: 'Item Name', fieldType: 'text' },
+    {
+        field: 'itemName',
+        header: 'Item Name',
+        fieldType: 'text',
+        // No dedicated ID column on this line-item grid - Item Name is the closest
+        // identifying field, so it takes over the click-to-edit role. Plain text (not
+        // clickable) when the PO is locked and no edit callback is passed in.
+        body: (row) => (onEditClick
+            ? <span className="common-table-id-link" onClick={() => onEditClick(row)}>{row.itemName}</span>
+            : <span>{row.itemName}</span>),
+    },
     { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
     { field: 'unitPrice', header: 'Unit Price (Rs.)', fieldType: 'currency' },
     { field: 'discountPercent', header: 'Discount %', fieldType: 'text' },
     { field: 'gstPercent', header: 'GST %', fieldType: 'text' },
     { field: 'lineTotal', header: 'Line Total (Rs.)', fieldType: 'currency' },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
+];
+
+// Status is a Process -> Dispatch order lifecycle now (not a simple Active/Inactive
+// toggle), so it's shown as a plain badge here - the transition itself only happens via
+// the dedicated Dispatch/Revert actions in Bom.tsx (each has real stock-deduction side
+// effects, so it's deliberately not a one-click switch).
+export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: Bom) => void): ColumnConfig<Bom>[] => [
+    {
+        field: 'bomCode',
+        header: 'Order Code',
+        fieldType: 'text',
+        // Only clickable while Process - editing a Dispatch order is blocked the same way
+        // the old pencil icon was hidden for Dispatch status (see Bom.tsx's action column).
+        body: (row) => (row.status === 'Process'
+            ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.bomCode}</span>
+            : <span>#{row.bomCode}</span>),
+    },
+    { field: 'productSku', header: 'Product SKU', fieldType: 'text' },
+    { field: 'productName', header: 'Product Name', fieldType: 'text' },
+    { field: 'outputQty', header: 'Output Qty', fieldType: 'text' },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    { field: 'items', header: 'Components', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: { Process: 'info', Dispatch: 'success' } } },
+];
+
+export interface BomItemRow extends BomItem {
+    rowId: number;
+}
+
+// Read-only: BOM Components are always auto-populated from the selected Product's own
+// Product Assembly (see Bom.tsx's Product dropdown) - there is no manual add/edit/delete
+// of rows, just a display of whichever SKUs came from that product's assembly. Location is
+// looked up live from rawSkus (not stored on the item) so it always reflects the Raw SKU's
+// current location rather than a frozen snapshot from whenever the order was created.
+export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSkus: RawSku[]): ColumnConfig<BomItemRow>[] => [
+    {
+        field: 'rowId',
+        key: 'index',
+        header: '#',
+        style: { width: '44px' },
+        body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
+    },
+    {
+        field: 'rawSkuCode',
+        header: 'Finished SKU',
+        body: (row) => `${row.rawSkuCode} - ${row.rawSkuName}`,
+    },
+    {
+        field: 'rawSkuCode',
+        key: 'location',
+        header: 'Location',
+        body: (row) => rawSkus.find((sku) => sku.skuCode === row.rawSkuCode)?.locationName || '—',
+    },
+    { field: 'requiredQty', header: 'Required Qty', fieldType: 'text' },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    {
+        field: 'requiredQty',
+        key: 'qtyNeeded',
+        header: 'Qty Needed',
+        // Scaled for the BOM's current Output Qty - preview-only, never persisted (see
+        // ims_bom's schema comment in schema.sql).
+        body: (row) => {
+            const needed = row.requiredQty * outputQty;
+            return <span className="bom-item-qty-needed">{Number.isFinite(needed) ? Number(needed.toFixed(2)) : 0} {row.unit}</span>;
+        },
+    },
 ];
 
 export const getReportsColumns = (): ColumnConfig<RecentReport>[] => [

@@ -9,6 +9,7 @@ import {
     // HiOutlineTruck, // Material Inward quick action hidden below
     HiOutlineArchiveBox,
     // HiOutlineClipboardDocumentList, // Purchase Order quick action hidden below
+    HiOutlineSquare3Stack3D,
 } from 'react-icons/hi2';
 import { MdFilterAltOff } from 'react-icons/md';
 import './FilterBar.css';
@@ -38,7 +39,8 @@ const quickActions = [
     { label: 'Home', path: '/home', icon: HiOutlineHome },
     // { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
     // { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
-    { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+    { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+    { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
 ];
 
 const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProps) => {
