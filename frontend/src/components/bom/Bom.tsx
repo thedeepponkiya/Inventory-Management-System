@@ -27,13 +27,12 @@ import { useDateFormatContext } from '../../context/DateFormatContextDefinition'
 import { createBom, updateBom, deleteBom, dispatchBom, revertBomToProcess, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
 import type { InventoryItem } from '../../services/inventoryService';
 import type { RawSku } from '../../services/rawSkuService';
+import type { Unit } from '../../services/unitService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getBomColumns, getBomItemColumns, type BomItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import { downloadBomPdf, printBomPdf } from '../../common/commonFunctions/bomPdf';
 import './Bom.css';
-
-const unitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
 
 let nextBomItemRowId = 1;
 const rowsFromItems = (items: BomItem[]): BomItemRow[] => items.map((item) => ({ ...item, rowId: nextBomItemRowId++ }));
@@ -68,7 +67,7 @@ const emptyForm: BomForm = {
 };
 
 const Bom = () => {
-    const { boms, bomsLoading, fetchBoms, inventories, rawSkus, fetchRawSkus } = useContext(AppContext);
+    const { boms, bomsLoading, fetchBoms, inventories, rawSkus, fetchRawSkus, units } = useContext(AppContext);
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
     const { dateFormat } = useDateFormatContext();
@@ -378,7 +377,7 @@ const Bom = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={unitOptions} placeholder="Select unit" />
+                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                         </div>
                     </div>

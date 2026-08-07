@@ -1,15 +1,42 @@
--- Users table backing /api/v1/auth login/logout.
--- Passwords are stored as bcrypt hashes (see auth.controller.js); tokens are
--- opaque session tokens with a 1-hour TTL enforced via "tokenExpiresAt".
+-- Users table backing /api/v1/auth login/logout AND /api/v1/users management CRUD.
+-- Passwords are stored as bcrypt hashes (see auth.controller.js/user.controller.js); tokens
+-- are opaque session tokens with a 1-hour TTL enforced via "tokenExpiresAt".
+-- "userName" is kept as the internal column name (CRM notes/followups/leads join on it via
+-- "userName" AS "assignedToName"/"createdByName") - the User Management API exposes it as
+-- "fullName" via a SELECT alias instead of renaming the column, to avoid touching every CRM
+-- join that already depends on this name.
+-- "roleId"/"departmentId" hold a plain string picked from a fixed frontend dropdown list
+-- (no Roles/Departments master table exists), not a numeric foreign key - named to match the
+-- field list the User Management feature was speced against.
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     "userName" VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
     token TEXT,
     "tokenExpiresAt" TIMESTAMPTZ
 );
+-- users already existed live with a "password" column before it was renamed - migrate any
+-- already-created table too (same pattern used elsewhere for evolved tables).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password') THEN
+        ALTER TABLE users RENAME COLUMN password TO "passwordHash";
+    END IF;
+END $$;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "userCode" VARCHAR(20) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "roleId" VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "departmentId" VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdBy" VARCHAR(150);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "profileImage" TEXT;
+ALTER TABLE users DROP COLUMN IF EXISTS "locationId";
+CREATE UNIQUE INDEX IF NOT EXISTS users_usercode_lower_idx ON users (LOWER("userCode"));
 
 -- Locations master, backing /api/v1/locations CRUD.
 CREATE TABLE IF NOT EXISTS ims_location (
@@ -42,6 +69,15 @@ CREATE TABLE IF NOT EXISTS ims_product_type (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_product_type_lower_idx ON ims_product_type (LOWER("productType"));
 ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- Units of measure master, backing /api/v1/units CRUD.
+CREATE TABLE IF NOT EXISTS ims_unit (
+    id SERIAL PRIMARY KEY,
+    unit VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ims_unit_lower_idx ON ims_unit (LOWER(unit));
 
 -- Vendors master, backing /api/v1/vendors CRUD.
 CREATE TABLE IF NOT EXISTS ims_vendor (

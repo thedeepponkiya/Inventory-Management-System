@@ -3,6 +3,7 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { getLocations, type Location } from '../services/locationService';
 import { getCategories, type Category } from '../services/categoryService';
 import { getProductTypes, type ProductType } from '../services/productTypeService';
+import { getUnits, type Unit } from '../services/unitService';
 import { getVendors, type Vendor } from '../services/vendorService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
@@ -10,6 +11,7 @@ import { getInvoices, type Invoice } from '../services/invoiceService';
 import { getRawSkus, type RawSku } from '../services/rawSkuService';
 import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
 import { getBoms, type Bom } from '../services/bomService';
+import { getUsers, type User } from '../services/userService';
 import { AppContext } from './AppContextDefinition';
 
 const AppContextProvider = (props: any) => {
@@ -20,6 +22,8 @@ const AppContextProvider = (props: any) => {
     const [categoriesLoading, setCategoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [productTypes, setProductTypes] = React.useState<ProductType[]>([]);
     const [productTypesLoading, setProductTypesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [units, setUnits] = React.useState<Unit[]>([]);
+    const [unitsLoading, setUnitsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [vendors, setVendors] = React.useState<Vendor[]>([]);
     const [vendorsLoading, setVendorsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [purchaseOrders, setPurchaseOrders] = React.useState<PurchaseOrder[]>([]);
@@ -34,6 +38,8 @@ const AppContextProvider = (props: any) => {
     const [inventoriesLoading, setInventoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [boms, setBoms] = React.useState<Bom[]>([]);
     const [bomsLoading, setBomsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [users, setUsers] = React.useState<User[]>([]);
+    const [usersLoading, setUsersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -54,6 +60,13 @@ const AppContextProvider = (props: any) => {
             .then((data) => setProductTypes(data))
             .catch(() => setProductTypes([]))
             .finally(() => setProductTypesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchUnits = React.useCallback(() => {
+        getUnits()
+            .then((data) => setUnits(data))
+            .catch(() => setUnits([]))
+            .finally(() => setUnitsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
     const fetchVendors = React.useCallback(() => {
@@ -105,10 +118,18 @@ const AppContextProvider = (props: any) => {
             .finally(() => setBomsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchUsers = React.useCallback(() => {
+        getUsers()
+            .then((data) => setUsers(data))
+            .catch(() => setUsers([]))
+            .finally(() => setUsersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     React.useEffect(() => {
         fetchLocations();
         fetchCategories();
         fetchProductTypes();
+        fetchUnits();
         fetchVendors();
         fetchPurchaseOrders();
         fetchMaterialInwards();
@@ -116,7 +137,8 @@ const AppContextProvider = (props: any) => {
         fetchRawSkus();
         fetchInventories();
         fetchBoms();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms]);
+        fetchUsers();
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
 
     return (
         <>
@@ -133,6 +155,9 @@ const AppContextProvider = (props: any) => {
                     productTypes,
                     productTypesLoading,
                     fetchProductTypes,
+                    units,
+                    unitsLoading,
+                    fetchUnits,
                     vendors,
                     vendorsLoading,
                     fetchVendors,
@@ -154,6 +179,9 @@ const AppContextProvider = (props: any) => {
                     boms,
                     bomsLoading,
                     fetchBoms,
+                    users,
+                    usersLoading,
+                    fetchUsers,
                 }}>
                 {props.children}
             </AppContext.Provider >

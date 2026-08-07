@@ -11,6 +11,7 @@ import {
     HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
+    HiOutlineScale,
     HiOutlineBuildingStorefront, // Vendor nav item hidden below
     HiOutlineListBullet, // Transactions nav item hidden below
     HiOutlineDocumentText, // Invoices nav item hidden below
@@ -49,6 +50,7 @@ const navGroups = [
             { label: 'Locations', path: '/locations', icon: HiOutlineMapPin },
             { label: 'Category', path: '/category', icon: HiOutlineFolder },
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
+            { label: 'Unit', path: '/unit', icon: HiOutlineScale },
             { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
         ],
     },

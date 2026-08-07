@@ -16,6 +16,7 @@ import { useDateFormatContext } from '../../context/DateFormatContextDefinition'
 import type { RawSku } from '../../services/rawSkuService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
+import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
@@ -31,7 +32,7 @@ const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'
 };
 
 const InventoryHome = () => {
-    const { rawSkus, categories, productTypes, locations, inventories, fetchInventories } = useContext(AppContext);
+    const { rawSkus, categories, productTypes, locations, inventories, fetchInventories, units } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -201,7 +202,7 @@ const InventoryHome = () => {
     // eslint-disable-next-line react-hooks/refs
     const actionTemplate = getActionBodyTemplate<InventoryItem>({ onDelete: handleDelete });
 
-    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow);
+    const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow, (units as Unit[]).map((u) => u.unit));
 
     const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ onDelete: (row) => removeAssemblyRow(row.rowId) });
 
@@ -287,7 +288,7 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Unit</label>
-                                            <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={['PCS', 'KG', 'MTR', 'BOX']} placeholder="Select unit" />
+                                            <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                                         </div>
                                     </div>
                                 </div>

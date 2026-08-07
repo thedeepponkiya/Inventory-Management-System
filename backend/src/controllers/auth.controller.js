@@ -16,7 +16,7 @@ async function login(req, res) {
     }
 
     const user = await UserModel.findByEmail(email);
-    const passwordMatches = user && (await bcrypt.compare(password, user.password));
+    const passwordMatches = user && (await bcrypt.compare(password, user.passwordHash));
     if (!user || !passwordMatches) {
       return res.status(401).json({
         status: false,
@@ -28,6 +28,7 @@ async function login(req, res) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
     await UserModel.updateToken(user.id, token, expiresAt);
+    await UserModel.updateLastLogin(user.id);
 
     res.json({
       status: true,

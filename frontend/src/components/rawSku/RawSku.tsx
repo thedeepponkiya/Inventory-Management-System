@@ -15,13 +15,12 @@ import { useDateFormatContext } from '../../context/DateFormatContextDefinition'
 import { createRawSku, updateRawSku, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
+import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getRawSkuColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
-
-const unitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
 
 interface RawSkuForm {
     skuName: string;
@@ -54,7 +53,7 @@ const emptyForm: RawSkuForm = {
 };
 
 const RawSku = () => {
-    const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, locations } = useContext(AppContext);
+    const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, units, locations } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -248,7 +247,7 @@ const RawSku = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={unitOptions} placeholder="Select unit" />
+                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                             <div className="form-field">
                                 <label>Location</label>

@@ -21,8 +21,9 @@ import type { RawSku } from '../../services/rawSkuService';
 import type { Location as LocationType } from '../../services/locationService';
 import type { Category as CategoryRecord } from '../../services/categoryService';
 import type { ProductType as ProductTypeModel } from '../../services/productTypeService';
+import type { Unit as UnitModel } from '../../services/unitService';
 import type { Vendor } from '../../services/vendorService';
-import type { User } from '../../mockData/userData';
+import type { User } from '../../services/userService';
 import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { Transaction, TransactionType } from '../../mockData/transactionData';
 import type { RecentReport } from '../../mockData/reportData';
@@ -381,6 +382,19 @@ export const getProductTypeColumns = (dateFormat: DateFormatOption, onEditClick?
     { field: 'status', header: 'Status', fieldType: 'status' },
 ];
 
+export const getUnitColumns = (dateFormat: DateFormatOption, onEditClick?: (unit: UnitModel) => void): ColumnConfig<UnitModel>[] => [
+    {
+        field: 'id',
+        header: 'ID',
+        fieldType: 'text',
+        style: { width: '70px' },
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.id}</span>,
+    },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'status', header: 'Status', fieldType: 'status' },
+];
+
 export const getVendorColumns = (dateFormat: DateFormatOption, onEditClick?: (vendor: Vendor) => void): ColumnConfig<Vendor>[] => [
     {
         field: 'id',
@@ -398,18 +412,21 @@ export const getVendorColumns = (dateFormat: DateFormatOption, onEditClick?: (ve
     { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
-export const getUsersColumns = (onEditClick?: (user: User) => void): ColumnConfig<User>[] => [
+export const getUsersColumns = (dateFormat: DateFormatOption, onEditClick?: (user: User) => void): ColumnConfig<User>[] => [
+    { field: 'profileImage', header: 'Photo', filter: false, fieldType: 'image', options: { altField: 'fullName', className: 'users-avatar-thumb' }, style: { width: '70px' } },
     {
-        field: 'name',
-        header: 'Name',
+        field: 'userCode',
+        header: 'User Code',
         fieldType: 'text',
-        // No dedicated ID column on this (mock) table - Name is the closest identifying
-        // field, so it takes over the click-to-edit role the ID column plays elsewhere.
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.name}</span>,
+        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.userCode}</span>,
     },
+    { field: 'fullName', header: 'Name', fieldType: 'text' },
     { field: 'email', header: 'Email', fieldType: 'text' },
-    { field: 'role', header: 'Role', fieldType: 'text' },
+    { field: 'phone', header: 'Phone', fieldType: 'text' },
+    { field: 'roleId', header: 'Role', fieldType: 'text' },
+    { field: 'departmentId', header: 'Department', fieldType: 'text' },
     { field: 'status', header: 'Status', fieldType: 'status' },
+    { field: 'lastLogin', header: 'Last Login', fieldType: 'date', options: { formatOption: dateFormat } },
 ];
 
 export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void, onEditClick?: (item: InventoryItem) => void): ColumnConfig<InventoryItem>[] => [
@@ -451,9 +468,7 @@ export interface AssemblyRow extends AssemblyLine {
     rowId: number;
 }
 
-const assemblyUnitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
-
-export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: RawSku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void): ColumnConfig<AssemblyRow>[] => [
+export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], skusData: RawSku[], onUpdateRow: (rowId: number, patch: Partial<AssemblyRow>) => void, unitOptions: string[]): ColumnConfig<AssemblyRow>[] => [
     {
         field: 'rowId',
         key: 'index',
@@ -498,7 +513,7 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
             <Dropdown
                 value={row.unit || DEFAULT_DATA_TYPE_VALUE.NULL}
                 onChange={(e) => onUpdateRow(row.rowId, { unit: e.value })}
-                options={assemblyUnitOptions}
+                options={unitOptions}
                 placeholder="Select unit"
                 className="inventory-home-assembly-dropdown"
             />

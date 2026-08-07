@@ -13,6 +13,7 @@ export const routeMetaList: RouteMeta[] = [
     { path: '/locations', title: 'Locations', subtitle: 'Manage all locations where SKUs are stored in your warehouse.' },
     { path: '/category', title: 'Category', subtitle: 'Manage all product categories used to group SKUs.' },
     { path: '/product-type', title: 'Product Type', subtitle: 'Manage all product types used to classify inventory items.' },
+    { path: '/unit', title: 'Unit', subtitle: 'Manage all units of measure used across inventory.' },
     { path: '/home', title: 'Inventory Home', subtitle: 'Manage all inventory items and their product assembly.' },
     { path: '/transactions', title: 'Transactions', subtitle: 'View and manage all inventory transactions.' },
     { path: '/invoices', title: 'Invoices', subtitle: 'Create, view and manage all sales invoices.' },

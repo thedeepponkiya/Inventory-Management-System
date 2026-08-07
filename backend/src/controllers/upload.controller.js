@@ -3,14 +3,7 @@ const crypto = require('crypto');
 const multer = require('multer');
 
 const PRODUCTS_DIR = path.join(__dirname, '../../uploads/products');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, PRODUCTS_DIR),
-  filename: (req, file, cb) => {
-    const unique = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
-  },
-});
+const USERS_DIR = path.join(__dirname, '../../uploads/users');
 
 function imageFileFilter(req, file, cb) {
   if (!file.mimetype.startsWith('image/')) {
@@ -19,17 +12,29 @@ function imageFileFilter(req, file, cb) {
   cb(null, true);
 }
 
-const upload = multer({
-  storage,
-  fileFilter: imageFileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
-}).single('image');
+function makeUpload(destinationDir) {
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, destinationDir),
+    filename: (req, file, cb) => {
+      const unique = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+      cb(null, `${unique}${path.extname(file.originalname)}`);
+    },
+  });
+  return multer({
+    storage,
+    fileFilter: imageFileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }).single('image');
+}
+
+const uploadProduct = makeUpload(PRODUCTS_DIR);
+const uploadUser = makeUpload(USERS_DIR);
 
 // Saves the uploaded file to disk (backend/uploads/products) and returns just its relative
 // path - the DB (ims_inventories.images JSONB array) and frontend only ever store/reference
 // this path, never the file's binary content.
 function uploadProductImage(req, res) {
-  upload(req, res, (err) => {
+  uploadProduct(req, res, (err) => {
     if (err) {
       return res.status(400).json({ status: false, message: err.message, data: null });
     }
@@ -41,4 +46,19 @@ function uploadProductImage(req, res) {
   });
 }
 
-module.exports = { uploadProductImage };
+// Same pattern as uploadProductImage, saving to backend/uploads/users instead - backs the
+// User Management profile picture field (users."profileImage").
+function uploadUserImage(req, res) {
+  uploadUser(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ status: false, message: err.message, data: null });
+    }
+    if (!req.file) {
+      return res.status(400).json({ status: false, message: 'No image file provided', data: null });
+    }
+    const relativePath = `/uploads/users/${req.file.filename}`;
+    res.status(201).json({ status: true, message: 'Image uploaded successfully', data: { path: relativePath } });
+  });
+}
+
+module.exports = { uploadProductImage, uploadUserImage };
