@@ -265,3 +265,189 @@ CREATE TABLE IF NOT EXISTS ims_bom (
 ALTER TABLE ims_bom ALTER COLUMN status SET DEFAULT 'Process';
 UPDATE ims_bom SET status = 'Process' WHERE status = 'Active';
 UPDATE ims_bom SET status = 'Dispatch' WHERE status = 'Inactive';
+
+-- =====================================================================
+-- CRM module (crm_*) - Module 1: full schema defined up front since all
+-- 10 tables are FK-interrelated; only crm_stages/crm_sources get CRUD
+-- endpoints in this module. All CRM tables use UUID PKs (first UUID
+-- usage in this repo) to support external-ID lookups for the Meta Lead
+-- Ads webhook integration planned for a later module.
+-- =====================================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Pipeline stages, admin-customizable via /crm/settings. "sortOrder" drives both the
+-- Kanban column order (later module) and this reorder list; "outcome" flags terminal
+-- stages (Won/Lost) without a DB CHECK constraint, validated in the controller instead -
+-- matches this repo's existing convention of validating free-text status columns in code.
+CREATE TABLE IF NOT EXISTS crm_stages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    color VARCHAR(20) NOT NULL DEFAULT '#64748B',
+    "isClosed" BOOLEAN NOT NULL DEFAULT false,
+    outcome VARCHAR(10) NOT NULL DEFAULT 'open',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_stages_name_lower_idx ON crm_stages (LOWER(name));
+
+INSERT INTO crm_stages (name, "sortOrder", outcome, "isClosed") VALUES
+    ('New Lead', 0, 'open', false),
+    ('Contacted', 1, 'open', false),
+    ('Qualified', 2, 'open', false),
+    ('Follow Up', 3, 'open', false),
+    ('Proposal Sent', 4, 'open', false),
+    ('Negotiation', 5, 'open', false),
+    ('Won', 6, 'won', true),
+    ('Lost', 7, 'lost', true)
+ON CONFLICT DO NOTHING;
+
+-- Lead sources (Meta Lead Ads, website forms, manual entry, etc.), seeded per the CRM spec.
+CREATE TABLE IF NOT EXISTS crm_sources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Manual',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_sources_name_lower_idx ON crm_sources (LOWER(name));
+
+INSERT INTO crm_sources (name, type) VALUES
+    ('Meta Lead Ads', 'Meta'),
+    ('Website Form', 'WebForm'),
+    ('Manual Entry', 'Manual'),
+    ('Google Ads', 'GoogleAds'),
+    ('WhatsApp', 'WhatsApp'),
+    ('Referral', 'Referral'),
+    ('IndiaMART', 'IndiaMART'),
+    ('Justdial', 'Justdial')
+ON CONFLICT DO NOTHING;
+
+-- Marketing campaigns, optionally tied to a source. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_campaigns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(150) NOT NULL,
+    "sourceId" UUID REFERENCES crm_sources(id),
+    "startDate" DATE,
+    "endDate" DATE,
+    budget NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_campaigns_source_idx ON crm_campaigns ("sourceId");
+CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_name_lower_idx ON crm_campaigns (LOWER(name));
+
+-- Free-form lead tags. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL,
+    color VARCHAR(20) NOT NULL DEFAULT '#64748B',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_tags_name_lower_idx ON crm_tags (LOWER(name));
+
+-- Central leads table. No UI this module (Leads/Kanban land in a later module) - defined
+-- now since crm_followups/crm_notes/crm_activities/crm_lead_tags/crm_notifications all FK
+-- to it. "assignedTo" reuses the existing ERP "users" table (SERIAL PK) rather than
+-- introducing a separate CRM-user concept - CRM shares the same login/user model.
+CREATE TABLE IF NOT EXISTS crm_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadCode" VARCHAR(30) UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(20),
+    email VARCHAR(150),
+    company VARCHAR(150),
+    "stageId" UUID REFERENCES crm_stages(id),
+    "sourceId" UUID REFERENCES crm_sources(id),
+    "campaignId" UUID REFERENCES crm_campaigns(id),
+    "assignedTo" INTEGER REFERENCES users(id),
+    value NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_leads_stage_idx ON crm_leads ("stageId");
+CREATE INDEX IF NOT EXISTS crm_leads_source_idx ON crm_leads ("sourceId");
+CREATE INDEX IF NOT EXISTS crm_leads_campaign_idx ON crm_leads ("campaignId");
+CREATE INDEX IF NOT EXISTS crm_leads_assigned_idx ON crm_leads ("assignedTo");
+
+-- Priority for the Kanban board's lead card (Module 3) - not part of the original table
+-- since Leads CRUD (Module 2) didn't need it yet.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'Medium';
+
+-- Starred/pinned flag for the Kanban card - added for the redesigned card, not part of the
+-- original table.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "isStarred" BOOLEAN NOT NULL DEFAULT false;
+
+-- Manual position within a stage's Kanban column, independent of createdAt - lets a drag-drop
+-- reorder land a card exactly where it was dropped instead of always re-sorting by creation
+-- date. Set on create (appended to the end of its stage) and rewritten for every lead in a
+-- stage whenever that stage's column is reordered - see CrmLeadModel.reorderStage.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "sortOrder" INTEGER NOT NULL DEFAULT 0;
+
+-- Scheduled follow-ups per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_followups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    "dueAt" TIMESTAMPTZ NOT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Call',
+    notes TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    "completedAt" TIMESTAMPTZ,
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_followups_lead_idx ON crm_followups ("leadId");
+CREATE INDEX IF NOT EXISTS crm_followups_due_idx ON crm_followups ("dueAt");
+
+-- Free-text notes per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_notes_lead_idx ON crm_notes ("leadId");
+
+-- Append-only activity/timeline log per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    description TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_activities_lead_idx ON crm_activities ("leadId");
+CREATE INDEX IF NOT EXISTS crm_activities_created_idx ON crm_activities ("createdAt");
+
+-- Lead <-> Tag join table (composite PK, no surrogate id - pure junction table). No UI
+-- this module.
+CREATE TABLE IF NOT EXISTS crm_lead_tags (
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    "tagId" UUID NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY ("leadId", "tagId")
+);
+CREATE INDEX IF NOT EXISTS crm_lead_tags_tag_idx ON crm_lead_tags ("tagId");
+
+-- Per-user notifications (e.g. new lead assigned, follow-up due). No UI this module.
+CREATE TABLE IF NOT EXISTS crm_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "userId" INTEGER REFERENCES users(id),
+    "leadId" UUID REFERENCES crm_leads(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    message TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_notifications_user_idx ON crm_notifications ("userId");
+CREATE INDEX IF NOT EXISTS crm_notifications_read_idx ON crm_notifications ("isRead");

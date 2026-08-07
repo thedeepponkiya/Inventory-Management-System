@@ -13,6 +13,14 @@ const invoiceRoutes = require('./routes/invoice.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const bomRoutes = require('./routes/bom.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const crmStageRoutes = require('./routes/crmStage.routes');
+const crmSourceRoutes = require('./routes/crmSource.routes');
+const crmLeadRoutes = require('./routes/crmLead.routes');
+const crmUserRoutes = require('./routes/crmUser.routes');
+const crmNoteRoutes = require('./routes/crmNote.routes');
+const crmFollowupRoutes = require('./routes/crmFollowup.routes');
+const crmCampaignRoutes = require('./routes/crmCampaign.routes');
+const crmTagRoutes = require('./routes/crmTag.routes');
 
 const app = express();
 
@@ -39,5 +47,15 @@ app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/inventories', inventoryRoutes);
 app.use('/api/v1/boms', bomRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/crm/stages', crmStageRoutes);
+app.use('/api/v1/crm/sources', crmSourceRoutes);
+app.use('/api/v1/crm/leads', crmLeadRoutes);
+// Deliberately minimal read-only list for CRM's Assigned-To dropdown only (Module 2) -
+// does not replace/migrate the mock-data-backed Users page.
+app.use('/api/v1/crm/users', crmUserRoutes);
+app.use('/api/v1/crm/notes', crmNoteRoutes);
+app.use('/api/v1/crm/followups', crmFollowupRoutes);
+app.use('/api/v1/crm/campaigns', crmCampaignRoutes);
+app.use('/api/v1/crm/tags', crmTagRoutes);
 
 module.exports = app;

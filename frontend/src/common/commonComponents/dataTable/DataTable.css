@@ -76,7 +76,7 @@
 
 /* Clicking the row's ID/code cell opens Edit - replaces the old pencil action icon. */
 .common-table-id-link {
-    color: #2563eb;
+    /* color: #0f1b3d; */
     font-weight: 600;
     cursor: pointer;
     text-decoration: underline;

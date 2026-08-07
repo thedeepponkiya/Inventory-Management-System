@@ -193,6 +193,27 @@
     color: #ffffff;
 }
 
+.sidebar-item-chevron {
+    display: none;
+    flex-shrink: 0;
+}
+
+.side-panel--expanded .sidebar-item-chevron {
+    display: block;
+    margin-left: auto;
+}
+
+.sidebar-submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+}
+
+.side-panel--expanded .sidebar-subitem {
+    padding-left: 30px;
+}
+
 .sidebar-footer {
     display: flex;
     flex-direction: column;

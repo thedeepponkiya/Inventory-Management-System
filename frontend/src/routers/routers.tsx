@@ -18,6 +18,14 @@ import Users from '../components/users/Users';
 import PurchaseOrder from '../components/purchaseOrder/PurchaseOrder';
 import PurchaseOrderForm from '../components/purchaseOrder/PurchaseOrderForm';
 import Login from '../components/login/Login';
+import CrmProviders from '../features/crm/CrmProviders';
+import CrmSourcesPage from '../features/crm/pages/CrmSourcesPage';
+import CrmSettingsPage from '../features/crm/pages/CrmSettingsPage';
+import CrmLeadsPage from '../features/crm/pages/CrmLeadsPage';
+import CrmFollowupsPage from '../features/crm/pages/CrmFollowupsPage';
+import CrmCampaignsPage from '../features/crm/pages/CrmCampaignsPage';
+import CrmDashboardPage from '../features/crm/pages/CrmDashboardPage';
+import CrmReportsPage from '../features/crm/pages/CrmReportsPage';
 import './routers.css';
 import SidePanel from '../common/commonComponents/sideBarNavigation/SideBarNavigation';
 
@@ -63,6 +71,15 @@ const AppRoutes = () => {
                         <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
                         <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
                         <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>
+                        <Route path='/crm' element={<CrmProviders />}>
+                            <Route index element={<CrmDashboardPage />}></Route>
+                            <Route path='leads' element={<CrmLeadsPage />}></Route>
+                            <Route path='followups' element={<CrmFollowupsPage />}></Route>
+                            <Route path='campaigns' element={<CrmCampaignsPage />}></Route>
+                            <Route path='reports' element={<CrmReportsPage />}></Route>
+                            <Route path='sources' element={<CrmSourcesPage />}></Route>
+                            <Route path='settings' element={<CrmSettingsPage />}></Route>
+                        </Route>
                     </Routes>
                 </div>
             </div>

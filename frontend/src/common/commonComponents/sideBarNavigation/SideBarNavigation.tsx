@@ -18,6 +18,11 @@ import {
     HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineBars3,
+    HiOutlineUserGroup,
+    HiOutlineMegaphone,
+    HiOutlineChartPie,
+    HiOutlineChevronRight,
+    HiOutlineChevronDown,
 } from 'react-icons/hi2';
 import inventoryLogo from '../../../assets/inventoryLogo.png';
 import inventoryWordmark from '../../../assets/inventoryWordmark.png';
@@ -68,14 +73,36 @@ const navGroups = [
     },
 ];
 
+// Rendered separately from navGroups, as its own collapsible parent menu rather than an
+// always-expanded groupLabel section - only Sources and Settings have a real page so far,
+// the rest render a blank content area until their own module ships.
+const crmMenu = {
+    label: 'CRM',
+    icon: HiOutlineUserGroup,
+    items: [
+        { label: 'Dashboard', path: '/crm', icon: HiOutlineChartBar },
+        { label: 'Leads', path: '/crm/leads', icon: HiOutlineUsers },
+        { label: 'Follow-ups', path: '/crm/followups', icon: HiOutlineClipboardDocumentList },
+        { label: 'Campaigns', path: '/crm/campaigns', icon: HiOutlineMegaphone },
+        { label: 'Sources', path: '/crm/sources', icon: HiOutlineBuildingStorefront },
+        { label: 'Reports', path: '/crm/reports', icon: HiOutlineChartPie },
+        { label: 'Settings', path: '/crm/settings', icon: HiOutlineCog6Tooth },
+    ],
+};
+
 const SidePanel = () => {
     const { isSidePanelOpen, setIsSidePanelOpen } = useContext(AppContext);
     const expanded = isSidePanelOpen;
     const [mobileOpen, setMobileOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [settingsOpen, setSettingsOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const location = useLocation();
+    // Starts open automatically if already on a CRM page (e.g. after a refresh).
+    const [crmMenuOpen, setCrmMenuOpen] = useState(location.pathname.startsWith('/crm'));
 
-    const isItemActive = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
+    // '/' and '/crm' are index/dashboard routes - startsWith would otherwise also match
+    // every nested path under them (e.g. '/crm/leads'), highlighting Dashboard alongside
+    // whatever CRM sub-page is actually active.
+    const isItemActive = (path: string) => (path === '/' || path === '/crm' ? location.pathname === path : location.pathname.startsWith(path));
 
     const toggleExpanded = () => setIsSidePanelOpen((prev: boolean) => !prev);
 
@@ -148,6 +175,35 @@ const SidePanel = () => {
                             ))}
                         </div>
                     ))}
+
+                    <div className="sidebar-group">
+                        <button
+                            type="button"
+                            className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
+                            onClick={() => setCrmMenuOpen((prev) => !prev)}
+                        >
+                            <crmMenu.icon size={19} />
+                            <span>{crmMenu.label}</span>
+                            {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
+                        </button>
+                        {crmMenuOpen && (
+                            <div className="sidebar-submenu">
+                                {crmMenu.items.map(({ label, path, icon: Icon }) => (
+                                    <NavLink
+                                        key={path}
+                                        to={path}
+                                        end={path === '/crm'}
+                                        className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                        title={label}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <Icon size={17} />
+                                        <span>{label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="sidebar-footer">

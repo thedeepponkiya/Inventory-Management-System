@@ -1,3 +1,4 @@
+import type { IconType } from 'react-icons';
 import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
@@ -27,15 +28,25 @@ export interface FilterField {
     options?: FilterOption[];
 }
 
+export interface FilterBarQuickAction {
+    label: string;
+    path: string;
+    icon: IconType;
+}
+
 interface FilterBarProps {
     fields: FilterField[];
     values: Record<string, unknown>;
     onChange: (key: string, value: unknown) => void;
     onReset?: () => void;
     actions?: React.ReactNode;
+    // Rendered after the "Clear filters" icon button, unlike `actions` (which renders
+    // before the search field) - for controls that need to sit at the very end of the row.
+    trailingActions?: React.ReactNode;
+    quickActions?: FilterBarQuickAction[];
 }
 
-const quickActions = [
+const defaultQuickActions: FilterBarQuickAction[] = [
     { label: 'Inventories', path: '/home', icon: HiOutlineCube },
     { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
@@ -43,7 +54,7 @@ const quickActions = [
     { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
 ];
 
-const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProps) => {
+const FilterBar = ({ fields, values, onChange, onReset, actions, trailingActions, quickActions = defaultQuickActions }: FilterBarProps) => {
     const searchFields = fields.filter((field) => field.type === 'search');
     const otherFields = fields.filter((field) => field.type !== 'search');
 
@@ -106,6 +117,8 @@ const FilterBar = ({ fields, values, onChange, onReset, actions }: FilterBarProp
                 {onReset && (
                     <Button className="filter-bar-clear-btn" icon={<MdFilterAltOff />} outlined size="small" onClick={onReset} aria-label="Clear filters" />
                 )}
+
+                {trailingActions}
             </div>
         </div>
     );

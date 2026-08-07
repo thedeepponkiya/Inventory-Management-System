@@ -25,4 +25,12 @@ async function updateToken(id, token, expiresAt) {
   );
 }
 
-module.exports = { findByEmail, findByToken, updateToken };
+// Deliberately named getAllBasic (not getAll) and an explicit column list - never SELECT *
+// here, so password/token/tokenExpiresAt can never leak. Added for CRM's Assigned-To
+// dropdown (see crmUser.controller.js) - this is not a general user-management list.
+async function getAllBasic() {
+  const result = await pool.query(`SELECT id, "userName", email FROM ${TABLE} ORDER BY "userName" ASC`);
+  return result.rows;
+}
+
+module.exports = { findByEmail, findByToken, updateToken, getAllBasic };
