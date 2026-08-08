@@ -50,11 +50,13 @@ async function getNextSortOrder(stageId) {
   return result.rows[0].nextOrder;
 }
 
+// metaLeadId/metaFormId/metaFormName are only ever populated by metaSync.service.js - the
+// regular create-lead flow (crmLead.controller.js) never sets them, so they default to null.
 async function create(leadCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "leadCode", name, phone, email, company, "stageId", "sourceId", "campaignId", "assignedTo", value, status, priority, "isStarred", "sortOrder"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      "leadCode", name, phone, email, company, "stageId", "sourceId", "campaignId", "assignedTo", value, status, priority, "isStarred", "sortOrder", "metaLeadId", "metaFormId", "metaFormName"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *`,
     [
       leadCode,
@@ -71,9 +73,17 @@ async function create(leadCode, fields) {
       fields.priority,
       fields.isStarred,
       fields.sortOrder,
+      fields.metaLeadId ?? null,
+      fields.metaFormId ?? null,
+      fields.metaFormName ?? null,
     ]
   );
   return findById(result.rows[0].id);
+}
+
+async function findByMetaLeadId(metaLeadId) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "metaLeadId" = $1`, [metaLeadId]);
+  return result.rows[0];
 }
 
 async function update(id, fields) {
@@ -122,4 +132,4 @@ async function reorderStage(stageId, orderedLeadIds) {
   );
 }
 
-module.exports = { getAll, findById, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };
+module.exports = { getAll, findById, findByMetaLeadId, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };

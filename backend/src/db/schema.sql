@@ -376,6 +376,16 @@ CREATE TABLE IF NOT EXISTS crm_campaigns (
 CREATE INDEX IF NOT EXISTS crm_campaigns_source_idx ON crm_campaigns ("sourceId");
 CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_name_lower_idx ON crm_campaigns (LOWER(name));
 
+-- Meta (Facebook/Instagram) Ads read-only sync columns - populated by the Meta Marketing API
+-- pull in metaSync.service.js, null for manually-created campaigns.
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaCampaignId" VARCHAR(50);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaStatus" VARCHAR(30);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS spend NUMERIC(12,2);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS impressions BIGINT;
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS clicks BIGINT;
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "lastSyncedAt" TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_meta_campaign_id_idx ON crm_campaigns ("metaCampaignId") WHERE "metaCampaignId" IS NOT NULL;
+
 -- Free-form lead tags. No UI this module.
 CREATE TABLE IF NOT EXISTS crm_tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -424,6 +434,33 @@ ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "isStarred" BOOLEAN NOT NULL DEFA
 -- date. Set on create (appended to the end of its stage) and rewritten for every lead in a
 -- stage whenever that stage's column is reordered - see CrmLeadModel.reorderStage.
 ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "sortOrder" INTEGER NOT NULL DEFAULT 0;
+
+-- Meta (Facebook/Instagram) Lead Ads polling sync columns - populated by
+-- metaSync.service.js, null for manually-created/other-source leads. The partial unique
+-- index makes re-polling idempotent (upsert-by-metaLeadId) without constraining every
+-- other lead (which all have metaLeadId IS NULL).
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaLeadId" VARCHAR(50);
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormId" VARCHAR(50);
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormName" VARCHAR(150);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_leads_meta_lead_id_idx ON crm_leads ("metaLeadId") WHERE "metaLeadId" IS NOT NULL;
+
+-- Stores the single connected Meta Page/Ad Account (manual long-lived Page Access Token,
+-- pasted by the admin in CRM Settings - see crmMetaIntegration.*). One row in practice.
+CREATE TABLE IF NOT EXISTS crm_meta_integration (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "pageId" VARCHAR(50) NOT NULL,
+    "pageName" VARCHAR(150),
+    "pageAccessTokenEnc" TEXT NOT NULL,
+    "adAccountId" VARCHAR(50),
+    "adAccountName" VARCHAR(150),
+    "tokenExpiresAt" TIMESTAMPTZ,
+    "lastLeadSyncAt" TIMESTAMPTZ,
+    "lastCampaignSyncAt" TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "connectedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ
+);
 
 -- Scheduled follow-ups per lead. No UI this module.
 CREATE TABLE IF NOT EXISTS crm_followups (

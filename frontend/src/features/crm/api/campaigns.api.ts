@@ -7,10 +7,17 @@ interface ApiResponse<T> {
     data: T;
 }
 
-// Postgres NUMERIC ("budget") comes back as a string over the wire - same coercion every
-// other service in this app already applies for its own NUMERIC columns.
+// Postgres NUMERIC ("budget"/"spend") and BIGINT ("impressions"/"clicks") both come back as
+// strings over the wire (node-pg avoids precision loss on BIGINT by not auto-parsing it) -
+// same coercion every other service in this app already applies for its own NUMERIC columns.
 function normalizeCampaign(campaign: CrmCampaign): CrmCampaign {
-    return { ...campaign, budget: Number(campaign.budget) };
+    return {
+        ...campaign,
+        budget: Number(campaign.budget),
+        spend: campaign.spend === null ? null : Number(campaign.spend),
+        impressions: campaign.impressions === null ? null : Number(campaign.impressions),
+        clicks: campaign.clicks === null ? null : Number(campaign.clicks),
+    };
 }
 
 export async function getCampaigns(): Promise<CrmCampaign[]> {
