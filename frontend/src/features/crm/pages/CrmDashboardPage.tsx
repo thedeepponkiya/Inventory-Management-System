@@ -233,7 +233,7 @@ const CrmDashboardPage = () => {
                 </span>
             ),
         },
-        { field: 'type', header: 'Type' },
+        { field: 'type', header: 'Type', filterType: 'dropdown', filterOptions: ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'] },
     ];
 
     const leadColumns: ColumnConfig<CrmLead>[] = [

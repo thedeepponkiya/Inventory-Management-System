@@ -18,7 +18,7 @@ import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getRawSkuColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getRawSkuColumns, getActionBodyTemplate, getStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
@@ -69,9 +69,11 @@ const RawSku = () => {
 
     const filteredSkus = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return (rawSkus as RawSkuType[]).filter((sku) => {
-            return !search || sku.skuName.toLowerCase().includes(search) || sku.skuCode.toLowerCase().includes(search);
-        });
+        return (rawSkus as RawSkuType[])
+            .filter((sku) => !search || sku.skuName.toLowerCase().includes(search) || sku.skuCode.toLowerCase().includes(search))
+            // stockLevel is precomputed here (not derived in the column body) so the Current
+            // Stock column's dropdown filter has a plain field to match against.
+            .map((sku) => ({ ...sku, stockLevel: getStockLevel(sku.currentStock, sku.reorderLevel, sku.maxStock).label }));
     }, [rawSkus, filters]);
 
     const openAddDialog = async () => {

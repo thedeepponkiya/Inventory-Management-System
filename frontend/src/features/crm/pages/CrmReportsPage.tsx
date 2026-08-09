@@ -110,7 +110,13 @@ const CrmReportsPage = () => {
         { field: 'campaignName', header: 'Campaign', body: (row) => row.campaignName ?? '—' },
         { field: 'assignedToName', header: 'Assigned To', body: (row) => row.assignedToName ?? '—' },
         { field: 'value', header: 'Value', body: (row) => `Rs. ${row.value.toLocaleString('en-IN')}` },
-        { field: 'status', header: 'Status', filter: false, body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} /> },
+        {
+            field: 'status',
+            header: 'Status',
+            filterType: 'dropdown',
+            filterOptions: ['Active', 'Archived'],
+            body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} />,
+        },
         { field: 'createdAt', header: 'Created', body: (row) => new Date(row.createdAt).toLocaleDateString('en-IN') },
     ];
 

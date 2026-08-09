@@ -8,11 +8,13 @@ import {
     HiOutlineSquares2X2,
     HiOutlineCube,
     HiOutlineSquare3Stack3D,
+    HiOutlineShoppingCart,
     HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
     HiOutlineScale,
     HiOutlineBuildingStorefront, // Vendor nav item hidden below
+    HiOutlineUserCircle,
     HiOutlineListBullet, // Transactions nav item hidden below
     HiOutlineDocumentText, // Invoices nav item hidden below
     HiOutlineChartBar, // Reports nav item hidden below
@@ -42,6 +44,7 @@ const navGroups = [
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
             { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
+            { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
         ],
     },
     {
@@ -52,6 +55,7 @@ const navGroups = [
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
             { label: 'Unit', path: '/unit', icon: HiOutlineScale },
             { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
+            { label: 'Customer', path: '/customer', icon: HiOutlineUserCircle },
         ],
     },
     {

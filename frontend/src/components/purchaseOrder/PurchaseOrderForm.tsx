@@ -10,7 +10,22 @@ import { TabView, TabPanel } from 'primereact/tabview';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineArrowLeft, HiOutlineXCircle, HiOutlineCheckCircle } from 'react-icons/hi2';
+import {
+    HiOutlinePlus,
+    HiOutlineArrowLeft,
+    HiOutlineXCircle,
+    HiOutlineCheckCircle,
+    HiOutlineTag,
+    HiOutlineShoppingBag,
+    HiOutlineShoppingCart,
+    HiOutlineCube,
+    HiOutlineCalculator,
+    HiOutlineClipboardDocumentList,
+    HiOutlineLink,
+    HiOutlineLockClosed,
+    HiOutlineMapPin,
+    HiOutlineDocumentText,
+} from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import {
@@ -22,6 +37,7 @@ import {
     type PurchaseOrderStatus,
 } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
+import type { Unit } from '../../services/unitService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getPurchaseOrderItemColumns, getActionBodyTemplate, type PurchaseOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
@@ -36,6 +52,7 @@ interface ItemForm {
     itemName: string;
     orderedQty: number;
     receivedQty: number;
+    unit: string;
     unitPrice: number;
     discountPercent: number;
     gstPercent: number;
@@ -46,6 +63,7 @@ const emptyItemForm = (): ItemForm => ({
     itemName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     orderedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
     receivedQty: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    unit: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     unitPrice: DEFAULT_DATA_TYPE_VALUE.ZERO,
     discountPercent: DEFAULT_DATA_TYPE_VALUE.ZERO,
     gstPercent: DEFAULT_DATA_TYPE_VALUE.ZERO,
@@ -58,7 +76,7 @@ const PurchaseOrderForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditRoute = Boolean(id);
-    const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders } = useContext(AppContext);
+    const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders, units } = useContext(AppContext);
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const existingPo = useMemo(
@@ -124,6 +142,7 @@ const PurchaseOrderForm = () => {
             itemName: row.itemName,
             orderedQty: row.orderedQty,
             receivedQty: row.receivedQty,
+            unit: row.unit,
             unitPrice: row.unitPrice,
             discountPercent: row.discountPercent,
             gstPercent: row.gstPercent,
@@ -153,6 +172,7 @@ const PurchaseOrderForm = () => {
             orderedQty: itemForm.orderedQty,
             receivedQty: itemForm.receivedQty,
             pendingQty: itemForm.orderedQty - itemForm.receivedQty,
+            unit: itemForm.unit,
             unitPrice: itemForm.unitPrice,
             discountPercent: itemForm.discountPercent,
             discountAmount,
@@ -165,10 +185,20 @@ const PurchaseOrderForm = () => {
         if (editingItemRowId) {
             updateItem(editingItemRowId, computed);
         } else {
-            setItems((prev) => [...prev, { rowId: nextItemRowId++, category: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, unit: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, ...computed }]);
+            setItems((prev) => [...prev, { rowId: nextItemRowId++, category: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, ...computed }]);
         }
         setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
     };
+
+    const itemFormTotals = useMemo(() => {
+        const itemSubTotal = itemForm.orderedQty * itemForm.unitPrice;
+        const itemDiscountAmount = (itemSubTotal * itemForm.discountPercent) / 100;
+        const itemTaxable = itemSubTotal - itemDiscountAmount;
+        const itemGstAmount = (itemTaxable * itemForm.gstPercent) / 100;
+        return { subTotal: itemSubTotal, discountAmount: itemDiscountAmount, gstAmount: itemGstAmount, grandTotal: itemTaxable + itemGstAmount };
+    }, [itemForm.orderedQty, itemForm.unitPrice, itemForm.discountPercent, itemForm.gstPercent]);
+
+    const formatRupees = (value: number) => `Rs. ${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const totals = useMemo(() => {
         let totalQty = DEFAULT_DATA_TYPE_VALUE.ZERO;
@@ -338,165 +368,189 @@ const PurchaseOrderForm = () => {
 
             <div className="po-form-layout">
                 <div className="po-form-main">
-                    <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
-                        <TabPanel header="PO Details">
-                            <div className="purchase-order-form-grid">
-                                <div className="form-field">
-                                    <label>PO No.</label>
-                                    <InputText value={isEditRoute ? currentPoNo : 'Auto-generated on save'} disabled />
+                    <div className="po-card po-card--tabs">
+                        <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
+                            <TabPanel header={<span className="po-tab-label"><HiOutlineClipboardDocumentList size={15} />PO Details</span>}>
+                                <div className="po-section">
+                                    <div className="po-section-title">Order Details</div>
+                                    <div className="purchase-order-form-grid">
+                                        <div className="form-field">
+                                            <label>PO No.</label>
+                                            <div className="po-input-icon-wrapper">
+                                                <InputText className="po-input po-input--icon-right" value={isEditRoute ? `#${currentPoNo}` : DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING} placeholder="#PO-XXXXXX" disabled />
+                                                <HiOutlineLockClosed size={14} className="po-input-icon-right" />
+                                            </div>
+                                        </div>
+                                        <div className="form-field">
+                                            <label>PO Date <span className="po-item-required">*</span></label>
+                                            <Calendar value={poDate} onChange={(e) => setPoDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Expected Delivery Date</label>
+                                            <Calendar value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Status</label>
+                                            <Dropdown
+                                                value={status}
+                                                onChange={(e) => setStatus(e.value)}
+                                                options={statusOptionsForForm}
+                                                placeholder="Select status"
+                                                disabled={isLocked}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="form-field">
-                                    <label>Vendor *</label>
-                                    <Dropdown
-                                        value={vendorId}
-                                        onChange={(e) => setVendorId(e.value)}
-                                        options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
-                                        placeholder="Select vendor"
-                                        disabled={isLocked}
-                                    />
-                                </div>
-                                <div className="form-field">
-                                    <label>PO Date *</label>
-                                    <Calendar value={poDate} onChange={(e) => setPoDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Expected Delivery Date</label>
-                                    <Calendar value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Payment Terms</label>
-                                    <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isLocked} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Status</label>
-                                    <Dropdown
-                                        value={status}
-                                        onChange={(e) => setStatus(e.value)}
-                                        options={statusOptionsForForm}
-                                        placeholder="Select status"
-                                        disabled={isLocked}
-                                    />
-                                </div>
-                                <div className="form-field purchase-order-form-full">
-                                    <label>Delivery Address</label>
-                                    <InputTextarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Enter delivery address (optional)" disabled={isLocked} />
-                                </div>
-                                <div className="form-field purchase-order-form-full">
-                                    <label>Remarks</label>
-                                    <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" disabled={isLocked} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Approved By</label>
-                                    <InputText value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Enter approver name (optional)" disabled={isLocked} />
-                                </div>
-                                <div className="form-field">
-                                    <label>Approved At</label>
-                                    <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isLocked} />
-                                </div>
-                            </div>
-                        </TabPanel>
 
-                        <TabPanel header="Items & Charges">
-                            <div className="purchase-order-items-header">
-                                <h3>Order Items</h3>
-                                <Button label="Add Item" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={openAddItemDialog} outlined disabled={isLocked} />
-                            </div>
-                            <DataTable
-                                value={items}
-                                columns={itemColumns}
-                                actionBodyTemplate={itemActionTemplate}
-                                paginator={false}
-                                sortable={false}
-                                filterable={false}
-                                dataKey="rowId"
-                                emptyMessage="No items added yet."
-                            />
-                        </TabPanel>
-                    </TabView>
+                                <div className="po-section">
+                                    <div className="po-section-title">Vendor Details</div>
+                                    <div className="purchase-order-form-grid">
+                                        <div className="form-field">
+                                            <label>Vendor <span className="po-item-required">*</span></label>
+                                            <Dropdown
+                                                value={vendorId}
+                                                onChange={(e) => setVendorId(e.value)}
+                                                options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
+                                                placeholder="Select vendor"
+                                                disabled={isLocked}
+                                                filter
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="po-section">
+                                    <div className="po-section-title">Payment Details</div>
+                                    <div className="purchase-order-form-grid">
+                                        <div className="form-field">
+                                            <label>Payment Terms</label>
+                                            <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isLocked} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Approved By</label>
+                                            <InputText value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Enter approver name (optional)" disabled={isLocked} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Approved At</label>
+                                            <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isLocked} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="po-section po-section--last">
+                                    <div className="po-section-title">Delivery And Notes</div>
+                                    <div className="purchase-order-form-grid">
+                                        <div className="purchase-order-form-half-row">
+                                            <div className="form-field">
+                                                <label>Delivery Address</label>
+                                                <div className="po-input-icon-wrapper">
+                                                    <InputTextarea className="po-input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={3} placeholder="Enter delivery address (optional)" disabled={isLocked} />
+                                                    <HiOutlineMapPin size={15} className="po-textarea-icon" />
+                                                </div>
+                                            </div>
+                                            <div className="form-field">
+                                                <label>Remarks</label>
+                                                <div className="po-input-icon-wrapper">
+                                                    <InputTextarea className="po-input" value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} placeholder="Enter remarks (optional)" disabled={isLocked} />
+                                                    <HiOutlineDocumentText size={15} className="po-textarea-icon" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabPanel>
+
+                            <TabPanel header={<span className="po-tab-label"><HiOutlineShoppingBag size={15} />Items & Charges</span>}>
+                                <div className="purchase-order-items-header">
+                                    <h3>Order Items</h3>
+                                    <Button label="Add Item" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={openAddItemDialog} outlined disabled={isLocked} />
+                                </div>
+                                <DataTable
+                                    value={items}
+                                    columns={itemColumns}
+                                    actionBodyTemplate={itemActionTemplate}
+                                    rows={5}
+                                    sortable={false}
+                                    filterable={false}
+                                    dataKey="rowId"
+                                    emptyMessage="No items added yet."
+                                />
+                            </TabPanel>
+                        </TabView>
+                    </div>
                 </div>
 
                 <div className="po-preview-panel">
                     <div className="po-preview-card">
-                        <div className="po-preview-header">
-                            <div>
-                                <div className="po-preview-title">Purchase Order</div>
-                                <div className="po-preview-subtitle">#{isEditRoute ? currentPoNo : 'Auto-generated'}</div>
+                        <div className="po-card-header po-preview-header">
+                            <div className="po-card-header-icon">
+                                <HiOutlineLink size={20} />
                             </div>
-                            <span className="po-preview-status">{status}</span>
+                            <div className="po-preview-header-text">
+                                <h3>Order Summary</h3>
+                            </div>
+                            <span className={`po-preview-status po-preview-status--${status.toLowerCase()}`}>{status}</span>
                         </div>
 
-                        <div className="po-preview-section">
-                            <div className="po-preview-label">Vendor</div>
-                            {selectedVendor ? (
-                                <div className="po-preview-vendor">
-                                    <div className="po-preview-vendor-name">{selectedVendor.vendorName}</div>
-                                    {selectedVendor.email && <div>{selectedVendor.email}</div>}
-                                    {selectedVendor.phoneNumber && <div>{selectedVendor.phoneNumber}</div>}
-                                    {selectedVendor.address && <div>{selectedVendor.address}{selectedVendor.city ? `, ${selectedVendor.city}` : DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}</div>}
+                        <div className="po-preview-po-no">
+                            <span className="po-preview-label">PO No.</span>
+                            <span className="po-preview-badge">{isEditRoute ? `#${currentPoNo}` : '#PO-XXXXXX'}</span>
+                        </div>
+
+                        <div className="po-preview-mini-grid">
+                            <div>
+                                <div className="po-preview-label">Vendor</div>
+                                <div>{selectedVendor?.vendorName || '—'}</div>
+                            </div>
+                            <div>
+                                <div className="po-preview-label">Payment Terms</div>
+                                <div>{paymentTerms || '—'}</div>
+                            </div>
+                        </div>
+
+                        <div className="po-preview-divider" />
+
+                        <div className="po-preview-label">Item Summary</div>
+                        {items.filter((item) => item.itemName).length === 0 ? (
+                            <div className="po-preview-items-empty">
+                                <div className="po-preview-items-empty-icon">
+                                    <HiOutlineShoppingCart size={22} />
                                 </div>
-                            ) : (
-                                <div className="po-preview-empty">No vendor selected</div>
-                            )}
-                        </div>
-
-                        {deliveryAddress && (
-                            <div className="po-preview-section">
-                                <div className="po-preview-label">Delivery Address</div>
-                                <div>{deliveryAddress}</div>
+                                <div className="po-preview-items-empty-title">No items added yet</div>
+                                <div className="po-preview-items-empty-sub">Add items to see the summary</div>
                             </div>
-                        )}
-
-                        <div className="po-preview-dates">
-                            <div>
-                                <div className="po-preview-label">PO Date</div>
-                                <div>{poDate ? poDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
-                            </div>
-                            <div>
-                                <div className="po-preview-label">Expected Delivery</div>
-                                <div>{expectedDeliveryDate ? expectedDeliveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
-                            </div>
-                        </div>
-
-                        <table className="po-preview-items-table">
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Rate</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {items.filter((item) => item.itemName).length === 0 ? (
+                        ) : (
+                            <table className="po-preview-items-table">
+                                <thead>
                                     <tr>
-                                        <td colSpan={4} className="po-preview-empty">No items added yet</td>
+                                        <th>Item</th>
+                                        <th>Qty</th>
+                                        <th>Rate</th>
+                                        <th>Total</th>
                                     </tr>
-                                ) : (
-                                    items.filter((item) => item.itemName).map((item) => (
+                                </thead>
+                                <tbody>
+                                    {items.filter((item) => item.itemName).map((item) => (
                                         <tr key={item.rowId}>
                                             <td>{item.itemName}</td>
                                             <td>{item.orderedQty}</td>
                                             <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
                                             <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        <div className="po-preview-divider" />
 
                         <div className="po-preview-totals">
                             <div><span>Sub Total</span><span>Rs. {totals.subTotal.toLocaleString('en-IN')}</span></div>
-                            <div><span>Discount</span><span>- Rs. {totals.discountAmount.toLocaleString('en-IN')}</span></div>
-                            <div><span>GST</span><span>+ Rs. {totals.gstAmount.toLocaleString('en-IN')}</span></div>
-                            <div className="po-preview-grand-total"><span>Grand Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
+                            <div><span>Discount</span><span className="po-discount-value">- Rs. {totals.discountAmount.toLocaleString('en-IN')}</span></div>
+                            <div><span>GST</span><span>Rs. {totals.gstAmount.toLocaleString('en-IN')}</span></div>
                         </div>
 
-                        {remarks && (
-                            <div className="po-preview-remarks">
-                                <div className="po-preview-label">Remarks</div>
-                                <div>{remarks}</div>
-                            </div>
-                        )}
+                        <div className="po-preview-grand-total"><span>Grand Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
                     </div>
                 </div>
             </div>
@@ -505,42 +559,134 @@ const PurchaseOrderForm = () => {
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingItemRowId ? 'Edit Item' : 'Add Item'}
-                style={{ width: '480px' }}
+                style={{ width: '540px' }}
+                className="po-item-dialog"
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
                         <Button
                             label={editingItemRowId ? 'Save' : 'Add Item'}
-                            icon={editingItemRowId ? <HiOutlineCheckCircle className="mr-2" /> : DEFAULT_DATA_TYPE_VALUE.UNDEFINED}
+                            icon={editingItemRowId ? <HiOutlineCheckCircle className="mr-2" /> : <HiOutlinePlus className="mr-2" />}
                             onClick={handleItemDialogSave}
                         />
                     </>
                 }
             >
-                <div className="dialog-form-body">
-                    <div className="form-field">
-                        <label>Item Name *</label>
-                        <InputText value={itemForm.itemName} onChange={(e) => setItemForm({ ...itemForm, itemName: e.target.value })} placeholder="Enter item name" />
+                <div className="po-item-form-body">
+                    <div className="po-item-field">
+                        <label>Item Name <span className="po-item-required">*</span></label>
+                        <div className="po-item-input-icon-wrapper">
+                            <HiOutlineTag className="po-item-input-icon" />
+                            <InputText
+                                className="po-item-input po-item-input--icon"
+                                value={itemForm.itemName}
+                                onChange={(e) => setItemForm({ ...itemForm, itemName: e.target.value })}
+                                placeholder="Enter item name"
+                            />
+                        </div>
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>Ordered Qty *</label>
-                        <InputNumber value={itemForm.orderedQty} onValueChange={(e) => setItemForm({ ...itemForm, orderedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+
+                    <div className="po-item-form-grid">
+                        <div className="po-item-field">
+                            <label>Unit <span className="po-item-required">*</span></label>
+                            <div className="po-item-input-icon-wrapper">
+                                <HiOutlineCube className="po-item-input-icon" />
+                                <Dropdown
+                                    className="po-item-input po-item-input--icon"
+                                    value={itemForm.unit}
+                                    onChange={(e) => setItemForm({ ...itemForm, unit: e.value })}
+                                    options={(units as Unit[]).map((u) => u.unit)}
+                                    placeholder="Select unit"
+                                />
+                            </div>
+                        </div>
+                        <div className="po-item-field">
+                            <label>Unit Price (Rs.) <span className="po-item-required">*</span></label>
+                            <div className="po-item-input-icon-wrapper">
+                                <span className="po-item-input-icon po-item-input-icon--text">₹</span>
+                                <InputNumber
+                                    className="po-item-input po-item-input--icon"
+                                    value={itemForm.unitPrice}
+                                    onValueChange={(e) => setItemForm({ ...itemForm, unitPrice: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                    mode="decimal"
+                                    minFractionDigits={2}
+                                />
+                            </div>
+                        </div>
+                        <div className="po-item-field">
+                            <label>Ordered Quantity <span className="po-item-required">*</span></label>
+                            <div className="po-item-input-icon-wrapper">
+                                <HiOutlineShoppingBag className="po-item-input-icon" />
+                                <InputNumber
+                                    className="po-item-input po-item-input--icon"
+                                    value={itemForm.orderedQty}
+                                    onValueChange={(e) => setItemForm({ ...itemForm, orderedQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                />
+                            </div>
+                        </div>
+                        <div className="po-item-field">
+                            <label>Discount (%)</label>
+                            <div className="po-item-input-icon-wrapper">
+                                <span className="po-item-input-icon po-item-input-icon--text">%</span>
+                                <InputNumber
+                                    className="po-item-input po-item-input--icon"
+                                    value={itemForm.discountPercent}
+                                    onValueChange={(e) => setItemForm({ ...itemForm, discountPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                    suffix="%"
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>Unit Price (Rs.)</label>
-                        <InputNumber value={itemForm.unitPrice} onValueChange={(e) => setItemForm({ ...itemForm, unitPrice: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} mode="decimal" minFractionDigits={2} />
+
+                    <div className="po-item-field">
+                        <label>GST (%)</label>
+                        <InputNumber
+                            className="po-item-input"
+                            value={itemForm.gstPercent}
+                            onValueChange={(e) => setItemForm({ ...itemForm, gstPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                            suffix="%"
+                        />
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>Discount %</label>
-                        <InputNumber value={itemForm.discountPercent} onValueChange={(e) => setItemForm({ ...itemForm, discountPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} suffix="%" />
+
+                    <div className="po-item-summary">
+                        <div className="po-item-summary-icon">
+                            <HiOutlineCalculator size={14} />
+                        </div>
+                        <div className="po-item-summary-body">
+                            <span className="po-item-summary-title">Amount Summary</span>
+                            <div className="po-item-summary-row">
+                                <div className="po-item-summary-cell">
+                                    <span className="po-item-summary-label">Sub Total</span>
+                                    <span className="po-item-summary-value">{formatRupees(itemFormTotals.subTotal)}</span>
+                                </div>
+                                <span className="po-item-summary-operator">-</span>
+                                <div className="po-item-summary-cell">
+                                    <span className="po-item-summary-label">Discount</span>
+                                    <span className="po-item-summary-value">{formatRupees(itemFormTotals.discountAmount)}</span>
+                                </div>
+                                <span className="po-item-summary-operator">+</span>
+                                <div className="po-item-summary-cell">
+                                    <span className="po-item-summary-label">GST</span>
+                                    <span className="po-item-summary-value">{formatRupees(itemFormTotals.gstAmount)}</span>
+                                </div>
+                                <span className="po-item-summary-operator">=</span>
+                                <div className="po-item-summary-cell">
+                                    <span className="po-item-summary-label">Total Amount</span>
+                                    <span className="po-item-summary-value po-item-summary-total">{formatRupees(itemFormTotals.grandTotal)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>GST %</label>
-                        <InputNumber value={itemForm.gstPercent} onValueChange={(e) => setItemForm({ ...itemForm, gstPercent: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} suffix="%" />
-                    </div>
-                    <div className="form-field">
-                        <label>Remarks</label>
-                        <InputText value={itemForm.remarks} onChange={(e) => setItemForm({ ...itemForm, remarks: e.target.value })} placeholder="Enter remarks (optional)" />
+
+                    <div className="po-item-field">
+                        <label>Remarks (Optional)</label>
+                        <InputTextarea
+                            className="po-item-input"
+                            value={itemForm.remarks}
+                            onChange={(e) => setItemForm({ ...itemForm, remarks: e.target.value })}
+                            placeholder="Enter remarks (optional)"
+                            rows={3}
+                        />
                     </div>
                 </div>
             </Dialog>

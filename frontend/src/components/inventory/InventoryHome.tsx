@@ -7,7 +7,21 @@ import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCube, HiOutlineXMark, HiOutlineCheckCircle } from 'react-icons/hi2';
+import {
+    HiOutlinePlus,
+    HiOutlineCube,
+    HiOutlineXMark,
+    HiOutlineCheckCircle,
+    HiOutlineTag,
+    HiOutlineQrCode,
+    HiOutlineCurrencyRupee,
+    HiOutlineClipboardDocumentList,
+    HiOutlinePuzzlePiece,
+    HiOutlineMapPin,
+    HiOutlineInformationCircle,
+    HiOutlinePhoto,
+    HiOutlineChartBar,
+} from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
@@ -19,7 +33,7 @@ import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
+import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, getStockLevel, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './InventoryHome.css';
 
@@ -28,7 +42,7 @@ const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCo
 const rowsFromAssembly = (assembly: AssemblyLine[]): AssemblyRow[] => assembly.map((line) => ({ ...line, rowId: nextAssemblyRowId++ }));
 
 const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'> = {
-    images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO, sellingCost: DEFAULT_DATA_TYPE_VALUE.ZERO, minStock: DEFAULT_DATA_TYPE_VALUE.ZERO, maxStock: DEFAULT_DATA_TYPE_VALUE.ZERO, openingStock: DEFAULT_DATA_TYPE_VALUE.ZERO,
 };
 
 const InventoryHome = () => {
@@ -52,9 +66,11 @@ const InventoryHome = () => {
 
     const filteredItems = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return (inventories as InventoryItem[]).filter((item) => {
-            return !search || item.skuId.toLowerCase().includes(search) || item.productName.toLowerCase().includes(search);
-        });
+        return (inventories as InventoryItem[])
+            .filter((item) => !search || item.skuId.toLowerCase().includes(search) || item.productName.toLowerCase().includes(search))
+            // stockLevel is precomputed here (not derived in the column body) so the Current
+            // Stock column's dropdown filter has a plain field to match against.
+            .map((item) => ({ ...item, stockLevel: getStockLevel(item.quantity, item.minStock, item.maxStock).label }));
     }, [inventories, filters]);
 
     const addAssemblyRow = () => {
@@ -78,9 +94,18 @@ const InventoryHome = () => {
     // survives a page reload since it's never actually saved anywhere.
     const addImages = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
+        if (form.images.length >= 4) {
+            showToast(toast, 'warn', 'Limit reached', 'You can upload up to 4 images per product');
+            return;
+        }
+        const remainingSlots = 4 - form.images.length;
+        const filesToUpload = Array.from(files).slice(0, remainingSlots);
+        if (files.length > remainingSlots) {
+            showToast(toast, 'warn', 'Limit reached', 'You can upload up to 4 images per product');
+        }
         setUploadingImages(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
-            const uploadedPaths = await Promise.all(Array.from(files).map((file) => uploadProductImage(file)));
+            const uploadedPaths = await Promise.all(filesToUpload.map((file) => uploadProductImage(file)));
             setForm((prev) => {
                 setActiveImageIndex(prev.images.length);
                 return { ...prev, images: [...prev.images, ...uploadedPaths] };
@@ -136,6 +161,10 @@ const InventoryHome = () => {
             locationName: item.locationName,
             status: item.status,
             unitCost: item.unitCost,
+            sellingCost: item.sellingCost,
+            minStock: item.minStock,
+            maxStock: item.maxStock,
+            openingStock: item.openingStock,
         });
         setAssemblyRows(rowsFromAssembly(item.assembly));
         setActiveDialogTab('details');
@@ -224,11 +253,12 @@ const InventoryHome = () => {
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Inventory Item' : 'Add New Inventory Item'}
-                style={{ width: '860px', maxWidth: '95vw' }}
+                className="inventory-home-dialog"
+                style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
-                        <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                        <Button label={editingId ? 'Save Changes' : 'Save Item'} icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                     </>
                 }
             >
@@ -238,6 +268,7 @@ const InventoryHome = () => {
                         className={`inventory-home-dialog-tab${activeDialogTab === 'details' ? ' inventory-home-dialog-tab--active' : ''}`}
                         onClick={() => setActiveDialogTab('details')}
                     >
+                        <HiOutlineClipboardDocumentList size={15} />
                         Inventory Details
                     </button>
                     <button
@@ -245,6 +276,7 @@ const InventoryHome = () => {
                         className={`inventory-home-dialog-tab${activeDialogTab === 'assembly' ? ' inventory-home-dialog-tab--active' : ''}`}
                         onClick={() => setActiveDialogTab('assembly')}
                     >
+                        <HiOutlinePuzzlePiece size={15} />
                         Product Assembly
                     </button>
                 </div>
@@ -254,18 +286,32 @@ const InventoryHome = () => {
                         <div className="inventory-home-form-columns">
                             <div className="inventory-home-form-main">
                                 <div className="inventory-home-form-section">
-                                    <h3 className="inventory-home-form-section-title">Basic Information</h3>
+                                    <div className="inventory-home-section-title-row">
+                                        <h3 className="inventory-home-form-section-title">Basic Information</h3>
+                                        <HiOutlineInformationCircle size={14} className="inventory-home-section-title-info" title="Core identity fields for this inventory item" />
+                                    </div>
                                     <div className="inventory-home-form-grid">
                                         <div className="form-field">
-                                            <label>SKU (ID)</label>
-                                            <InputText value={editingId ? editingSkuId : (previewSkuId || 'Generating...')} disabled />
+                                            <label>SKU (ID) <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputText className="inventory-home-input inventory-home-input--icon" value={editingId ? editingSkuId : (previewSkuId || 'Generating...')} disabled />
+                                                <HiOutlineTag size={15} className="inventory-home-input-icon" />
+                                            </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Product Name</label>
-                                            <InputText value={form.productName} onChange={(e) => setForm({ ...form, productName: e.target.value })} placeholder="Enter product name" />
+                                            <label>Product Name <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputText
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.productName}
+                                                    onChange={(e) => setForm({ ...form, productName: e.target.value })}
+                                                    placeholder="Enter product name"
+                                                />
+                                                <HiOutlineCube size={15} className="inventory-home-input-icon" />
+                                            </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Category</label>
+                                            <label>Category <span className="inventory-home-required">*</span></label>
                                             <Dropdown
                                                 value={form.categoryName}
                                                 onChange={(e) => setForm({ ...form, categoryName: e.value })}
@@ -274,7 +320,7 @@ const InventoryHome = () => {
                                             />
                                         </div>
                                         <div className="form-field">
-                                            <label>Product Type</label>
+                                            <label>Product Type <span className="inventory-home-required">*</span></label>
                                             <Dropdown
                                                 value={form.productType}
                                                 onChange={(e) => setForm({ ...form, productType: e.value })}
@@ -284,32 +330,115 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Barcode</label>
-                                            <InputText value={form.barcode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Enter barcode" />
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputText
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.barcode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}
+                                                    onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                                                    placeholder="Enter barcode"
+                                                />
+                                                <HiOutlineQrCode size={15} className="inventory-home-input-icon" />
+                                            </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Unit</label>
+                                            <label>Unit <span className="inventory-home-required">*</span></label>
                                             <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="inventory-home-form-section">
-                                    <h3 className="inventory-home-form-section-title">Stock &amp; Pricing</h3>
+                                    <div className="inventory-home-section-title-row">
+                                        <HiOutlineChartBar size={14} className="inventory-home-section-title-icon" />
+                                        <h3 className="inventory-home-form-section-title">Stock &amp; Pricing</h3>
+                                    </div>
                                     <div className="inventory-home-form-grid">
                                         <div className="form-field">
-                                            <label>Quantity</label>
-                                            <InputNumber value={form.quantity} onValueChange={(e) => setForm({ ...form, quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                                            <label>Opening Stock <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.openingStock}
+                                                    onValueChange={(e) => {
+                                                        const openingStock = e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO;
+                                                        // No transactions have happened yet on a brand-new item, so
+                                                        // current stock tracks opening stock until saved; once
+                                                        // editing an existing item the two are independent (same
+                                                        // pattern as RawSku's Opening Stock field).
+                                                        setForm((prev) => ({ ...prev, openingStock, quantity: editingId ? prev.quantity : openingStock }));
+                                                    }}
+                                                />
+                                                <HiOutlineCube size={15} className="inventory-home-input-icon" />
+                                            </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Unit Cost (Rs.)</label>
-                                            <InputNumber value={form.unitCost} onValueChange={(e) => setForm({ ...form, unitCost: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} mode="decimal" minFractionDigits={2} />
+                                            <label>Current Stock <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.quantity}
+                                                    onValueChange={(e) => setForm({ ...form, quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                                />
+                                                <HiOutlineCube size={15} className="inventory-home-input-icon" />
+                                            </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Location</label>
+                                            <label>Min Stock <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.minStock}
+                                                    onValueChange={(e) => setForm({ ...form, minStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                                />
+                                                <HiOutlineCube size={15} className="inventory-home-input-icon" />
+                                            </div>
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Max Stock <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.maxStock}
+                                                    onValueChange={(e) => setForm({ ...form, maxStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                                />
+                                                <HiOutlineCube size={15} className="inventory-home-input-icon" />
+                                            </div>
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Product Cost (Rs.) <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.unitCost}
+                                                    onValueChange={(e) => setForm({ ...form, unitCost: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                                    mode="decimal"
+                                                    minFractionDigits={2}
+                                                />
+                                                <HiOutlineCurrencyRupee size={15} className="inventory-home-input-icon" />
+                                            </div>
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Selling Cost (Rs.) <span className="inventory-home-required">*</span></label>
+                                            <div className="inventory-home-input-icon-wrapper">
+                                                <InputNumber
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={form.sellingCost}
+                                                    onValueChange={(e) => setForm({ ...form, sellingCost: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
+                                                    mode="decimal"
+                                                    minFractionDigits={2}
+                                                />
+                                                <HiOutlineCurrencyRupee size={15} className="inventory-home-input-icon" />
+                                            </div>
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Location <span className="inventory-home-required">*</span></label>
                                             <Dropdown
                                                 value={form.locationName}
                                                 onChange={(e) => setForm({ ...form, locationName: e.value })}
                                                 options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.location }))}
+                                                valueTemplate={(option, props) => option ? (
+                                                    <span className="inventory-home-location-value"><HiOutlineMapPin size={14} />{option.label}</span>
+                                                ) : props.placeholder}
                                                 placeholder="Select location"
                                             />
                                         </div>
@@ -320,25 +449,28 @@ const InventoryHome = () => {
                             <div className="inventory-home-form-side">
                                 <div className="inventory-home-form-section">
                                     <h3 className="inventory-home-form-section-title">Product Image</h3>
+                                    <span className="inventory-home-form-section-subtitle">Upload clear images of your product</span>
 
                                     <label className="inventory-home-image-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop}>
                                         {uploadingImages ? (
-                                            <div className="inventory-home-image-dropzone-empty">
-                                                <span>Uploading…</span>
-                                            </div>
+                                            <span>Uploading…</span>
                                         ) : form.images.length > 0 ? (
                                             <>
-                                                <img src={resolveImageUrl(form.images[Math.min(activeImageIndex, form.images.length - 1)])} alt="Selected product" />
-                                                <span className="inventory-home-image-dropzone-hint">Drag &amp; drop or click to add more</span>
+                                                <img src={resolveImageUrl(form.images[Math.min(activeImageIndex, form.images.length - 1)])} alt="Selected product" className="inventory-home-image-dropzone-preview" />
+                                                <span className="inventory-home-image-dropzone-overlay">Drag &amp; drop or click to add more</span>
                                             </>
                                         ) : (
-                                            <div className="inventory-home-image-dropzone-empty">
-                                                <HiOutlineCube size={26} />
-                                                <span>Drag &amp; drop image here or click to upload</span>
-                                            </div>
+                                            <>
+                                                <span className="inventory-home-image-dropzone-icon"><HiOutlinePhoto size={22} /></span>
+                                                <span className="inventory-home-image-dropzone-text">
+                                                    Drag &amp; drop an image here<br />
+                                                    or <span className="inventory-home-image-dropzone-link">click to browse</span>
+                                                </span>
+                                            </>
                                         )}
-                                        <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} disabled={uploadingImages} />
+                                        <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} disabled={uploadingImages || form.images.length >= 4} />
                                     </label>
+                                    <span className="inventory-home-image-hint">JPG, PNG or WEBP. Max size 2MB.</span>
 
                                     <div className="inventory-home-image-strip">
                                         {form.images.map((src, index) => (
@@ -353,11 +485,15 @@ const InventoryHome = () => {
                                                 </button>
                                             </div>
                                         ))}
-                                        <label className="inventory-home-image-add">
-                                            <HiOutlinePlus size={18} />
-                                            <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} />
-                                        </label>
+                                        {form.images.length < 4 && (
+                                            <label className="inventory-home-image-add">
+                                                <HiOutlinePlus size={18} />
+                                                <span>Add more</span>
+                                                <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} />
+                                            </label>
+                                        )}
                                     </div>
+                                    <span className="inventory-home-image-hint">You can upload up to 4 images</span>
                                 </div>
                             </div>
                         </div>

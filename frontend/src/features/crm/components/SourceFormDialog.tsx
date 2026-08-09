@@ -6,9 +6,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { HiOutlineCheckCircle } from 'react-icons/hi2';
-import type { CrmSource, CrmSourcePayload } from '../types/source.types';
-
-const typeOptions = ['Meta', 'WebForm', 'Manual', 'GoogleAds', 'WhatsApp', 'Referral', 'IndiaMART', 'Justdial'];
+import { SOURCE_TYPE_OPTIONS, type CrmSource, type CrmSourcePayload } from '../types/source.types';
 
 const emptyForm: CrmSourcePayload = { name: '', type: 'Manual', status: 'Active' };
 
@@ -59,7 +57,7 @@ const SourceFormDialog = ({ visible, editing, onHide, onSave }: SourceFormDialog
                     <Controller
                         control={control}
                         name="type"
-                        render={({ field }) => <Dropdown {...field} options={typeOptions} onChange={(e) => field.onChange(e.value)} placeholder="Select type" />}
+                        render={({ field }) => <Dropdown {...field} options={SOURCE_TYPE_OPTIONS} onChange={(e) => field.onChange(e.value)} placeholder="Select type" />}
                     />
                 </div>
                 <div className="form-field form-field--row">

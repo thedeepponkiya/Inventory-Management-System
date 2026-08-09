@@ -1,11 +1,13 @@
 import { FilterMatchMode } from 'primereact/api';
 import { Column } from 'primereact/column';
+import { Dropdown } from 'primereact/dropdown';
 import type { DataTableFilterMeta } from 'primereact/datatable';
 import { DataTable as PrimeDataTable } from 'primereact/datatable';
 import type { ReactNode } from 'react';
 import { Children, isValidElement, useState } from 'react';
 import type { ColumnBodyType, DateBodyOptions, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
 import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
+import emptyBoxIllustration from '../../../assets/empty-box.png';
 import './DataTable.css';
 
 export interface ColumnConfig<T> {
@@ -14,6 +16,14 @@ export interface ColumnConfig<T> {
     key?: string;
     sortable?: boolean;
     filter?: boolean;
+    // Lets a column's filter target a different (usually derived/computed) field than the
+    // one it displays - e.g. Current Stock's body renders a rich composite cell, but its
+    // filter dropdown matches against a separately-computed tier label field on the row.
+    filterField?: Extract<keyof T, string>;
+    // Defaults to the standard free-text CONTAINS filter; 'dropdown' renders a Dropdown
+    // (populated from filterOptions) doing an exact-match filter instead.
+    filterType?: 'text' | 'dropdown';
+    filterOptions?: string[];
     fieldType?: ColumnBodyType;
     options?: FieldTypeOptions<T>;
     body?: (row: T) => React.ReactNode;
@@ -69,6 +79,7 @@ interface AppDataTableProps<T> {
     rows?: number;
     paginator?: boolean;
     emptyMessage?: string;
+    emptyDescription?: string;
     loading?: boolean;
     dataKey?: string;
     sortable?: boolean;
@@ -80,14 +91,38 @@ function buildDefaultFilters<T>(columns: ColumnConfig<T>[]): DataTableFilterMeta
     const filters: DataTableFilterMeta = {};
     columns.forEach((col) => {
         if (!col.key && col.filter !== false) {
-            filters[col.field] = { value: null, matchMode: FilterMatchMode.CONTAINS };
+            const key = col.filterField ?? col.field;
+            filters[key] = { value: null, matchMode: col.filterType === 'dropdown' ? FilterMatchMode.EQUALS : FilterMatchMode.CONTAINS };
         }
     });
     return filters;
 }
 
-function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 10, paginator = true, emptyMessage = 'No records found.', loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
+function renderDropdownFilter(placeholder: string, options: string[]) {
+    return (filterOptions: { value: unknown; filterApplyCallback: (value: unknown) => void }) => (
+        <Dropdown
+            value={filterOptions.value}
+            options={options}
+            onChange={(e) => filterOptions.filterApplyCallback(e.value)}
+            placeholder={placeholder}
+            showClear
+            className="p-column-filter"
+        />
+    );
+}
+
+function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
+
+    const emptyTitle = emptyMessage ?? 'No results found';
+    const emptyDesc = emptyMessage ? emptyDescription : (emptyDescription ?? "We couldn't find any items matching your search.");
+    const emptyState = (
+        <div className="app-data-table-empty">
+            <img src={emptyBoxIllustration} alt="" className="app-data-table-empty-illustration" />
+            <h4 className="app-data-table-empty-title">{emptyTitle}</h4>
+            {emptyDesc && <p className="app-data-table-empty-desc">{emptyDesc}</p>}
+        </div>
+    );
 
     return (
         <PrimeDataTable
@@ -97,7 +132,7 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             rowsPerPageOptions={[10, 25, 50]}
             responsiveLayout="scroll"
             loading={loading}
-            emptyMessage={emptyMessage}
+            emptyMessage={emptyState}
             dataKey={dataKey}
             className="app-data-table"
             removableSort
@@ -119,6 +154,9 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
                     header={col.header}
                     sortable={col.sortable ?? (sortable && !col.key)}
                     filter={filterable && !col.key && col.filter !== false}
+                    filterField={col.filterField}
+                    showFilterMatchModes={col.filterType !== 'dropdown'}
+                    filterElement={col.filterType === 'dropdown' && col.filterOptions ? renderDropdownFilter(`Select ${col.header}`, col.filterOptions) : undefined}
                     filterPlaceholder={`Search ${col.header}`}
                     body={resolveColumnBody(col)}
                     style={col.style}

@@ -5,7 +5,9 @@ import { getCategories, type Category } from '../services/categoryService';
 import { getProductTypes, type ProductType } from '../services/productTypeService';
 import { getUnits, type Unit } from '../services/unitService';
 import { getVendors, type Vendor } from '../services/vendorService';
+import { getCustomers, type Customer } from '../services/customerService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
+import { getSalesOrders, type SalesOrder } from '../services/salesOrderService';
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
 import { getInvoices, type Invoice } from '../services/invoiceService';
 import { getRawSkus, type RawSku } from '../services/rawSkuService';
@@ -26,8 +28,12 @@ const AppContextProvider = (props: any) => {
     const [unitsLoading, setUnitsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [vendors, setVendors] = React.useState<Vendor[]>([]);
     const [vendorsLoading, setVendorsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [customers, setCustomers] = React.useState<Customer[]>([]);
+    const [customersLoading, setCustomersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [purchaseOrders, setPurchaseOrders] = React.useState<PurchaseOrder[]>([]);
     const [purchaseOrdersLoading, setPurchaseOrdersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>([]);
+    const [salesOrdersLoading, setSalesOrdersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [materialInwards, setMaterialInwards] = React.useState<MaterialInward[]>([]);
     const [materialInwardsLoading, setMaterialInwardsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [invoices, setInvoices] = React.useState<Invoice[]>([]);
@@ -76,11 +82,25 @@ const AppContextProvider = (props: any) => {
             .finally(() => setVendorsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchCustomers = React.useCallback(() => {
+        getCustomers()
+            .then((data) => setCustomers(data))
+            .catch(() => setCustomers([]))
+            .finally(() => setCustomersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     const fetchPurchaseOrders = React.useCallback(() => {
         getPurchaseOrders()
             .then((data) => setPurchaseOrders(data))
             .catch(() => setPurchaseOrders([]))
             .finally(() => setPurchaseOrdersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchSalesOrders = React.useCallback(() => {
+        getSalesOrders()
+            .then((data) => setSalesOrders(data))
+            .catch(() => setSalesOrders([]))
+            .finally(() => setSalesOrdersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
     const fetchMaterialInwards = React.useCallback(() => {
@@ -131,14 +151,16 @@ const AppContextProvider = (props: any) => {
         fetchProductTypes();
         fetchUnits();
         fetchVendors();
+        fetchCustomers();
         fetchPurchaseOrders();
+        fetchSalesOrders();
         fetchMaterialInwards();
         fetchInvoices();
         fetchRawSkus();
         fetchInventories();
         fetchBoms();
         fetchUsers();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
+    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
 
     return (
         <>
@@ -161,9 +183,15 @@ const AppContextProvider = (props: any) => {
                     vendors,
                     vendorsLoading,
                     fetchVendors,
+                    customers,
+                    customersLoading,
+                    fetchCustomers,
                     purchaseOrders,
                     purchaseOrdersLoading,
                     fetchPurchaseOrders,
+                    salesOrders,
+                    salesOrdersLoading,
+                    fetchSalesOrders,
                     materialInwards,
                     materialInwardsLoading,
                     fetchMaterialInwards,

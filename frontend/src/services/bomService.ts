@@ -17,7 +17,7 @@ export interface Bom {
     version: string;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
     items: BomItem[];
     createdBy: string | null;
     createdAt: string;
@@ -25,13 +25,16 @@ export interface Bom {
 }
 
 export interface BomPayload {
+    // Only meaningful on create - the code previewed in the Add Order dialog (via
+    // getNextBomCode), reused as-is so the previewed code matches what actually gets saved.
+    bomCode?: string;
     productSku: string;
     productName: string;
     categoryName: string | null;
     version: string;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
     items: BomItem[];
     createdBy: string;
 }
@@ -101,14 +104,16 @@ export async function deleteBom(id: number): Promise<void> {
     await parseResponse<null>(response);
 }
 
-// Moves a BOM from Process to Dispatch, deducting each component's scaled quantity from
-// the matching Raw SKU's currentStock (see bom.controller.js's dispatchBom).
-export async function dispatchBom(id: number): Promise<Bom> {
-    const response = await fetch(`${API_BASE_URL}/boms/${id}/dispatch`, { method: 'PUT' });
+// Moves a BOM from Process to Completed: deducts each component's scaled quantity from the
+// matching Raw SKU's currentStock and adds outputQty onto the matching finished-good's
+// Inventory quantity (see bom.controller.js's completeBom).
+export async function completeBom(id: number): Promise<Bom> {
+    const response = await fetch(`${API_BASE_URL}/boms/${id}/complete`, { method: 'PUT' });
     return normalizeBom(await parseResponse<Bom>(response));
 }
 
-// Reverses dispatchBom: moves Dispatch back to Process and restores the deducted quantities.
+// Reverses completeBom: moves Completed back to Process, restores the deducted raw
+// material, and removes the added Inventory quantity.
 export async function revertBomToProcess(id: number): Promise<Bom> {
     const response = await fetch(`${API_BASE_URL}/boms/${id}/revert`, { method: 'PUT' });
     return normalizeBom(await parseResponse<Bom>(response));

@@ -1,7 +1,3 @@
-.dashboard-page {
-    padding-bottom: 24px;
-}
-
 .dashboard-overview-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

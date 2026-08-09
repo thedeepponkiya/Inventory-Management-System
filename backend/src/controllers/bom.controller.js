@@ -1,5 +1,6 @@
 const BomModel = require('../models/bom.model');
 const RawSkuModel = require('../models/rawSku.model');
+const InventoryModel = require('../models/inventory.model');
 
 // Total needed for a production run of outputQty units - same formula as the frontend's
 // live "Qty Needed" preview (CommonUtilities.tsx / bomPdf.ts).
@@ -18,8 +19,8 @@ async function getBoms(req, res) {
 
 async function getNextBomCode(req, res) {
   try {
-    const bomCode = await BomModel.getNextBomCode();
-    res.json({ status: true, message: 'Next BOM code fetched successfully', data: { bomCode } });
+    const bomCode = await BomModel.generateOrderCode();
+    res.json({ status: true, message: 'Order code generated successfully', data: { bomCode } });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
   }
@@ -32,7 +33,14 @@ async function createBom(req, res) {
       return res.status(400).json({ status: false, message: 'productSku and productName are required', data: null });
     }
 
-    const bomCode = await BomModel.getNextBomCode();
+    // The frontend previews a code (via getNextBomCode) when the Add Order dialog opens so
+    // the user sees the code before saving - reused here as-is if still unclaimed, so the
+    // previewed code and the one actually saved always match. Falls back to generating a
+    // fresh one if it's missing or got claimed by another order in the meantime.
+    let bomCode = req.body.bomCode;
+    if (!bomCode || (await BomModel.findByCode(bomCode))) {
+      bomCode = await BomModel.generateOrderCode();
+    }
     const fields = {
       productSku,
       productName,
@@ -80,33 +88,45 @@ async function updateBom(req, res) {
   }
 }
 
-// Moves a BOM from Process to Dispatch, deducting each component's scaled quantity
-// (requiredQty * outputQty) from the matching Raw SKU's currentStock.
-async function dispatchBom(req, res) {
+// Moves a BOM from Process to Completed: production actually happens here - each
+// component's scaled quantity (requiredQty * outputQty) is deducted from the matching Raw
+// SKU's currentStock, and outputQty is added onto the matching Inventory item's quantity
+// (matched by productSku === ims_inventories.skuId).
+async function completeBom(req, res) {
   try {
     const { id } = req.params;
     const existing = await BomModel.findById(id);
     if (!existing) {
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
-    if (existing.status === 'Dispatch') {
-      return res.status(400).json({ status: false, message: 'BOM is already dispatched', data: null });
+    if (existing.status !== 'Process') {
+      return res.status(400).json({ status: false, message: 'Only a BOM in Process can be marked Completed', data: null });
+    }
+
+    const inventoryItem = await InventoryModel.findBySkuId(existing.productSku);
+    if (!inventoryItem) {
+      return res.status(400).json({
+        status: false,
+        message: `No Inventory item found for product SKU "${existing.productSku}" - create it in Inventory Home first`,
+        data: null,
+      });
     }
 
     for (const item of existing.items) {
       const needed = qtyNeeded(item.requiredQty, existing.outputQty);
       await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, -needed);
     }
+    await InventoryModel.adjustStockBySkuId(existing.productSku, existing.outputQty);
 
-    const updated = await BomModel.update(id, { ...existing, status: 'Dispatch' });
-    res.json({ status: true, message: 'BOM dispatched successfully', data: updated });
+    const updated = await BomModel.update(id, { ...existing, status: 'Completed' });
+    res.json({ status: true, message: 'BOM marked as Completed successfully', data: updated });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
   }
 }
 
-// Reverses dispatchBom: moves Dispatch back to Process and adds the same scaled
-// quantities back onto each Raw SKU's currentStock.
+// Reverses completeBom: moves Completed back to Process, restoring the deducted Raw SKU
+// quantities and removing the outputQty that was added to the finished good's Inventory.
 async function revertBomToProcess(req, res) {
   try {
     const { id } = req.params;
@@ -114,14 +134,15 @@ async function revertBomToProcess(req, res) {
     if (!existing) {
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
-    if (existing.status !== 'Dispatch') {
-      return res.status(400).json({ status: false, message: 'BOM is not dispatched', data: null });
+    if (existing.status !== 'Completed') {
+      return res.status(400).json({ status: false, message: 'BOM is not completed', data: null });
     }
 
     for (const item of existing.items) {
       const needed = qtyNeeded(item.requiredQty, existing.outputQty);
       await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, needed);
     }
+    await InventoryModel.adjustStockBySkuId(existing.productSku, -existing.outputQty);
 
     const updated = await BomModel.update(id, { ...existing, status: 'Process' });
     res.json({ status: true, message: 'BOM reverted to Process successfully', data: updated });
@@ -138,15 +159,15 @@ async function deleteBom(req, res) {
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
 
-    // The frontend hides the Delete action while a BOM is Dispatch (forcing Revert first),
-    // but this stays as a server-side safety net - restore the deducted stock before
-    // removing the record so a Dispatch-status BOM can never be deleted without its raw
-    // material impact being undone first.
-    if (existing.status === 'Dispatch') {
+    // The frontend hides the Delete action while a BOM is Completed (forcing Revert to
+    // Process first), but this stays as a server-side safety net - restore every
+    // outstanding stock impact before removing the record.
+    if (existing.status === 'Completed') {
       for (const item of existing.items) {
         const needed = qtyNeeded(item.requiredQty, existing.outputQty);
         await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, needed);
       }
+      await InventoryModel.adjustStockBySkuId(existing.productSku, -existing.outputQty);
     }
 
     await BomModel.remove(id);
@@ -156,4 +177,4 @@ async function deleteBom(req, res) {
   }
 }
 
-module.exports = { getBoms, getNextBomCode, createBom, updateBom, dispatchBom, revertBomToProcess, deleteBom };
+module.exports = { getBoms, getNextBomCode, createBom, updateBom, revertBomToProcess, completeBom, deleteBom };

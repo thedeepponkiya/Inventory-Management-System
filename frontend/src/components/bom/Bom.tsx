@@ -14,9 +14,9 @@ import {
     HiOutlinePrinter,
     HiOutlineArrowDownTray,
     HiOutlineTrash,
-    HiOutlineTruck,
     HiOutlineArrowUturnLeft,
     HiOutlineExclamationTriangle,
+    HiOutlineCheckBadge,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
@@ -24,7 +24,7 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
-import { createBom, updateBom, deleteBom, dispatchBom, revertBomToProcess, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
+import { createBom, updateBom, deleteBom, revertBomToProcess, completeBom, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
 import type { InventoryItem } from '../../services/inventoryService';
 import type { RawSku } from '../../services/rawSkuService';
 import type { Unit } from '../../services/unitService';
@@ -43,7 +43,7 @@ interface BomForm {
     categoryName: string | null;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
 }
 
 // Category is still captured (auto-derived from the selected Product) and Version stays
@@ -67,7 +67,7 @@ const emptyForm: BomForm = {
 };
 
 const Bom = () => {
-    const { boms, bomsLoading, fetchBoms, inventories, rawSkus, fetchRawSkus, units } = useContext(AppContext);
+    const { boms, bomsLoading, fetchBoms, inventories, fetchInventories, rawSkus, fetchRawSkus, units } = useContext(AppContext);
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
     const { dateFormat } = useDateFormatContext();
@@ -176,6 +176,10 @@ const Bom = () => {
         }
 
         const payload: BomPayload = {
+            // Only sent on create - reuses the code already previewed in this dialog so it
+            // matches what actually gets saved (random codes, unlike the old sequential ones,
+            // would otherwise differ between preview and save if each were generated fresh).
+            ...(editingId ? {} : { bomCode: previewBomCode }),
             productSku: form.productSku,
             productName: form.productName,
             categoryName: form.categoryName,
@@ -207,18 +211,18 @@ const Bom = () => {
         }
     };
 
-    const handleDispatch = (bom: BomType) => {
+    const handleComplete = (bom: BomType) => {
         confirmDialog({
-            message: `Dispatch Order "${bom.bomCode}"? This deducts the required raw material quantities from stock.`,
-            header: 'Dispatch Order',
+            message: `Mark Order "${bom.bomCode}" as Completed? This deducts the required raw material quantities from stock and adds ${bom.outputQty} ${bom.unit} of "${bom.productName}" into Inventory stock.`,
+            header: 'Mark as Completed',
             icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
             accept: async () => {
                 try {
-                    await dispatchBom(bom.id);
+                    await completeBom(bom.id);
                     fetchBoms();
                     fetchRawSkus();
-                    showToast(toast, 'success', 'Dispatched', 'Order dispatched and raw material stock updated');
+                    fetchInventories();
+                    showToast(toast, 'success', 'Completed', 'Order completed - raw material and Inventory stock updated');
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -228,7 +232,7 @@ const Bom = () => {
 
     const handleRevertToProcess = (bom: BomType) => {
         confirmDialog({
-            message: `Revert Order "${bom.bomCode}" back to Process? This restores the deducted raw material quantities.`,
+            message: `Revert Order "${bom.bomCode}" back to Process? This restores the deducted raw material quantities and removes the ${bom.outputQty} ${bom.unit} added to Inventory stock.`,
             header: 'Revert to Process',
             icon: 'pi pi-exclamation-triangle',
             accept: async () => {
@@ -236,7 +240,8 @@ const Bom = () => {
                     await revertBomToProcess(bom.id);
                     fetchBoms();
                     fetchRawSkus();
-                    showToast(toast, 'success', 'Reverted', 'Order reverted to Process and raw material stock restored');
+                    fetchInventories();
+                    showToast(toast, 'success', 'Reverted', 'Order reverted to Process - raw material and Inventory stock restored');
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -280,8 +285,8 @@ const Bom = () => {
     const bomActionTemplate = (row: BomType) => (
         <div className="data-table-actions">
             {row.status === 'Process' && <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDelete(row)} />}
-            {row.status === 'Process' && <HiOutlineTruck size={20} color="#16a34a" title="Dispatch" onClick={() => handleDispatch(row)} />}
-            {row.status === 'Dispatch' && <HiOutlineArrowUturnLeft size={16} title="Revert to Process" onClick={() => handleRevertToProcess(row)} />}
+            {row.status === 'Process' && <HiOutlineCheckBadge size={20} color="#16a34a" title="Mark as Completed" onClick={() => handleComplete(row)} />}
+            {row.status === 'Completed' && <HiOutlineArrowUturnLeft size={16} title="Revert to Process" onClick={() => handleRevertToProcess(row)} />}
             <HiOutlinePrinter size={16} title="Print or Download" onClick={(e) => openPrintMenu(e, row)} />
         </div>
     );

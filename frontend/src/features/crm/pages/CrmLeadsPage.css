@@ -1,11 +1,3 @@
-/* The page root is already a flex column filling the app shell's remaining height (via the
-   global `.app-content > div` rule) - `min-height: 0` is what actually lets it shrink to
-   that space instead of growing to fit its content, which is what makes the board below
-   get a real dynamic height instead of relying on a hardcoded viewport-minus-pixels value. */
-.crm-leads-page {
-    min-height: 0;
-}
-
 .kanban-board {
     display: flex;
     flex: 1 1 auto;

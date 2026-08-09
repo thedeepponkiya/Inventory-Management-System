@@ -1,0 +1,901 @@
+.so-form-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.so-form-toolbar-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.so-form-toolbar-title h2 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.so-form-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+    background: var(--surface-subtle);
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+
+.so-form-back-btn:hover {
+    background: var(--surface-hover);
+}
+
+.so-form-toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.so-form-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
+    gap: 16px;
+    align-items: stretch;
+}
+
+@media (max-width: 1000px) {
+    .so-form-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.so-form-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    /* Grid items default to min-height:auto (content-based), same footgun as flex items -
+       without this override, .so-form-main refuses to actually pass its grid-stretched
+       height down to the tabbed card/table below, even though the grid row itself is tall
+       enough (see routers.css's .app-content > div for the identical page-level bug). */
+    min-height: 0;
+}
+
+/* Grid-stretched by .so-form-layout to match the sidebar's height - the single card inside
+   grows to fill it (rather than shrinking to its own content height) so both columns end
+   level even when Order Summary's content is shorter than the tabbed form's. */
+.so-form-main > .so-card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.so-form-main > .so-card .p-tabview {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.so-form-main > .so-card .p-tabview-panels {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The active tab's own content wrapper - needs to flex-fill .p-tabview-panels too, so the
+   Order Items DataTable inside it (which already flexes itself, see DataTable.css) actually
+   has real stretch space to grow into instead of sitting at its own content height with a
+   dead gap below before the stretched card's bottom edge. */
+.so-form-main > .so-card .p-tabview-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Safety floor so the Order Items table never gets squeezed to near-nothing if the
+   stretched card (matched to Order Summary's height) happens to be short. */
+.so-form-main .app-data-table.p-datatable {
+    min-height: 240px;
+}
+
+/* Generic white card used for both "Order Information" and "Order Items" */
+.so-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Order Information / Order Items live inside a TabView here - the tab nav needs its own
+   compact styling (matches PurchaseOrderForm's tab convention) since PrimeReact's default
+   tab/panel padding would otherwise stack awkwardly with this card's own 20px padding. */
+.so-card--tabs .p-tabview-nav-link {
+    padding: 10px 4px !important;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.so-card--tabs .p-tabview-panels {
+    padding: 16px 0 0 !important;
+}
+
+.so-tab-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Order Information's 4 sub-groups (Order/Customer/Payment/Delivery & Notes) - a bottom
+   border + padding separates each group instead of a full card boundary, since they're
+   all still part of the same tab/card. */
+.so-section {
+    margin-bottom: 20px;
+}
+
+.so-section--last {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.so-section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-subtle);
+    margin-bottom: 16px;
+}
+
+.so-section-title::after {
+    content: '';
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--border-subtle);
+}
+
+.so-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.so-card-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.so-card-header-subtitle {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.so-card-header-icon {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sales-order-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 800px) {
+    .sales-order-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.sales-order-form-grid--4col {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+    .sales-order-form-grid--4col {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.sales-order-form-full {
+    grid-column: 1 / -1;
+}
+
+.sales-order-form-half-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 600px) {
+    .sales-order-form-half-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sales-order-items-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 0 12px;
+}
+
+.sales-order-items-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Right-aligned icon inside a single-line input (SO No.'s lock) or bottom-right inside a
+   textarea (Delivery Address's pin, Remarks' note) - two different icon positions sharing
+   one relatively-positioned wrapper. */
+.so-input-icon-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.so-input {
+    width: 100%;
+}
+
+.so-input--icon-right.p-inputtext {
+    padding-right: 34px;
+}
+
+.so-input-icon-right {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    pointer-events: none;
+}
+
+.so-textarea-icon {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    color: var(--text-subtle);
+    pointer-events: none;
+}
+
+.so-currency-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+/* Live preview panel */
+.so-preview-panel {
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.so-preview-card {
+    flex: 1 1 auto;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.so-preview-header {
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.so-preview-header-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.so-preview-status {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+    border-radius: 999px;
+    padding: 4px 12px;
+    height: fit-content;
+}
+
+.so-preview-status--confirmed {
+    color: var(--accent-success-text);
+    background: var(--accent-success-bg);
+}
+
+.so-preview-status--processing {
+    color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+}
+
+.so-preview-status--partially-shipped {
+    color: var(--accent-warning-text);
+    background: var(--accent-warning-bg);
+}
+
+.so-preview-status--dispatched {
+    color: var(--accent-purple-text);
+    background: var(--accent-purple-bg);
+}
+
+.so-preview-status--cancelled {
+    color: var(--accent-danger-text);
+    background: var(--accent-danger-bg);
+}
+
+.so-preview-so-no {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.so-preview-badge {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 4px 10px;
+}
+
+.so-preview-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.so-preview-divider {
+    border-top: 1px solid var(--border-default);
+    margin: 14px 0;
+}
+
+.so-preview-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+    margin-bottom: 8px;
+}
+
+.so-preview-empty {
+    font-size: 13px;
+    color: var(--text-subtle);
+    text-align: center;
+    padding: 8px 0;
+}
+
+.so-preview-items-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: var(--surface-subtle);
+    border-radius: 10px;
+    padding: 24px 16px;
+}
+
+.so-preview-items-empty-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.so-preview-items-empty-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.so-preview-items-empty-sub {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.so-preview-info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 14px;
+}
+
+.so-preview-info-banner svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* Paid / progress bar / Balance due */
+.so-payment-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.so-payment-progress-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.so-payment-progress-balance {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.so-payment-balance-due {
+    color: var(--accent-danger-text);
+}
+
+.so-payment-balance-clear {
+    color: var(--accent-success-text);
+}
+
+.so-payment-progress-track {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    overflow: hidden;
+}
+
+.so-payment-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent-success-text);
+    transition: width 0.2s ease;
+}
+
+.so-preview-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: var(--accent-warning-bg);
+    color: var(--accent-warning-text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 14px;
+}
+
+.so-preview-warning-banner svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.so-preview-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.so-preview-items-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    border-bottom: 1px solid var(--border-default);
+    padding: 6px 4px;
+}
+
+.so-preview-items-table td {
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.so-preview-totals {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    padding-top: 8px;
+    border-top: 1px solid var(--border-default);
+}
+
+.so-discount-value {
+    color: var(--accent-success-text);
+    font-weight: 600;
+}
+
+.so-preview-totals > div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.so-preview-grand-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-default);
+}
+
+/* Add/Edit Item dialog (Items & Charges tab) */
+.so-item-dialog.p-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.so-item-form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.so-item-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.so-item-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.so-item-required {
+    color: var(--accent-danger-text);
+}
+
+.so-item-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 480px) {
+    .so-item-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.so-item-input-icon-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.so-item-input {
+    width: 100%;
+}
+
+.so-item-input--icon.p-inputtext,
+.so-item-input--icon .p-inputnumber-input,
+.so-item-input--icon.p-dropdown .p-dropdown-label {
+    padding-left: 38px;
+}
+
+.so-item-input-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+    width: 24px;
+    height: 24px;
+    padding: 5px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.so-item-input-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.so-item-input-icon--text {
+    width: auto;
+    min-width: 24px;
+    padding: 5px 6px;
+    font-size: 9px;
+    letter-spacing: 0.01em;
+}
+
+.so-item-summary {
+    display: flex;
+    gap: 12px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.so-item-summary-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.so-item-summary-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.so-item-summary-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.so-item-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.so-item-summary-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.so-item-summary-label {
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+.so-item-summary-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.so-item-summary-total {
+    color: var(--accent-info-text);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.so-item-summary-operator {
+    color: var(--text-subtle);
+    font-weight: 600;
+}
+
+/* Dispatch dialog */
+.so-dispatch-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.so-dispatch-sr-no {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-subtle);
+}
+
+.so-dispatch-item-details {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.so-dispatch-item-thumb {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.so-dispatch-item-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.so-dispatch-item-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.so-dispatch-item-category {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    margin-top: 1px;
+}
+
+.so-dispatch-available-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 4px 12px;
+}
+
+.so-dispatch-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.so-dispatch-stepper-btn {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    border: 1px solid var(--border-default);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.so-dispatch-stepper-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.so-dispatch-stepper-input {
+    width: 64px;
+}
+
+.so-dispatch-stepper-input .so-dispatch-stepper-input-field {
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 4px;
+}
+
+/* Dispatch Invoice dialog (shown after a successful dispatch) */
+.so-invoice-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.so-invoice-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.so-invoice-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.so-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.so-invoice-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    border-bottom: 1px solid var(--border-default);
+    padding: 6px 4px;
+}
+
+.so-invoice-table td {
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+}
+
+.so-invoice-totals {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    padding-top: 8px;
+    border-top: 1px solid var(--border-default);
+}
+
+.so-invoice-totals > div {
+    display: flex;
+    justify-content: space-between;
+}
+
+.so-invoice-grand-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-default);
+}

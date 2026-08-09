@@ -20,8 +20,12 @@ export interface InventoryItem {
     locationName: string | null;
     status: 'Active' | 'Inactive';
     unitCost: number;
+    sellingCost: number;
     createdDate: string;
     assembly: AssemblyLine[];
+    minStock: number;
+    maxStock: number;
+    openingStock: number;
 }
 
 export interface InventoryPayload {
@@ -35,7 +39,11 @@ export interface InventoryPayload {
     locationName: string | null;
     status: 'Active' | 'Inactive';
     unitCost: number;
+    sellingCost: number;
     assembly: AssemblyLine[];
+    minStock: number;
+    maxStock: number;
+    openingStock: number;
 }
 
 interface ApiResponse<T> {
@@ -60,6 +68,10 @@ function normalizeInventoryItem(item: InventoryItem): InventoryItem {
         ...item,
         quantity: Number(item.quantity),
         unitCost: Number(item.unitCost),
+        sellingCost: Number(item.sellingCost),
+        minStock: Number(item.minStock),
+        maxStock: Number(item.maxStock),
+        openingStock: Number(item.openingStock),
         assembly: item.assembly.map((line) => ({ ...line, quantity: Number(line.quantity) })),
     };
 }

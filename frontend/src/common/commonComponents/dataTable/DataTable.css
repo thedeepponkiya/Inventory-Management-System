@@ -79,6 +79,10 @@
     /* color: #0f1b3d; */
     font-weight: 600;
     cursor: pointer;
+    text-decoration: none;
+}
+
+.app-data-table .p-datatable-tbody > tr:hover .common-table-id-link {
     text-decoration: underline;
 }
 
@@ -131,4 +135,73 @@
     padding-bottom: 0;
     display: flex;
     align-items: center;
+}
+
+/* Empty state ("No results found") - illustration + heading + description, centered both
+   horizontally AND vertically in the table body in place of PrimeReact's default plain-text
+   emptymessage row. Percentage heights only work in a <table> if every ancestor down to the
+   cell itself also carries one - hence the height:100% chain from table -> tbody -> tr -> td.
+   Scoped with :has() to only the empty-message case - applying height:100% unconditionally
+   also stretched tables that DO have data, inflating every real row to fill the leftover
+   vertical space instead of sizing to its own content. */
+.app-data-table .p-datatable-table:has(.p-datatable-emptymessage) {
+    height: 100%;
+}
+
+.app-data-table .p-datatable-tbody:has(.p-datatable-emptymessage) {
+    height: 100%;
+}
+
+.app-data-table .p-datatable-emptymessage {
+    height: 100%;
+}
+
+.app-data-table .p-datatable-emptymessage > td {
+    height: 100%;
+    border: none;
+    padding: 0;
+}
+
+/* The emptymessage <td> spans colSpan = total column count, so its rendered width is the
+   sum of every column's width - often much wider than the visible scroll viewport (hence
+   the horizontal scrollbar on wide tables). Centering with width:100% would center against
+   that full underlying width, landing off-screen unless the user scrolls all the way over.
+   position: sticky + left: 50% + translateX(-50%) instead centers against the scroll
+   container's VISIBLE viewport, regardless of how wide the table's real content is. */
+.app-data-table-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px;
+    height: 100%;
+    min-height: 320px;
+    position: sticky;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 90vw;
+}
+
+.app-data-table-empty-illustration {
+    display: block;
+    width: 140px;
+    height: auto;
+    margin: 0 auto 16px;
+}
+
+.app-data-table-empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+
+.app-data-table-empty-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+    max-width: 320px;
+    line-height: 1.5;
 }

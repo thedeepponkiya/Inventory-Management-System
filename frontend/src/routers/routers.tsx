@@ -9,6 +9,7 @@ import Category from '../components/category/Category';
 import ProductType from '../components/productType/ProductType';
 import Unit from '../components/unit/Unit';
 import Vendor from '../components/vendor/Vendor';
+import Customer from '../components/customer/Customer';
 import InventoryHome from '../components/inventory/InventoryHome';
 import Bom from '../components/bom/Bom';
 import Transactions from '../components/transactions/Transactions';
@@ -18,6 +19,8 @@ import Reports from '../components/reports/Reports';
 import Users from '../components/users/Users';
 import PurchaseOrder from '../components/purchaseOrder/PurchaseOrder';
 import PurchaseOrderForm from '../components/purchaseOrder/PurchaseOrderForm';
+import SalesOrder from '../components/salesOrder/SalesOrder';
+import SalesOrderForm from '../components/salesOrder/SalesOrderForm';
 import Login from '../components/login/Login';
 import CrmProviders from '../features/crm/CrmProviders';
 import CrmSourcesPage from '../features/crm/pages/CrmSourcesPage';
@@ -62,6 +65,7 @@ const AppRoutes = () => {
                         <Route path='/product-type' element={<ProductType />}></Route>
                         <Route path='/unit' element={<Unit />}></Route>
                         <Route path='/vendor' element={<Vendor />}></Route>
+                        <Route path='/customer' element={<Customer />}></Route>
                         <Route path='/home' element={<InventoryHome />}></Route>
                         <Route path='/bom' element={<Bom />}></Route>
                         <Route path='/transactions' element={<Transactions />}></Route>
@@ -73,6 +77,9 @@ const AppRoutes = () => {
                         <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
                         <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
                         <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>
+                        <Route path='/sales-order' element={<SalesOrder />}></Route>
+                        <Route path='/sales-order/new' element={<SalesOrderForm />}></Route>
+                        <Route path='/sales-order/:id' element={<SalesOrderForm />}></Route>
                         <Route path='/crm' element={<CrmProviders />}>
                             <Route index element={<CrmDashboardPage />}></Route>
                             <Route path='leads' element={<CrmLeadsPage />}></Route>

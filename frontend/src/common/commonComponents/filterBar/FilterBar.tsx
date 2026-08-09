@@ -8,6 +8,7 @@ import {
     HiOutlineClipboardDocumentList,
     HiOutlineCube,
     HiOutlineFunnel,
+    HiOutlineShoppingCart,
     HiOutlineSquare3Stack3D,
     HiOutlineTruck, // Material Inward quick action hidden below
 } from 'react-icons/hi2';
@@ -52,6 +53,7 @@ const defaultQuickActions: FilterBarQuickAction[] = [
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
     { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
     { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
+    { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
 ];
 
 const FilterBar = ({ fields, values, onChange, onReset, actions, trailingActions, quickActions = defaultQuickActions }: FilterBarProps) => {

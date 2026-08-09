@@ -27,14 +27,9 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createUser, updateUser, deleteUser, uploadUserImage, type User, type UserPayload } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getUsersColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getUsersColumns, getActionBodyTemplate, ROLE_OPTIONS, DEPARTMENT_OPTIONS } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './Users.css';
-
-// No Roles/Departments master exists yet - these are fixed dropdown lists, and the value
-// picked is stored directly in the user's roleId/departmentId columns as plain text.
-const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Accounts User'];
-const DEPARTMENT_OPTIONS = ['Sales', 'Warehouse', 'Production', 'Accounts', 'Admin'];
 
 interface UserFormState {
     fullName: string;

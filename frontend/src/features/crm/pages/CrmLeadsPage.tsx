@@ -272,7 +272,7 @@ const CrmLeadsPage = () => {
 
     const columns: ColumnConfig<CrmLead>[] = [
         { field: 'leadCode', header: 'Lead Code', body: (row) => <span className="common-table-id-link" onClick={() => openDrawer(row)}>#{row.leadCode}</span> },
-        { field: 'name', header: 'Name' },
+        { field: 'name', header: 'Name', body: (row) => <span className="common-table-id-link" onClick={() => openDrawer(row)}>{row.name}</span> },
         { field: 'company', header: 'Company', body: (row) => row.company ?? '—' },
         {
             field: 'stageName',
@@ -291,7 +291,8 @@ const CrmLeadsPage = () => {
         {
             field: 'priority',
             header: 'Priority',
-            filter: false,
+            filterType: 'dropdown',
+            filterOptions: ['High', 'Medium', 'Low'],
             body: (row) => {
                 const colors: Record<CrmLead['priority'], { text: string; bg: string }> = {
                     High: { text: 'var(--accent-danger-text)', bg: 'var(--accent-danger-bg)' },
@@ -307,7 +308,13 @@ const CrmLeadsPage = () => {
             },
         },
         { field: 'value', header: 'Value', body: (row) => `Rs. ${row.value.toLocaleString('en-IN')}` },
-        { field: 'status', header: 'Status', filter: false, body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} /> },
+        {
+            field: 'status',
+            header: 'Status',
+            filterType: 'dropdown',
+            filterOptions: ['Active', 'Archived'],
+            body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} />,
+        },
     ];
 
     const actionTemplate = (row: CrmLead) => (

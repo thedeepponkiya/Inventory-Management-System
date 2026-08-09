@@ -1,7 +1,3 @@
-.users-page {
-    padding-bottom: 24px;
-}
-
 /* Scoped to the Add/Edit User dialog only - deliberately NOT touching the shared global
    .dialog-form-body/.form-field classes (index.css), which are reused by every other form
    dialog in the app (Vendor, RawSku, ProductType, etc.) and must stay unaffected by this

@@ -24,7 +24,7 @@ const RecentOrders = () => {
         {
             field: 'status' as const,
             header: 'Status',
-            body: (row: Bom) => <StatusBadge label={row.status} variant={row.status === 'Dispatch' ? 'success' : 'info'} />,
+            body: (row: Bom) => <StatusBadge label={row.status} variant={row.status === 'Completed' ? 'success' : 'info'} />,
         },
     ];
 

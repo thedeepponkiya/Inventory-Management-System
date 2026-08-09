@@ -10,7 +10,7 @@ import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useSourcesQuery, useCreateSource, useUpdateSource, useDeleteSource } from '../hooks/useSourcesQuery';
 import SourceFormDialog from '../components/SourceFormDialog';
 import { crmQuickActions } from '../crmQuickActions';
-import type { CrmSource, CrmSourcePayload } from '../types/source.types';
+import { SOURCE_TYPE_OPTIONS, type CrmSource, type CrmSourcePayload } from '../types/source.types';
 
 const CrmSourcesPage = () => {
     const toast = useRef<Toast>(null);
@@ -82,8 +82,14 @@ const CrmSourcesPage = () => {
 
     const columns: ColumnConfig<CrmSource>[] = [
         { field: 'name', header: 'Source Name', body: (row) => <span className="common-table-id-link" onClick={() => openEditDialog(row)}>{row.name}</span> },
-        { field: 'type', header: 'Type' },
-        { field: 'status', header: 'Status', filter: false, body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} /> },
+        { field: 'type', header: 'Type', filterType: 'dropdown', filterOptions: SOURCE_TYPE_OPTIONS },
+        {
+            field: 'status',
+            header: 'Status',
+            filterType: 'dropdown',
+            filterOptions: ['Active', 'Inactive'],
+            body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} />,
+        },
     ];
 
     const actionTemplate = (row: CrmSource) => (

@@ -101,7 +101,13 @@ const CrmCampaignsPage = () => {
         { field: 'spend', header: 'Spend', filter: false, body: (row) => (row.spend !== null ? `Rs. ${row.spend.toLocaleString('en-IN')}` : '—') },
         { field: 'impressions', header: 'Impressions', filter: false, body: (row) => row.impressions?.toLocaleString('en-IN') ?? '—' },
         { field: 'clicks', header: 'Clicks', filter: false, body: (row) => row.clicks?.toLocaleString('en-IN') ?? '—' },
-        { field: 'status', header: 'Status', filter: false, body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} /> },
+        {
+            field: 'status',
+            header: 'Status',
+            filterType: 'dropdown',
+            filterOptions: ['Active', 'Inactive'],
+            body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} />,
+        },
     ];
 
     const actionTemplate = (row: CrmCampaign) => (

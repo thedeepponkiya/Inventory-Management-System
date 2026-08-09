@@ -93,6 +93,20 @@ CREATE TABLE IF NOT EXISTS ims_vendor (
 CREATE UNIQUE INDEX IF NOT EXISTS ims_vendor_vendorname_lower_idx ON ims_vendor (LOWER("vendorName"));
 ALTER TABLE ims_vendor ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
 
+-- Customer master, backing /api/v1/customers CRUD - mirrors ims_vendor exactly (same
+-- shape/uniqueness rule), just for the sell side instead of the buy side.
+CREATE TABLE IF NOT EXISTS ims_customer (
+    id SERIAL PRIMARY KEY,
+    "customerName" VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    "phoneNumber" VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    "zipCode" VARCHAR(20),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ims_customer_customername_lower_idx ON ims_customer (LOWER("customerName"));
+
 -- Raw SKU master, backing /api/v1/raw-skus CRUD. "rawMaterialId" self-references this same
 -- table (a "Processed" SKU can point at a parent raw material, e.g. Door Stopper <- Steel Rod).
 -- inventoryEntryMode/sourceType/rawMaterialId are stored as real data but not wired into any
@@ -166,6 +180,50 @@ ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "otherCharges";
 -- receipt" role instead) - migrate any existing rows so they stay consistent with the
 -- new Draft -> Sent -> Received/Cancelled lifecycle.
 UPDATE ims_purchase_order SET status = 'Sent' WHERE status = 'Approved';
+
+-- Sales orders, backing /api/v1/sales-orders CRUD.
+-- "items" is a JSONB array of finished-good lines, each shaped like:
+-- { skuId, skuCode, itemName, unit, orderedQty, dispatchedQty, pendingQty, unitPrice,
+--   discountPercent, discountAmount, gstPercent, gstAmount, lineTotal }
+-- customerName/customerCode are plain fields (no Customer master exists in this app,
+-- same denormalized-string approach as Invoice's "customerSupplier").
+-- Lifecycle: Draft -> Confirmed -> Processing -> (Partially Shipped <-> Dispatched via the
+-- /dispatch action, which deducts each shipped line's qty straight from ims_inventories -
+-- the mirror of BOM's Dispatch step, but on the sell side) -> Cancelled is only reachable
+-- before any stock has actually shipped.
+CREATE TABLE IF NOT EXISTS ims_sales_order (
+    id SERIAL PRIMARY KEY,
+    "soNo" VARCHAR(50) NOT NULL UNIQUE,
+    "customerName" VARCHAR(150) NOT NULL,
+    "customerCode" VARCHAR(50),
+    "orderDate" DATE NOT NULL,
+    "deliveryDate" DATE,
+    "deliveryAddress" TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+    "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    items JSONB NOT NULL DEFAULT '[]',
+    "totalItems" INTEGER NOT NULL DEFAULT 0,
+    "totalQty" NUMERIC NOT NULL DEFAULT 0,
+    "subTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "gstAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    remarks TEXT,
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- ims_sales_order already existed live before "paidAmount" was added to the CREATE TABLE
+-- block above, so this migrates any already-created table too. "Remain Amount" (in the
+-- SO list/columns) is always derived as grandTotal - paidAmount, never stored separately.
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
+-- Payment Terms/Purchase Order Ref./Currency - added for the redesigned Order Information
+-- card. Currency is a single fixed option today (no multi-currency conversion logic
+-- anywhere in this app) - stored as free text purely for display, not calculation.
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "paymentTerms" VARCHAR(50);
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "purchaseOrderRef" VARCHAR(100);
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee';
 
 -- Material inwards, backing /api/v1/material-inwards CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -267,6 +325,16 @@ CREATE TABLE IF NOT EXISTS ims_inventories (
     assembly JSONB NOT NULL DEFAULT '[]',
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Stock-health thresholds for the Current Stock column's progress bar/tier badge (same
+-- design as ims_raw_sku, minus a separate Reorder Level - `minStock` doubles as the "Low"
+-- threshold here since Inventory items don't have their own reorder workflow).
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "minStock" NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "maxStock" NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "openingStock" NUMERIC NOT NULL DEFAULT 0;
+-- Selling Cost (what this item is sold for) alongside the existing "unitCost" (Product
+-- Cost - what it costs to acquire/produce) - kept as two separate columns since margin
+-- reporting needs both, not just one overwriting the other.
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "sellingCost" NUMERIC(12,2) NOT NULL DEFAULT 0;
 
 -- Bill of Materials, backing /api/v1/boms CRUD.
 -- "productSku"/"productName"/"categoryName" are stored directly (denormalized strings set
@@ -293,14 +361,31 @@ CREATE TABLE IF NOT EXISTS ims_bom (
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- "status" changed from Active/Inactive (was a template-usable toggle) to a Process/
--- Dispatch order lifecycle: a BOM starts Process, and moving it to Dispatch (via the
--- dedicated /:id/dispatch endpoint below) deducts each component's scaled quantity from
--- the matching Raw SKU's currentStock; reverting to Process (via /:id/revert) adds it
--- back. Migrates any rows saved under the old Active/Inactive values.
+-- "status" changed from Active/Inactive (was a template-usable toggle) to a Process ->
+-- Completed order lifecycle: a BOM starts Process, and moving it to Completed (via the
+-- dedicated /:id/complete endpoint) deducts each component's scaled quantity from the
+-- matching Raw SKU's currentStock and adds outputQty onto the finished good's Inventory;
+-- reverting to Process (via /:id/revert) undoes both. Migrates any rows saved under the
+-- old Active/Inactive values.
 ALTER TABLE ims_bom ALTER COLUMN status SET DEFAULT 'Process';
 UPDATE ims_bom SET status = 'Process' WHERE status = 'Active';
 UPDATE ims_bom SET status = 'Dispatch' WHERE status = 'Inactive';
+-- The "Dispatch" stage (shipped-out, which re-deducted Inventory after Completed had added
+-- it) was removed - Sales Order now owns that "shipped to customer" concept instead, so a
+-- BOM's own lifecycle stops at Completed. Any row still sitting in the old Dispatch status
+-- had its Inventory net effect zeroed out (added at Completed, removed again at Dispatch);
+-- since Completed is now terminal and assumes the stock is sitting in Inventory, that
+-- removed quantity is added back before relabeling the row, so on-hand stock stays correct.
+UPDATE ims_inventories inv
+SET quantity = inv.quantity + sub.total_output
+FROM (
+    SELECT "productSku", SUM("outputQty") AS total_output
+    FROM ims_bom
+    WHERE status = 'Dispatch'
+    GROUP BY "productSku"
+) sub
+WHERE inv."skuId" = sub."productSku";
+UPDATE ims_bom SET status = 'Completed' WHERE status = 'Dispatch';
 
 -- =====================================================================
 -- CRM module (crm_*) - Module 1: full schema defined up front since all

@@ -14,16 +14,17 @@ const SkuMovement = () => {
     const bomList = boms as Bom[];
     const [movementFilter, setMovementFilter] = useState('Last 3 Months');
 
-    // Derived from dispatched Orders' items, since there's no dedicated stock-movement log
-    // table; a dispatched Order's items are the only real record of a Raw SKU quantity
-    // actually leaving its location. Range is driven by movementFilter (This Month / Last
-    // Month / Last 3 Months).
+    // Derived from Completed Orders' items, since there's no dedicated stock-movement log
+    // table; a Completed Order's items are the only real record of a Raw SKU quantity
+    // actually leaving its location (deducted at Completed - see bom.controller.js's
+    // completeBom). Range is driven by movementFilter (This Month / Last Month / Last 3
+    // Months).
     const skuMovement = useMemo(() => {
         const { start, end } = getFilterRange(movementFilter);
 
         const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number; locationName: string | null }>();
         bomList
-            .filter((bom) => bom.status === 'Dispatch' && new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
+            .filter((bom) => bom.status === 'Completed' && new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
             .forEach((bom) => {
                 bom.items.forEach((item) => {
                     const consumedQty = item.requiredQty * bom.outputQty;

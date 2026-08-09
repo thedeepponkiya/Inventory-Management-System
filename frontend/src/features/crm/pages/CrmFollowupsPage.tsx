@@ -85,9 +85,15 @@ const CrmFollowupsPage = () => {
     const columns: ColumnConfig<FollowupRow>[] = [
         { field: 'leadName', header: 'Lead', body: (row) => <span className="common-table-id-link" onClick={() => openLeadDrawer(row)}>{row.leadName}</span> },
         { field: 'dueAt', header: 'Due At', body: (row) => new Date(row.dueAt).toLocaleString('en-IN') },
-        { field: 'type', header: 'Type' },
+        { field: 'type', header: 'Type', filterType: 'dropdown', filterOptions: ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'] },
         { field: 'notes', header: 'Notes', filter: false, body: (row) => row.notes ?? '—' },
-        { field: 'status', header: 'Status', filter: false, body: (row) => <StatusBadge label={row.status} variant={row.status === 'Completed' ? 'success' : 'warning'} /> },
+        {
+            field: 'status',
+            header: 'Status',
+            filterType: 'dropdown',
+            filterOptions: ['Pending', 'Completed'],
+            body: (row) => <StatusBadge label={row.status} variant={row.status === 'Completed' ? 'success' : 'warning'} />,
+        },
     ];
 
     const actionTemplate = (row: FollowupRow) => (
