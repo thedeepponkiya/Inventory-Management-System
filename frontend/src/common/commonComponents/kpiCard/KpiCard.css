@@ -41,10 +41,6 @@
 }
 
 .kpi-card-icon {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -63,7 +59,7 @@
 }
 
 .kpi-card-value {
-    font-size: 22px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
@@ -75,24 +71,21 @@
     margin-top: 12px;
 }
 
-.kpi-card-delta {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
+.kpi-card-value-delta {
+    font-size: 12px;
     font-weight: 600;
-    margin-top: 4px;
+    margin-left: 6px;
 }
 
-.kpi-card-delta--up {
+.kpi-card-value-delta--up {
     color: var(--accent-success-text);
 }
 
-.kpi-card-delta--down {
+.kpi-card-value-delta--down {
     color: var(--accent-danger-text);
 }
 
-.kpi-card-delta--flat {
+.kpi-card-value-delta--flat {
     color: var(--text-muted);
 }
 

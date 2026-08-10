@@ -759,9 +759,19 @@ export const getPurchaseOrderColumns = (dateFormat: DateFormatOption, onEditClic
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
     { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Sent', 'Received', 'Cancelled'] },
-    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
     { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'] },
+    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 } },
+    {
+        field: 'paidAmount',
+        key: 'remainAmount',
+        header: 'Remaining Payment',
+        // Always derived (grandTotal - paidAmount), never stored separately - so it can
+        // never drift out of sync if either of those two changes.
+        body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
+    },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
 ];
 
 export interface PurchaseOrderItemRow extends PurchaseOrderItem {
@@ -824,18 +834,19 @@ export const getSalesOrderColumns = (dateFormat: DateFormatOption, onEditClick?:
     },
     { field: 'deliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Order Status', fieldType: 'status', options: { variantMap: salesOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Confirmed', 'Processing', 'Partially Shipped', 'Dispatched', 'Cancelled'] },
-    { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'createdBy', header: 'Created By', fieldType: 'text' },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'] },
     { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 } },
     {
         field: 'paidAmount',
         key: 'remainAmount',
-        header: 'Remain Amount',
+        header: 'Remaining Payment',
         // Always derived (grandTotal - paidAmount), never stored separately - so it can
         // never drift out of sync if either of those two changes.
         body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
     },
-    { field: 'createdBy', header: 'Created By', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 } },
 ];
 
 export interface SalesOrderItemRow extends SalesOrderItem {

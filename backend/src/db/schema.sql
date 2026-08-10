@@ -155,6 +155,9 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "deliveryAddress" TEXT,
     "paymentTerms" VARCHAR(50),
     status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+    "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee',
     items JSONB NOT NULL DEFAULT '[]',
     "totalItems" INTEGER NOT NULL DEFAULT 0,
     "totalQty" NUMERIC NOT NULL DEFAULT 0,
@@ -180,6 +183,13 @@ ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "otherCharges";
 -- receipt" role instead) - migrate any existing rows so they stay consistent with the
 -- new Draft -> Sent -> Received/Cancelled lifecycle.
 UPDATE ims_purchase_order SET status = 'Sent' WHERE status = 'Approved';
+-- ims_purchase_order already existed live before Payment Status/Paid Amount/Currency were
+-- added to the CREATE TABLE block above (mirroring ims_sales_order's own fields), so this
+-- migrates any already-created table too. "Remain Amount" (in the PO list columns) is
+-- always derived as grandTotal - paidAmount, never stored separately.
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid';
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee';
 
 -- Sales orders, backing /api/v1/sales-orders CRUD.
 -- "items" is a JSONB array of finished-good lines, each shaped like:

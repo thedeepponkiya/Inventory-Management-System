@@ -227,6 +227,7 @@ const SalesOrderForm = () => {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setCurrentSoNo(existingSo.soNo);
             setCurrentStatus(existingSo.status);
+
             setCustomerName(existingSo.customerName);
             setCustomerCode(existingSo.customerCode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setOrderDate(new Date(existingSo.orderDate));

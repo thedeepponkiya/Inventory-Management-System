@@ -1,40 +1,69 @@
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlineClipboardDocumentList } from 'react-icons/hi2';
-import DataTable from '../../../common/commonComponents/dataTable/DataTable';
-import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
+import { InputText } from 'primereact/inputtext';
+import { HiOutlineClipboardDocumentList, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import DataTable, { type ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
+import StatusBadge, { type StatusVariant } from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { AppContext } from '../../../context/AppContextDefinition';
-import type { Bom } from '../../../services/bomService';
+import type { SalesOrder, SalesOrderStatus } from '../../../services/salesOrderService';
 import '../Dashboard.css';
+
+// Mirrors CommonUtilities.tsx's salesOrderStatusVariant mapping (kept local here rather than
+// exported/shared, since this is the only other place a Sales Order status needs a badge
+// color outside the full Sales Order table).
+const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {
+    Draft: 'neutral',
+    Confirmed: 'success',
+    Processing: 'info',
+    'Partially Shipped': 'warning',
+    Dispatched: 'purple',
+    Cancelled: 'danger',
+};
 
 const RecentOrders = () => {
     const navigate = useNavigate();
-    const { boms } = useContext(AppContext);
-    const bomList = boms as Bom[];
+    const { salesOrders } = useContext(AppContext);
+    const salesOrderList = salesOrders as SalesOrder[];
+    const [search, setSearch] = useState('');
 
-    const recentOrders = useMemo(
-        () => [...bomList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5),
-        [bomList],
+    // No slice() cap - sorted newest-first and the DataTable paginates, so every Sales Order
+    // is reachable rather than only the most recent 5 (same approach as Low Stock Alerts'
+    // Table view).
+    const recentSalesOrders = useMemo(
+        () => [...salesOrderList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        [salesOrderList],
     );
 
-    const recentOrdersColumns = [
-        { field: 'bomCode' as const, header: 'Order Code', body: (row: Bom) => `#${row.bomCode}` },
-        { field: 'productName' as const, header: 'Product' },
-        { field: 'outputQty' as const, header: 'Output Qty', body: (row: Bom) => `${row.outputQty} ${row.unit}` },
+    const filteredSalesOrders = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        if (!term) return recentSalesOrders;
+        return recentSalesOrders.filter((so) => so.soNo.toLowerCase().includes(term) || so.customerName.toLowerCase().includes(term));
+    }, [recentSalesOrders, search]);
+
+    const recentSalesOrdersColumns: ColumnConfig<SalesOrder>[] = [
+        { field: 'soNo', header: 'SO No.', body: (row) => `#${row.soNo}` },
+        { field: 'customerName', header: 'Customer' },
+        { field: 'grandTotal', header: 'Grand Total', body: (row) => `₹${row.grandTotal.toLocaleString('en-IN')}` },
         {
-            field: 'status' as const,
+            field: 'status',
             header: 'Status',
-            body: (row: Bom) => <StatusBadge label={row.status} variant={row.status === 'Completed' ? 'success' : 'info'} />,
+            body: (row) => <StatusBadge label={row.status} variant={salesOrderStatusVariant[row.status]} />,
         },
     ];
 
     return (
         <div className="dashboard-card">
             <div className="dashboard-card-header">
-                <h2><HiOutlineClipboardDocumentList size={18} className="dashboard-card-header-icon" />Recent Orders</h2>
-                <span className="dashboard-card-link" onClick={() => navigate('/bom')}>View all</span>
+                <h2><HiOutlineClipboardDocumentList size={18} className="dashboard-card-header-icon" />Recent Sales Orders</h2>
+                <div className="dashboard-card-header-actions">
+                    <span className="dashboard-search">
+                        <HiOutlineMagnifyingGlass className="dashboard-search-icon" />
+                        <InputText value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search SO no. or customer..." />
+                    </span>
+                    <span className="dashboard-card-link" onClick={() => navigate('/sales-order')}>View all</span>
+                </div>
             </div>
-            <DataTable value={recentOrders} columns={recentOrdersColumns} paginator={false} />
+            <DataTable value={filteredSalesOrders} columns={recentSalesOrdersColumns} rows={5} dataKey="id" emptyMessage={search.trim() ? `No sales orders match "${search}".` : undefined} />
         </div>
     );
 };

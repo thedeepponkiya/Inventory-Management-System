@@ -28,10 +28,11 @@ async function getNextPoNo() {
 async function create(poNo, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "poNo", "vendorId", "poDate", "expectedDeliveryDate", "deliveryAddress", "paymentTerms", status, items,
+      "poNo", "vendorId", "poDate", "expectedDeliveryDate", "deliveryAddress", "paymentTerms", status,
+      "paymentStatus", "paidAmount", currency, items,
       "totalItems", "totalQty", "subTotal", "discountAmount", "gstAmount",
       "grandTotal", remarks, "createdBy", "approvedBy", "approvedAt"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     RETURNING *`,
     [
       poNo,
@@ -41,6 +42,9 @@ async function create(poNo, fields) {
       fields.deliveryAddress,
       fields.paymentTerms,
       fields.status,
+      fields.paymentStatus,
+      fields.paidAmount,
+      fields.currency,
       JSON.stringify(fields.items),
       fields.totalItems,
       fields.totalQty,
@@ -61,10 +65,11 @@ async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
       "vendorId" = $1, "poDate" = $2, "expectedDeliveryDate" = $3, "deliveryAddress" = $4, "paymentTerms" = $5, status = $6,
-      items = $7, "totalItems" = $8, "totalQty" = $9, "subTotal" = $10, "discountAmount" = $11,
-      "gstAmount" = $12, "grandTotal" = $13,
-      remarks = $14, "createdBy" = $15, "approvedBy" = $16, "approvedAt" = $17, "updatedAt" = now()
-    WHERE id = $18
+      "paymentStatus" = $7, "paidAmount" = $8, currency = $9,
+      items = $10, "totalItems" = $11, "totalQty" = $12, "subTotal" = $13, "discountAmount" = $14,
+      "gstAmount" = $15, "grandTotal" = $16,
+      remarks = $17, "createdBy" = $18, "approvedBy" = $19, "approvedAt" = $20, "updatedAt" = now()
+    WHERE id = $21
     RETURNING *`,
     [
       fields.vendorId,
@@ -73,6 +78,9 @@ async function update(id, fields) {
       fields.deliveryAddress,
       fields.paymentTerms,
       fields.status,
+      fields.paymentStatus,
+      fields.paidAmount,
+      fields.currency,
       JSON.stringify(fields.items),
       fields.totalItems,
       fields.totalQty,

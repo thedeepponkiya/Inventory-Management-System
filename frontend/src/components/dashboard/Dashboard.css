@@ -35,13 +35,21 @@
 
 .dashboard-main-col > .dashboard-card,
 .dashboard-side-col > .dashboard-card {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    /* Keeps Recent Orders / Low Stock Alerts a consistent size whether they're full or
-       showing an empty state, instead of the card shrinking to fit whatever little content
-       is there - the two still stretch to match each other on top of this floor. */
-    min-height: 420px;
+    /* A REAL height, not just a min-height floor, and no flex-grow (flex:1's flex-basis:0%
+       would otherwise fight with this explicit height). CSS Grid's align-items:stretch on
+       .dashboard-grid can only stretch the shorter column to match the taller one's natural
+       (content-driven) size - it can't shrink an over-grown one back down. Without a fixed
+       height here, increasing Low Stock Alerts' rows-per-page (10 -> 25 -> 50) would grow its
+       DataTable's natural height, which grows this card, which grows the whole grid row, and
+       Recent Orders would stretch taller too just to match. Fixing the height here breaks
+       that growth: the DataTable (flex:1 1 auto; min-height:0 - see DataTable.css's
+       .app-data-table.p-datatable) is then forced to fit the remaining space and scroll
+       internally instead. */
+    height: 420px;
+    flex-shrink: 0;
+    overflow: hidden;
 }
 
 .dashboard-card {
@@ -108,6 +116,41 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* In a header (unlike a full-width toolbar), .dashboard-search shouldn't stretch to fill -
+   the header hugs its own content via justify-content:space-between, so flex:1 alone has
+   nothing to grow against and the box would render at its cramped min-content width. */
+.dashboard-card-header-actions .dashboard-search {
+    flex: none;
+    width: 200px;
+}
+
+/* Small icon+input search box reused by any dashboard card's toolbar/header (Low Stock
+   Alerts, SKU Movement, Recent Sales Orders, ...). Lives here rather than in one card's own
+   CSS module since these are plain global stylesheets, not scoped CSS modules - defining it
+   next to the other shared card primitives makes that sharing explicit instead of relying on
+   another card's CSS happening to already be loaded on the page. */
+.dashboard-search {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.dashboard-search .p-inputtext {
+    width: 100%;
+    padding-left: 30px;
+    font-size: 12px;
+}
+
+.dashboard-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    font-size: 14px;
+    pointer-events: none;
 }
 
 .dashboard-chart-type-toggle {

@@ -1,30 +1,213 @@
+.sku-movement-header {
+    align-items: flex-start;
+}
+
+.sku-movement-header-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.sku-movement-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.sku-movement-header-right .dashboard-search {
+    flex: none;
+    width: 220px;
+}
+
+.sku-movement-header-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sku-movement-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.sku-movement-subtitle {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+}
+
 .dashboard-movement-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    gap: 20px;
 }
 
 @media (max-width: 900px) {
     .dashboard-movement-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
     }
 }
 
-.dashboard-movement-col {
+.sku-movement-panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 18px;
     min-width: 0;
 }
 
-.dashboard-movement-col:first-child {
-    padding-right: 24px;
-    border-right: 1px solid var(--border-subtle);
+.sku-movement-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-@media (max-width: 900px) {
-    .dashboard-movement-col:first-child {
-        padding-right: 0;
-        border-right: none;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border-subtle);
-    }
+.sku-movement-panel-icon {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
+.sku-movement-panel-icon--negative {
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
+}
+
+.sku-movement-panel-icon--positive {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.sku-movement-panel-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.sku-movement-panel-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+}
+
+.sku-movement-panel-badge--negative {
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
+}
+
+.sku-movement-panel-badge--positive {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.sku-movement-panel-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 6px 0 16px;
+}
+
+.sku-movement-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.sku-movement-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.sku-movement-item:first-child {
+    padding-top: 0;
+}
+
+.sku-movement-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sku-movement-item-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sku-movement-item-icon--negative {
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
+}
+
+.sku-movement-item-icon--positive {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.sku-movement-item-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.sku-movement-item-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.sku-movement-item-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.sku-movement-item-meta {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.sku-movement-item-value {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.sku-movement-item-value--negative {
+    color: var(--accent-danger-text);
+}
+
+.sku-movement-item-value--positive {
+    color: var(--accent-success-text);
+}
+
+.sku-movement-item-unit {
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 2px;
+}
+
+.sku-movement-item-value--positive + .sku-movement-item-unit {
+    color: var(--accent-success-text);
+}
+

@@ -1,6 +1,7 @@
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Received' | 'Cancelled';
+export type PurchaseOrderPaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
 
 export interface PurchaseOrderItem {
     skuId: string;
@@ -30,6 +31,9 @@ export interface PurchaseOrder {
     deliveryAddress: string | null;
     paymentTerms: string | null;
     status: PurchaseOrderStatus;
+    paymentStatus: PurchaseOrderPaymentStatus;
+    paidAmount: number;
+    currency: string;
     items: PurchaseOrderItem[];
     totalItems: number;
     totalQty: number;
@@ -52,6 +56,9 @@ export interface PurchaseOrderPayload {
     deliveryAddress: string | null;
     paymentTerms: string | null;
     status: PurchaseOrderStatus;
+    paymentStatus: PurchaseOrderPaymentStatus;
+    paidAmount: number;
+    currency: string;
     items: PurchaseOrderItem[];
     totalItems: number;
     totalQty: number;
@@ -91,6 +98,7 @@ function normalizePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
         discountAmount: Number(po.discountAmount),
         gstAmount: Number(po.gstAmount),
         grandTotal: Number(po.grandTotal),
+        paidAmount: Number(po.paidAmount),
     };
 }
 

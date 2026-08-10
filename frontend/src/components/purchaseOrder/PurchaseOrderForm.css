@@ -203,6 +203,12 @@
     }
 }
 
+.po-currency-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .purchase-order-form-full {
     grid-column: 1 / -1;
 }

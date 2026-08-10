@@ -25,6 +25,7 @@ import {
     HiOutlineLockClosed,
     HiOutlineMapPin,
     HiOutlineDocumentText,
+    HiOutlineCurrencyRupee,
 } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
@@ -35,6 +36,7 @@ import {
     type PurchaseOrderItem,
     type PurchaseOrderPayload,
     type PurchaseOrderStatus,
+    type PurchaseOrderPaymentStatus,
 } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
 import type { Unit } from '../../services/unitService';
@@ -45,6 +47,10 @@ import './PurchaseOrderForm.css';
 
 const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Received', 'Cancelled'];
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
+const paymentStatusOptions: PurchaseOrderPaymentStatus[] = ['Unpaid', 'Partial', 'Paid'];
+// Single fixed option - no multi-currency conversion logic exists anywhere in this app,
+// this is purely a display field (see schema.sql's comment on ims_purchase_order.currency).
+const currencyOptions = ['INR - Indian Rupee'];
 
 let nextItemRowId = 1;
 
@@ -93,6 +99,9 @@ const PurchaseOrderForm = () => {
     const [deliveryAddress, setDeliveryAddress] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [paymentTerms, setPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [status, setStatus] = useState<PurchaseOrderStatus>('Draft');
+    const [paymentStatus, setPaymentStatus] = useState<PurchaseOrderPaymentStatus>('Unpaid');
+    const [paidAmount, setPaidAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [currency, setCurrency] = useState(currencyOptions[0]);
     const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [approvedBy, setApprovedBy] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [approvedAt, setApprovedAt] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -114,6 +123,9 @@ const PurchaseOrderForm = () => {
             setDeliveryAddress(existingPo.deliveryAddress ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setPaymentTerms(existingPo.paymentTerms);
             setStatus(existingPo.status);
+            setPaymentStatus(existingPo.paymentStatus);
+            setPaidAmount(existingPo.paidAmount);
+            setCurrency(existingPo.currency);
             setRemarks(existingPo.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setApprovedBy(existingPo.approvedBy ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setApprovedAt(existingPo.approvedAt ? new Date(existingPo.approvedAt) : DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -294,6 +306,9 @@ const PurchaseOrderForm = () => {
             deliveryAddress: deliveryAddress || DEFAULT_DATA_TYPE_VALUE.NULL,
             paymentTerms,
             status,
+            paymentStatus,
+            paidAmount,
+            currency,
             items: computedItems,
             totalItems: computedItems.length,
             totalQty: totals.totalQty,
@@ -433,6 +448,25 @@ const PurchaseOrderForm = () => {
                                         <div className="form-field">
                                             <label>Approved At</label>
                                             <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isLocked} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Payment Status</label>
+                                            <Dropdown value={paymentStatus} onChange={(e) => setPaymentStatus(e.value)} options={paymentStatusOptions} placeholder="Select payment status" />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Paid Amount (Rs.)</label>
+                                            <InputNumber value={paidAmount} onValueChange={(e) => setPaidAmount(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} max={totals.grandTotal} />
+                                        </div>
+                                        <div className="form-field">
+                                            <label>Currency</label>
+                                            <Dropdown
+                                                value={currency}
+                                                onChange={(e) => setCurrency(e.value)}
+                                                options={currencyOptions}
+                                                valueTemplate={(option) => (option ? <span className="po-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span> : 'Select currency')}
+                                                itemTemplate={(option) => <span className="po-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span>}
+                                                disabled={isLocked}
+                                            />
                                         </div>
                                     </div>
                                 </div>

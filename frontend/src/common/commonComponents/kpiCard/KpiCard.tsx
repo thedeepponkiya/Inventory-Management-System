@@ -1,5 +1,4 @@
 import type { IconType } from 'react-icons';
-import { HiArrowUp, HiArrowDown } from 'react-icons/hi2';
 import './KpiCard.css';
 
 export interface KpiCardProps {
@@ -16,7 +15,6 @@ export interface KpiCardProps {
 
 export const KpiCard = ({
     icon: Icon,
-    iconBg = '#dbeafe',
     iconColor = '#2563eb',
     label,
     value,
@@ -28,21 +26,17 @@ export const KpiCard = ({
     return (
         <div className={`kpi-card ${onClick ? 'kpi-card--clickable' : ''}`} onClick={onClick}>
             <div className="kpi-card-top">
-                <div className="kpi-card-icon" style={{ backgroundColor: iconBg, color: iconColor }}>
-                    <Icon size={22} />
+                <div className="kpi-card-icon" style={{ color: iconColor }}>
+                    <Icon size={34} />
                 </div>
                 <div className="kpi-card-text">
                     <div className="kpi-card-label">{label}</div>
-                    <div className="kpi-card-value">{value}</div>
+                    <div className="kpi-card-value">
+                        {value}
+                        {delta && <span className={`kpi-card-value-delta kpi-card-value-delta--${delta.direction}`}>({delta.value})</span>}
+                    </div>
                 </div>
             </div>
-            {delta && (
-                <div className={`kpi-card-delta kpi-card-delta--${delta.direction}`}>
-                    {delta.direction === 'up' && <HiArrowUp size={12} />}
-                    {delta.direction === 'down' && <HiArrowDown size={12} />}
-                    <span>{delta.value}</span>
-                </div>
-            )}
             {sublabel && <div className="kpi-card-sublabel">{sublabel}</div>}
             {linkLabel && (
                 <div className="kpi-card-link" style={{ color: iconColor }}>
