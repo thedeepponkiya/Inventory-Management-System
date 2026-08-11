@@ -19,6 +19,14 @@ async function findByCode(bomCode) {
   return result.rows[0];
 }
 
+// Locks the BOM row (via `FOR UPDATE`) for the duration of a complete/revert transaction, so
+// two concurrent requests against the same order can't both see status = 'Process' and both
+// proceed. Only ever called with a transaction client, never the bare pool.
+async function findByIdForUpdate(id, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE id = $1 FOR UPDATE`, [id]);
+  return result.rows[0];
+}
+
 function randomOrderCode() {
   const bytes = crypto.randomBytes(8);
   let suffix = '';
@@ -61,8 +69,11 @@ async function create(bomCode, fields) {
   return result.rows[0];
 }
 
-async function update(id, fields) {
-  const result = await pool.query(
+// Accepts an optional transaction client (`db`), same reasoning as rawSku.model.js's
+// adjustStockBySkuCode - completeBom/revertBomToProcess need this update to commit or roll
+// back atomically together with the raw-material/finished-good stock adjustments.
+async function update(id, fields, db = pool) {
+  const result = await db.query(
     `UPDATE ${TABLE} SET
       "productSku" = $1, "productName" = $2, "categoryName" = $3, version = $4, "outputQty" = $5,
       unit = $6, status = $7, items = $8, "createdBy" = $9, "updatedAt" = now()
@@ -84,8 +95,8 @@ async function update(id, fields) {
   return result.rows[0];
 }
 
-async function remove(id) {
-  await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
+async function remove(id, db = pool) {
+  await db.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, findByCode, generateOrderCode, create, update, remove };
+module.exports = { getAll, findById, findByCode, findByIdForUpdate, generateOrderCode, create, update, remove };

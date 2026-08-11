@@ -85,6 +85,13 @@ interface AppDataTableProps<T> {
     sortable?: boolean;
     filterable?: boolean;
     height?: string;
+    // Adds a checkbox column (select-all in the header, per-row below) - selection state is
+    // controlled by the caller (see useBulkDelete.ts), same as every other piece of DataTable
+    // state that already lives outside this component (filters are the one exception, kept
+    // local since no page has ever needed to read/drive them from outside).
+    selectable?: boolean;
+    selection?: T[];
+    onSelectionChange?: (rows: T[]) => void;
 }
 
 function buildDefaultFilters<T>(columns: ColumnConfig<T>[]): DataTableFilterMeta {
@@ -111,7 +118,7 @@ function renderDropdownFilter(placeholder: string, options: string[]) {
     );
 }
 
-function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
+function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange }: AppDataTableProps<T>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
 
     const emptyTitle = emptyMessage ?? 'No results found';
@@ -143,7 +150,16 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             scrollHeight={paginator ? height : undefined}
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            selectionMode={selectable ? 'checkbox' : null}
+            // PrimeReact's own DataTable generic is keyed off its `value` prop's element type,
+            // which our T-generic wrapper can't propagate through cleanly - same class of
+            // library-type mismatch as e.g. salesOrderInvoicePdf.ts's `(doc as any).lastAutoTable`.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            selection={(selectable ? (selection ?? []) : undefined) as any}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onSelectionChange={selectable && onSelectionChange ? (e: any) => onSelectionChange(e.value as T[]) : undefined}
         >
+            {selectable && <Column key="__selection" selectionMode="multiple" headerStyle={{ width: '3rem' }} style={{ width: '3rem' }} />}
             {actionBodyTemplate && (
                 <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} style={actionColumnStyle} />
             )}

@@ -43,7 +43,7 @@ const navGroups = [
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
-            { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
+            { label: 'BOM', path: '/bom', icon: HiOutlineSquare3Stack3D },
             { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
         ],
     },

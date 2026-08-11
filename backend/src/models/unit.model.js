@@ -17,18 +17,18 @@ async function findByUnit(unit) {
   return result.rows[0];
 }
 
-async function create(unit, status) {
+async function create(unit, status, description) {
   const result = await pool.query(
-    `INSERT INTO ${TABLE} (unit, status) VALUES ($1, $2) RETURNING *`,
-    [unit, status]
+    `INSERT INTO ${TABLE} (unit, description, status) VALUES ($1, $2, $3) RETURNING *`,
+    [unit, description, status]
   );
   return result.rows[0];
 }
 
-async function update(id, unit, status) {
+async function update(id, unit, status, description) {
   const result = await pool.query(
-    `UPDATE ${TABLE} SET unit = $1, status = $2 WHERE id = $3 RETURNING *`,
-    [unit, status, id]
+    `UPDATE ${TABLE} SET unit = $1, description = $2, status = $3 WHERE id = $4 RETURNING *`,
+    [unit, description, status, id]
   );
   return result.rows[0];
 }

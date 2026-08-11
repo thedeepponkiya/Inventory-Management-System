@@ -263,11 +263,11 @@ const CrmDashboardPage = () => {
                 <KpiCardRow
                     columns={5}
                     items={[
-                        { icon: HiOutlineUsers, label: 'Total Leads', value: kpis.totalLeads, iconBg: '#dbeafe', iconColor: '#2563eb', sublabel: 'All leads in your pipeline', linkLabel: 'View all leads', onClick: () => navigate('/crm/leads') },
-                        { icon: HiOutlineBanknotes, label: 'Open Pipeline Value', value: `Rs. ${kpis.openPipelineValue.toLocaleString('en-IN')}`, iconBg: '#dcfce7', iconColor: '#16a34a', sublabel: 'Active deals not yet closed', linkLabel: 'View pipeline', onClick: () => navigate('/crm/leads') },
-                        { icon: HiOutlineTrophy, label: 'Won', value: kpis.won, iconBg: '#dcfce7', iconColor: '#16a34a', sublabel: 'Deals marked Won', linkLabel: 'View leads', onClick: () => navigate('/crm/leads') },
-                        { icon: HiOutlineXCircle, label: 'Lost', value: kpis.lost, iconBg: '#fee2e2', iconColor: '#dc2626', sublabel: 'Deals marked Lost', linkLabel: 'View leads', onClick: () => navigate('/crm/leads') },
-                        { icon: HiOutlineExclamationTriangle, label: 'Overdue Follow-ups', value: kpis.overdueFollowups, iconBg: '#fef3c7', iconColor: '#d97706', sublabel: 'Pending follow-ups past due', linkLabel: 'View follow-ups', onClick: () => navigate('/crm/followups') },
+                        { icon: HiOutlineUsers, label: 'Total Leads', value: kpis.totalLeads, iconColor: '#2563eb', sublabel: 'All leads in your pipeline', linkLabel: 'View all leads', onClick: () => navigate('/crm/leads') },
+                        { icon: HiOutlineBanknotes, label: 'Open Pipeline Value', value: `Rs. ${kpis.openPipelineValue.toLocaleString('en-IN')}`, iconColor: '#16a34a', sublabel: 'Active deals not yet closed', linkLabel: 'View pipeline', onClick: () => navigate('/crm/leads') },
+                        { icon: HiOutlineTrophy, label: 'Won', value: kpis.won, iconColor: '#16a34a', sublabel: 'Deals marked Won', linkLabel: 'View leads', onClick: () => navigate('/crm/leads') },
+                        { icon: HiOutlineXCircle, label: 'Lost', value: kpis.lost, iconColor: '#dc2626', sublabel: 'Deals marked Lost', linkLabel: 'View leads', onClick: () => navigate('/crm/leads') },
+                        { icon: HiOutlineExclamationTriangle, label: 'Overdue Follow-ups', value: kpis.overdueFollowups, iconColor: '#d97706', sublabel: 'Pending follow-ups past due', linkLabel: 'View follow-ups', onClick: () => navigate('/crm/followups') },
                     ]}
                 />
             </div>

@@ -100,10 +100,23 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-// Atomic increment/decrement (delta can be negative) used by BOM complete/revert to adjust
-// a Raw SKU's stock without a read-then-write race. No-ops if skuCode doesn't match any row.
-async function adjustStockBySkuCode(skuCode, delta) {
-  await pool.query(`UPDATE ${TABLE} SET "currentStock" = "currentStock" + $1, "updatedAt" = now() WHERE "skuCode" = $2`, [delta, skuCode]);
+// Atomic increment/decrement (delta can be negative) used by BOM complete/revert and
+// Material Inward receiving to adjust a Raw SKU's stock without a read-then-write race.
+// No-ops if skuCode doesn't match any row. Accepts an optional transaction client (`db`) so
+// callers that need this inside a BEGIN/COMMIT block (e.g. bom.controller.js's completeBom,
+// which validates-then-deducts multiple SKUs atomically) can pass one in; defaults to the
+// shared pool for every existing call site that doesn't need a transaction.
+async function adjustStockBySkuCode(skuCode, delta, db = pool) {
+  await db.query(`UPDATE ${TABLE} SET "currentStock" = "currentStock" + $1, "updatedAt" = now() WHERE "skuCode" = $2`, [delta, skuCode]);
 }
 
-module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode };
+// Used by bom.controller.js's completeBom to check (and, via `FOR UPDATE`, lock) a raw
+// material's live stock before deducting - prevents two concurrent BOM completions from both
+// reading the same starting stock and both passing a sufficiency check that only one of them
+// should have passed. Only ever called with a transaction client, never the bare pool.
+async function findByCodeForUpdate(skuCode, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE "skuCode" = $1 FOR UPDATE`, [skuCode]);
+  return result.rows[0];
+}
+
+module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode, findByCodeForUpdate };

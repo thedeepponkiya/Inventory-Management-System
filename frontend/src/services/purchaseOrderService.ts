@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Received' | 'Cancelled';
@@ -21,6 +22,35 @@ export interface PurchaseOrderItem {
     remarks: string;
 }
 
+// One row per Transaction History entry (see purchaseOrderPayment.controller.js) - the PO's
+// own paidAmount is always the sum of these, never typed in directly. paymentTerms/approvedBy/
+// approvedAt live here (per-transaction) rather than on the PO itself, since a given payment
+// can be approved separately under its own terms.
+export interface PurchaseOrderPayment {
+    id: number;
+    poId: number;
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string | null;
+    remarks: string | null;
+    recordedBy: string | null;
+    createdAt: string;
+    paymentTerms: string | null;
+    approvedBy: string | null;
+    approvedAt: string | null;
+}
+
+export interface PurchaseOrderPaymentPayload {
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string | null;
+    remarks: string | null;
+    recordedBy?: string;
+    paymentTerms: string | null;
+    approvedBy: string | null;
+    approvedAt: string | null;
+}
+
 export interface PurchaseOrder {
     id: number;
     poNo: string;
@@ -28,13 +58,13 @@ export interface PurchaseOrder {
     vendorName: string;
     poDate: string;
     expectedDeliveryDate: string | null;
+    shippingDate: string | null;
     deliveryAddress: string | null;
-    paymentTerms: string | null;
     status: PurchaseOrderStatus;
     paymentStatus: PurchaseOrderPaymentStatus;
     paidAmount: number;
-    currency: string;
     items: PurchaseOrderItem[];
+    payments: PurchaseOrderPayment[];
     totalItems: number;
     totalQty: number;
     subTotal: number;
@@ -43,8 +73,6 @@ export interface PurchaseOrder {
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
-    approvedBy: string | null;
-    approvedAt: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -53,12 +81,11 @@ export interface PurchaseOrderPayload {
     vendorId: number;
     poDate: string;
     expectedDeliveryDate: string | null;
+    shippingDate: string | null;
     deliveryAddress: string | null;
-    paymentTerms: string | null;
     status: PurchaseOrderStatus;
     paymentStatus: PurchaseOrderPaymentStatus;
     paidAmount: number;
-    currency: string;
     items: PurchaseOrderItem[];
     totalItems: number;
     totalQty: number;
@@ -68,8 +95,6 @@ export interface PurchaseOrderPayload {
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
-    approvedBy: string | null;
-    approvedAt: string | null;
 }
 
 interface ApiResponse<T> {
@@ -99,17 +124,21 @@ function normalizePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
         gstAmount: Number(po.gstAmount),
         grandTotal: Number(po.grandTotal),
         paidAmount: Number(po.paidAmount),
+        // (po.payments ?? []) - defensive against an older cached response shape that
+        // predates this field; each entry's amount gets the same NUMERIC-comes-back-as-string
+        // coercion as the PO's own totals above.
+        payments: (po.payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })),
     };
 }
 
 export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
-    const response = await fetch(`${API_BASE_URL}/purchase-orders`);
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders`);
     const data = await parseResponse<PurchaseOrder[]>(response);
     return data.map(normalizePurchaseOrder);
 }
 
 export async function createPurchaseOrder(payload: PurchaseOrderPayload): Promise<PurchaseOrder> {
-    const response = await fetch(`${API_BASE_URL}/purchase-orders`, {
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -118,7 +147,7 @@ export async function createPurchaseOrder(payload: PurchaseOrderPayload): Promis
 }
 
 export async function updatePurchaseOrder(id: number, payload: Partial<PurchaseOrderPayload>): Promise<PurchaseOrder> {
-    const response = await fetch(`${API_BASE_URL}/purchase-orders/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -127,8 +156,28 @@ export async function updatePurchaseOrder(id: number, payload: Partial<PurchaseO
 }
 
 export async function deletePurchaseOrder(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/purchase-orders/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
+}
+
+// Both return the whole updated PurchaseOrder (with its paidAmount/paymentStatus/payments
+// already recomputed server-side) rather than just the new/deleted payment row - callers
+// refetch the PO list afterwards anyway (see PurchaseOrderForm.tsx), so this saves a second
+// round trip to pick up the recalculated totals.
+export async function addPurchaseOrderPayment(poId: number, payload: PurchaseOrderPaymentPayload): Promise<PurchaseOrder> {
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders/${poId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return normalizePurchaseOrder(await parseResponse<PurchaseOrder>(response));
+}
+
+export async function deletePurchaseOrderPayment(poId: number, paymentId: number): Promise<PurchaseOrder> {
+    const response = await authFetch(`${API_BASE_URL}/purchase-orders/${poId}/payments/${paymentId}`, {
+        method: 'DELETE',
+    });
+    return normalizePurchaseOrder(await parseResponse<PurchaseOrder>(response));
 }

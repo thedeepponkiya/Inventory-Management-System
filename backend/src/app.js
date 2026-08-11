@@ -1,6 +1,7 @@
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const { requireAuth } = require('./middleware/auth.middleware');
 const authRoutes = require('./routes/auth.routes');
 const locationRoutes = require('./routes/location.routes');
 const categoryRoutes = require('./routes/category.routes');
@@ -41,6 +42,9 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+// Everything below requires a valid session token - login/logout above already ran and
+// responded before Express would even reach this middleware for those two routes.
+app.use('/api/v1', requireAuth);
 app.use('/api/v1/locations', locationRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/product-types', productTypeRoutes);

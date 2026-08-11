@@ -19,9 +19,19 @@ async function findBySkuId(skuId) {
 
 // Atomic delta-update (mirrors rawSku.model.js's adjustStockBySkuCode) - used when a BOM
 // Order is Completed/reverted, so the finished-good's quantity is added to/subtracted from
-// directly rather than a read-then-write that could race with another update.
-async function adjustStockBySkuId(skuId, delta) {
-  await pool.query(`UPDATE ${TABLE} SET quantity = quantity + $1, "updatedAt" = now() WHERE "skuId" = $2`, [delta, skuId]);
+// directly rather than a read-then-write that could race with another update. Accepts an
+// optional transaction client (`db`), same reasoning as adjustStockBySkuCode.
+async function adjustStockBySkuId(skuId, delta, db = pool) {
+  await db.query(`UPDATE ${TABLE} SET quantity = quantity + $1, "updatedAt" = now() WHERE "skuId" = $2`, [delta, skuId]);
+}
+
+// Locks the Inventory row (via `FOR UPDATE`) while checking/adjusting stock inside a Sales
+// Order dispatch transaction, so two concurrent dispatches against the same SKU can't both
+// read the same starting quantity and both pass a sufficiency check. Only ever called with a
+// transaction client, never the bare pool.
+async function findBySkuIdForUpdate(skuId, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE "skuId" = $1 FOR UPDATE`, [skuId]);
+  return result.rows[0];
 }
 
 async function getNextSkuId() {
@@ -95,4 +105,4 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, findBySkuId, adjustStockBySkuId, getNextSkuId, create, update, remove };
+module.exports = { getAll, findById, findBySkuId, findBySkuIdForUpdate, adjustStockBySkuId, getNextSkuId, create, update, remove };

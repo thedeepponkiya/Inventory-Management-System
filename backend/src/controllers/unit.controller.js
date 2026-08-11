@@ -21,7 +21,7 @@ async function createUnit(req, res) {
       return res.status(409).json({ status: false, message: 'Unit already exists', data: null });
     }
 
-    const created = await UnitModel.create(unit, status || 'Active');
+    const created = await UnitModel.create(unit, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Unit created successfully', data: created });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -48,7 +48,8 @@ async function updateUnit(req, res) {
     const updated = await UnitModel.update(
       id,
       unit ?? existing.unit,
-      status ?? existing.status
+      status ?? existing.status,
+      req.body.description ?? existing.description
     );
     res.json({ status: true, message: 'Unit updated successfully', data: updated });
   } catch (err) {

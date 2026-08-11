@@ -6,19 +6,19 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { createRawSku, updateRawSku, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getRawSkuColumns, getActionBodyTemplate, getStockLevel } from '../../common/commonFunctions/CommonUtilities';
+import { getRawSkuColumns, getStockLevel, type RawSkuWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
@@ -108,24 +108,6 @@ const RawSku = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const handleDelete = (sku: RawSkuType) => {
-        confirmDialog({
-            message: `Delete SKU "${sku.skuName}"? This cannot be undone.`,
-            header: 'Delete SKU',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteRawSku(sku.id);
-                    fetchRawSkus();
-                    showToast(toast, 'success', 'Deleted', 'SKU deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
-    };
-
     const handleSave = async () => {
         if (!form.skuName.trim()) {
             showToast(toast, 'error', 'Error', 'SKU Name is required');
@@ -185,9 +167,13 @@ const RawSku = () => {
     // eslint-disable-next-line react-hooks/refs
     const columns = getRawSkuColumns(dateFormat, handleToggleStatus, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<RawSkuType>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<RawSkuWithStockLevel>({
+        getId: (row) => row.id,
+        deleteOne: deleteRawSku,
+        onDeleted: fetchRawSkus,
+        toast,
+        entityNamePlural: 'raw SKUs',
+    });
 
     return (
         <div className="raw-sku-page">
@@ -198,10 +184,34 @@ const RawSku = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchRawSkus} loading={rawSkusLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredSkus} columns={columns} loading={rawSkusLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredSkus}
+                columns={columns}
+                loading={rawSkusLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}

@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputNumber } from 'primereact/inputnumber';
+import { AutoComplete, type AutoCompleteProps } from 'primereact/autocomplete';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { TabView, TabPanel } from 'primereact/tabview';
@@ -25,32 +26,44 @@ import {
     HiOutlineLockClosed,
     HiOutlineMapPin,
     HiOutlineDocumentText,
-    HiOutlineCurrencyRupee,
+    HiOutlineExclamationTriangle,
+    HiOutlineBanknotes,
+    HiOutlineTrash,
 } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import StatusBadge, { type StatusVariant } from '../../common/commonComponents/statusBadge/StatusBadge';
 import { AppContext } from '../../context/AppContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
     createPurchaseOrder,
     updatePurchaseOrder,
+    addPurchaseOrderPayment,
+    deletePurchaseOrderPayment,
     type PurchaseOrder as PurchaseOrderType,
     type PurchaseOrderItem,
     type PurchaseOrderPayload,
     type PurchaseOrderStatus,
     type PurchaseOrderPaymentStatus,
+    type PurchaseOrderPayment,
 } from '../../services/purchaseOrderService';
 import type { Vendor } from '../../services/vendorService';
 import type { Unit } from '../../services/unitService';
+import type { User } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getPurchaseOrderItemColumns, getActionBodyTemplate, type PurchaseOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { getPurchaseOrderItemColumns, getPurchaseOrderPaymentColumns, getActionBodyTemplate, type PurchaseOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import './PurchaseOrderForm.css';
 
 const statusOptions: PurchaseOrderStatus[] = ['Draft', 'Sent', 'Received', 'Cancelled'];
+// Must match PAYMENT_METHODS in the backend's purchaseOrderPayment.controller.js exactly -
+// that's what actually validates an Add Payment submission server-side.
+const paymentMethodOptions = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'Other'];
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
-const paymentStatusOptions: PurchaseOrderPaymentStatus[] = ['Unpaid', 'Partial', 'Paid'];
-// Single fixed option - no multi-currency conversion logic exists anywhere in this app,
-// this is purely a display field (see schema.sql's comment on ims_purchase_order.currency).
-const currencyOptions = ['INR - Indian Rupee'];
+const paymentStatusVariant: Record<PurchaseOrderPaymentStatus, StatusVariant> = {
+    Unpaid: 'danger',
+    Partial: 'warning',
+    Paid: 'success',
+};
 
 let nextItemRowId = 1;
 
@@ -82,7 +95,8 @@ const PurchaseOrderForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditRoute = Boolean(id);
-    const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders, units } = useContext(AppContext);
+    const { vendors, users, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders, units } = useContext(AppContext);
+    const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const existingPo = useMemo(
@@ -90,26 +104,46 @@ const PurchaseOrderForm = () => {
         [isEditRoute, purchaseOrders, id],
     );
 
+    // Not local state - paidAmount is entirely server-derived (sum of Transaction History
+    // entries, see purchaseOrderPayment.controller.js) and never edited here, so it's read
+    // straight off existingPo every render instead of being copied into a useState once. That
+    // copy-once approach (via the "one-time sync" effect below) was the actual bug behind
+    // Order Summary not updating after Add Payment: fetchPurchaseOrders() refreshes
+    // existingPo just fine, but the effect's loadedForId guard (there so a background refetch
+    // never clobbers an in-progress *edit*) meant the copied value never got re-synced. Reading
+    // it live here instead means there's nothing to go stale.
+    const paidAmount = existingPo?.paidAmount ?? DEFAULT_DATA_TYPE_VALUE.ZERO;
+
     const [activeTab, setActiveTab] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [loadedForId, setLoadedForId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [currentPoNo, setCurrentPoNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [vendorId, setVendorId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [poDate, setPoDate] = useState<Date | null>(new Date());
     const [expectedDeliveryDate, setExpectedDeliveryDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [shippingDate, setShippingDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [deliveryAddress, setDeliveryAddress] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [paymentTerms, setPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [status, setStatus] = useState<PurchaseOrderStatus>('Draft');
-    const [paymentStatus, setPaymentStatus] = useState<PurchaseOrderPaymentStatus>('Unpaid');
-    const [paidAmount, setPaidAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
-    const [currency, setCurrency] = useState(currencyOptions[0]);
     const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [approvedBy, setApprovedBy] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [approvedAt, setApprovedAt] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [items, setItems] = useState<PurchaseOrderItemRow[]>([]);
 
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [itemForm, setItemForm] = useState<ItemForm>(emptyItemForm());
+
+    // Add Payment dialog (Transaction History tab) - each submission becomes its own row in
+    // ims_purchase_order_payments rather than editing a single "Paid Amount" number.
+    const [paymentDialogVisible, setPaymentDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const [paymentAmount, setPaymentAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
+    const [paymentMethod, setPaymentMethod] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [paymentRemarks, setPaymentRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [paymentSaving, setPaymentSaving] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    // Per-transaction terms/approval - lives on the payment itself (not the PO, which has no
+    // such fields of its own anymore) since a given payment can be approved separately.
+    const [paymentPaymentTerms, setPaymentPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [paymentApprovedBy, setPaymentApprovedBy] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [paymentApprovedBySuggestions, setPaymentApprovedBySuggestions] = useState<User[]>([]);
+    const [paymentApprovedAt, setPaymentApprovedAt] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     useEffect(() => {
         if (existingPo && loadedForId !== existingPo.id) {
@@ -120,15 +154,10 @@ const PurchaseOrderForm = () => {
             setVendorId(existingPo.vendorId);
             setPoDate(new Date(existingPo.poDate));
             setExpectedDeliveryDate(existingPo.expectedDeliveryDate ? new Date(existingPo.expectedDeliveryDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
+            setShippingDate(existingPo.shippingDate ? new Date(existingPo.shippingDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
             setDeliveryAddress(existingPo.deliveryAddress ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-            setPaymentTerms(existingPo.paymentTerms);
             setStatus(existingPo.status);
-            setPaymentStatus(existingPo.paymentStatus);
-            setPaidAmount(existingPo.paidAmount);
-            setCurrency(existingPo.currency);
             setRemarks(existingPo.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-            setApprovedBy(existingPo.approvedBy ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-            setApprovedAt(existingPo.approvedAt ? new Date(existingPo.approvedAt) : DEFAULT_DATA_TYPE_VALUE.NULL);
             setItems(existingPo.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
             setLoadedForId(existingPo.id);
         }
@@ -234,10 +263,111 @@ const PurchaseOrderForm = () => {
         return { totalItems: items.length, totalQty, subTotal, discountAmount, gstAmount, grandTotal };
     }, [items]);
 
+    // Payment Status is derived from Paid Amount vs. Grand Total rather than picked by hand -
+    // 0 paid is Unpaid, paid at/above the grand total is Paid, anything in between is Partial.
+    // Mirrors derivePaymentStatus in the backend's orderTotals.js, which recomputes the same
+    // thing authoritatively on save regardless of what this (or any direct API call) sends.
+    const paymentStatus: PurchaseOrderPaymentStatus = useMemo(() => {
+        if (paidAmount <= 0) return 'Unpaid';
+        if (totals.grandTotal <= 0) return 'Paid';
+        if (paidAmount >= totals.grandTotal) return 'Paid';
+        return 'Partial';
+    }, [paidAmount, totals.grandTotal]);
+
+    // Same progress-bar math as SalesOrderForm.tsx's balanceDue/paidPercent.
+    const balanceDue = Math.max(totals.grandTotal - paidAmount, DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const paidPercent = totals.grandTotal > 0 ? Math.min(100, Math.max(0, (paidAmount / totals.grandTotal) * 100)) : DEFAULT_DATA_TYPE_VALUE.ZERO;
+
     const selectedVendor = useMemo(
         () => (vendors as Vendor[]).find((v) => v.id === vendorId),
         [vendors, vendorId],
     );
+
+    const openPaymentDialog = () => {
+        setPaymentAmount(DEFAULT_DATA_TYPE_VALUE.ZERO);
+        setPaymentDate(new Date());
+        setPaymentMethod(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentRemarks(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setPaymentPaymentTerms(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentApprovedBy(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setPaymentApprovedBySuggestions([]);
+        setPaymentApprovedAt(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    };
+
+    // Suggests names from User Management (Active users, matched by name/email) as you type,
+    // or via the dropdown button - but still accepts free text, since Approved By has no FK to
+    // Users in the schema (an approver may not be a system user at all).
+    const searchPaymentApprovedByUsers = (e: Parameters<NonNullable<AutoCompleteProps<User>['completeMethod']>>[0]) => {
+        const query = e.query.trim().toLowerCase();
+        const activeUsers = (users as User[]).filter((u) => u.status === 'Active');
+        setPaymentApprovedBySuggestions(
+            query ? activeUsers.filter((u) => u.fullName.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)) : activeUsers,
+        );
+    };
+
+    // PrimeReact's typings say onChange's value is always the suggestion type (User) once a
+    // generic is supplied, but at runtime it's the *typed string* whenever nothing was picked
+    // from the dropdown (no forceSelection here, so free text stays allowed) - a real runtime
+    // union the static types don't capture, hence the cast.
+    const handlePaymentApprovedByChange = (e: Parameters<NonNullable<AutoCompleteProps<User>['onChange']>>[0]) => {
+        const value = e.value as unknown as string | User;
+        setPaymentApprovedBy(typeof value === 'string' ? value : value.fullName);
+    };
+
+    // Records one Transaction History entry against the already-saved PO - the backend
+    // recomputes paidAmount/paymentStatus from the full payments table itself (see
+    // purchaseOrderPayment.controller.js), so this just triggers a refetch afterwards rather
+    // than locally patching paidAmount, keeping one source of truth.
+    const handleAddPayment = async () => {
+        if (!existingPo) return;
+        if (paymentAmount <= 0) {
+            showToast(toast, 'error', 'Error', 'Amount must be greater than 0');
+            return;
+        }
+        if (!paymentDate) {
+            showToast(toast, 'error', 'Error', 'Payment date is required');
+            return;
+        }
+        setPaymentSaving(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            await addPurchaseOrderPayment(existingPo.id, {
+                amount: paymentAmount,
+                paymentDate: toIso(paymentDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                paymentMethod,
+                remarks: paymentRemarks || DEFAULT_DATA_TYPE_VALUE.NULL,
+                paymentTerms: paymentPaymentTerms,
+                approvedBy: paymentApprovedBy || DEFAULT_DATA_TYPE_VALUE.NULL,
+                approvedAt: toIso(paymentApprovedAt),
+            });
+            showToast(toast, 'success', 'Payment Recorded', 'Payment recorded successfully');
+            fetchPurchaseOrders();
+            setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        } finally {
+            setPaymentSaving(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        }
+    };
+
+    const handleDeletePayment = (payment: PurchaseOrderPayment) => {
+        if (!existingPo) return;
+        confirmDialog({
+            message: 'Are you sure you want to delete this payment entry? This cannot be undone.',
+            header: 'Delete Payment',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    await deletePurchaseOrderPayment(existingPo.id, payment.id);
+                    showToast(toast, 'success', 'Deleted', 'Payment entry deleted successfully');
+                    fetchPurchaseOrders();
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
+        });
+    };
 
     const handleCancel = () => {
         navigate('/purchase-order');
@@ -303,12 +433,11 @@ const PurchaseOrderForm = () => {
             vendorId,
             poDate: toIso(poDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
             expectedDeliveryDate: toIso(expectedDeliveryDate),
+            shippingDate: toIso(shippingDate),
             deliveryAddress: deliveryAddress || DEFAULT_DATA_TYPE_VALUE.NULL,
-            paymentTerms,
             status,
             paymentStatus,
             paidAmount,
-            currency,
             items: computedItems,
             totalItems: computedItems.length,
             totalQty: totals.totalQty,
@@ -318,13 +447,17 @@ const PurchaseOrderForm = () => {
             grandTotal: totals.grandTotal,
             remarks,
             createdBy: 'Admin User',
-            approvedBy: approvedBy || DEFAULT_DATA_TYPE_VALUE.NULL,
-            approvedAt: toIso(approvedAt),
         };
 
         try {
             if (isEditRoute && existingPo) {
-                await updatePurchaseOrder(existingPo.id, payload);
+                // Once locked, the Items table is already read-only in this form - explicitly
+                // omitting items here (rather than resending the unchanged array) lets the
+                // backend simply reject any update that DOES include items while non-Draft,
+                // closing off a direct-API bypass of the read-only UI (mirrors SalesOrderForm's
+                // identical isLocked handling).
+                const updatePayload = isLocked ? { ...payload, items: DEFAULT_DATA_TYPE_VALUE.UNDEFINED } : payload;
+                await updatePurchaseOrder(existingPo.id, updatePayload);
                 showToast(toast, 'success', 'Updated', 'Purchase order updated successfully');
             } else {
                 await createPurchaseOrder(payload);
@@ -353,6 +486,22 @@ const PurchaseOrderForm = () => {
     const itemActionTemplate = isLocked
         ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED
         : getActionBodyTemplate<PurchaseOrderItemRow>({ onDelete: (row) => removeItem(row.rowId) });
+
+    // Transaction History table - deleting a payment is always available regardless of
+    // isLocked, since recording payment is a financial action independent of the
+    // Draft-only Items lock (see the Add Payment button's own disabled condition below).
+    // Written by hand (mirroring getActionBodyTemplate's own onDelete rendering) instead of
+    // going through that helper - handleDeletePayment closes over the `toast` ref, and
+    // react-hooks/refs flags a ref-closing function being passed as a plain argument into a
+    // function call during render (even though getActionBodyTemplate only ever invokes it
+    // later, from inside a real onClick). Assigning the render function directly here, so
+    // the ref is only ever touched from within an actual onClick handler, sidesteps that.
+    const paymentColumns = getPurchaseOrderPaymentColumns(dateFormat);
+    const paymentActionTemplate = (payment: PurchaseOrderPayment) => (
+        <div className="data-table-actions">
+            <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDeletePayment(payment)} />
+        </div>
+    );
 
     if (isEditRoute && purchaseOrdersLoading) {
         return <div className="purchase-order-form-page">Loading purchase order…</div>;
@@ -397,6 +546,17 @@ const PurchaseOrderForm = () => {
                                             </div>
                                         </div>
                                         <div className="form-field">
+                                            <label>Vendor <span className="po-item-required">*</span></label>
+                                            <Dropdown
+                                                value={vendorId}
+                                                onChange={(e) => setVendorId(e.value)}
+                                                options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
+                                                placeholder="Select vendor"
+                                                disabled={isLocked}
+                                                filter
+                                            />
+                                        </div>
+                                        <div className="form-field">
                                             <label>PO Date <span className="po-item-required">*</span></label>
                                             <Calendar value={poDate} onChange={(e) => setPoDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
                                         </div>
@@ -417,63 +577,14 @@ const PurchaseOrderForm = () => {
                                     </div>
                                 </div>
 
-                                <div className="po-section">
-                                    <div className="po-section-title">Vendor Details</div>
-                                    <div className="purchase-order-form-grid">
-                                        <div className="form-field">
-                                            <label>Vendor <span className="po-item-required">*</span></label>
-                                            <Dropdown
-                                                value={vendorId}
-                                                onChange={(e) => setVendorId(e.value)}
-                                                options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
-                                                placeholder="Select vendor"
-                                                disabled={isLocked}
-                                                filter
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="po-section">
-                                    <div className="po-section-title">Payment Details</div>
-                                    <div className="purchase-order-form-grid">
-                                        <div className="form-field">
-                                            <label>Payment Terms</label>
-                                            <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isLocked} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Approved By</label>
-                                            <InputText value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Enter approver name (optional)" disabled={isLocked} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Approved At</label>
-                                            <Calendar value={approvedAt} onChange={(e) => setApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime disabled={isLocked} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Payment Status</label>
-                                            <Dropdown value={paymentStatus} onChange={(e) => setPaymentStatus(e.value)} options={paymentStatusOptions} placeholder="Select payment status" />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Paid Amount (Rs.)</label>
-                                            <InputNumber value={paidAmount} onValueChange={(e) => setPaidAmount(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} max={totals.grandTotal} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Currency</label>
-                                            <Dropdown
-                                                value={currency}
-                                                onChange={(e) => setCurrency(e.value)}
-                                                options={currencyOptions}
-                                                valueTemplate={(option) => (option ? <span className="po-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span> : 'Select currency')}
-                                                itemTemplate={(option) => <span className="po-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span>}
-                                                disabled={isLocked}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
 
                                 <div className="po-section po-section--last">
                                     <div className="po-section-title">Delivery And Notes</div>
                                     <div className="purchase-order-form-grid">
+                                        <div className="form-field">
+                                            <label>Shipping Date</label>
+                                            <Calendar value={shippingDate} onChange={(e) => setShippingDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon disabled={isLocked} />
+                                        </div>
                                         <div className="purchase-order-form-half-row">
                                             <div className="form-field">
                                                 <label>Delivery Address</label>
@@ -510,6 +621,42 @@ const PurchaseOrderForm = () => {
                                     emptyMessage="No items added yet."
                                 />
                             </TabPanel>
+
+                            <TabPanel header={<span className="po-tab-label"><HiOutlineBanknotes size={15} />Transaction History</span>}>
+                                <div className="purchase-order-items-header">
+                                    <h3>Payment Transactions</h3>
+                                    {/* Available regardless of isLocked - collecting payment is independent of the
+                                        Draft-only Items lock. Disabled once the balance is fully cleared instead. */}
+                                    <Button
+                                        label="Add Payment"
+                                        icon={<HiOutlinePlus className="mr-2" />}
+                                        size="small"
+                                        onClick={openPaymentDialog}
+                                        outlined
+                                        disabled={!existingPo || balanceDue <= 0}
+                                    />
+                                </div>
+                                {!existingPo ? (
+                                    <div className="po-preview-items-empty">
+                                        <div className="po-preview-items-empty-icon">
+                                            <HiOutlineBanknotes size={22} />
+                                        </div>
+                                        <div className="po-preview-items-empty-title">Save the Purchase Order first</div>
+                                        <div className="po-preview-items-empty-sub">Payments can only be recorded once the order has been saved.</div>
+                                    </div>
+                                ) : (
+                                    <DataTable
+                                        value={existingPo.payments}
+                                        columns={paymentColumns}
+                                        actionBodyTemplate={paymentActionTemplate}
+                                        rows={5}
+                                        sortable={false}
+                                        filterable={false}
+                                        dataKey="id"
+                                        emptyMessage="No payments recorded yet."
+                                    />
+                                )}
+                            </TabPanel>
                         </TabView>
                     </div>
                 </div>
@@ -536,10 +683,6 @@ const PurchaseOrderForm = () => {
                                 <div className="po-preview-label">Vendor</div>
                                 <div>{selectedVendor?.vendorName || '—'}</div>
                             </div>
-                            <div>
-                                <div className="po-preview-label">Payment Terms</div>
-                                <div>{paymentTerms || '—'}</div>
-                            </div>
                         </div>
 
                         <div className="po-preview-divider" />
@@ -554,26 +697,30 @@ const PurchaseOrderForm = () => {
                                 <div className="po-preview-items-empty-sub">Add items to see the summary</div>
                             </div>
                         ) : (
-                            <table className="po-preview-items-table">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Qty</th>
-                                        <th>Rate</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.filter((item) => item.itemName).map((item) => (
-                                        <tr key={item.rowId}>
-                                            <td>{item.itemName}</td>
-                                            <td>{item.orderedQty}</td>
-                                            <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
-                                            <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
+                            // Scrolls internally once past 5 rows, instead of pushing Totals/
+                            // Payment Status further and further down the panel as items grow.
+                            <div className="po-preview-items-scroll">
+                                <table className="po-preview-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Rate</th>
+                                            <th>Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {items.filter((item) => item.itemName).map((item) => (
+                                            <tr key={item.rowId}>
+                                                <td>{item.itemName}</td>
+                                                <td>{item.orderedQty}</td>
+                                                <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
+                                                <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
 
                         <div className="po-preview-divider" />
@@ -585,6 +732,31 @@ const PurchaseOrderForm = () => {
                         </div>
 
                         <div className="po-preview-grand-total"><span>Grand Total</span><span>Rs. {totals.grandTotal.toLocaleString('en-IN')}</span></div>
+
+                        <div className="po-preview-divider" />
+                        <div className="po-payment-progress">
+                            <div className="po-payment-progress-row">
+                                <span>Payment Status</span>
+                                <StatusBadge label={paymentStatus} variant={paymentStatusVariant[paymentStatus]} />
+                            </div>
+                            <div className="po-payment-progress-row">
+                                <span>Paid</span>
+                                <span>{formatRupees(paidAmount)}</span>
+                            </div>
+                            <div className="po-payment-progress-track">
+                                <div className="po-payment-progress-fill" style={{ width: `${paidPercent}%` }} />
+                            </div>
+                            <div className="po-payment-progress-row po-payment-progress-balance">
+                                <span>Balance due</span>
+                                <span className={balanceDue > 0 ? 'po-payment-balance-due' : 'po-payment-balance-clear'}>{formatRupees(balanceDue)}</span>
+                            </div>
+                        </div>
+                        {balanceDue > 0 && (
+                            <div className="po-preview-warning-banner">
+                                <HiOutlineExclamationTriangle size={16} />
+                                <span>Balance due of {formatRupees(balanceDue)} remains outstanding - collect payment before marking this order Received.</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -718,6 +890,86 @@ const PurchaseOrderForm = () => {
                             className="po-item-input"
                             value={itemForm.remarks}
                             onChange={(e) => setItemForm({ ...itemForm, remarks: e.target.value })}
+                            placeholder="Enter remarks (optional)"
+                            rows={3}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+
+            <Dialog
+                visible={paymentDialogVisible}
+                onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
+                header="Add Payment"
+                style={{ width: '480px' }}
+                className="po-item-dialog"
+                footer={
+                    <>
+                        <Button label="Cancel" outlined onClick={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} disabled={paymentSaving} />
+                        <Button label="Add Payment" icon={<HiOutlinePlus className="mr-2" />} onClick={handleAddPayment} loading={paymentSaving} />
+                    </>
+                }
+            >
+                <div className="po-item-form-body">
+                    <div className="po-item-form-grid">
+                        <div className="po-item-field">
+                            <label>Amount (Rs.) <span className="po-item-required">*</span></label>
+                            <div className="po-item-input-icon-wrapper">
+                                <span className="po-item-input-icon po-item-input-icon--text">₹</span>
+                                <InputNumber
+                                    className="po-item-input po-item-input--icon"
+                                    value={paymentAmount}
+                                    onValueChange={(e) => setPaymentAmount(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)}
+                                    mode="decimal"
+                                    minFractionDigits={2}
+                                    max={balanceDue}
+                                />
+                            </div>
+                            <span className="po-payment-balance-hint">Balance due: {formatRupees(balanceDue)}</span>
+                        </div>
+                        <div className="po-item-field">
+                            <label>Payment Date <span className="po-item-required">*</span></label>
+                            <Calendar value={paymentDate} onChange={(e) => setPaymentDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon />
+                        </div>
+                    </div>
+
+                    <div className="po-item-form-grid">
+                        <div className="po-item-field">
+                            <label>Payment Method</label>
+                            <Dropdown value={paymentMethod} onChange={(e) => setPaymentMethod(e.value)} options={paymentMethodOptions} placeholder="Select method (optional)" />
+                        </div>
+                        <div className="po-item-field">
+                            <label>Payment Terms</label>
+                            <Dropdown value={paymentPaymentTerms} onChange={(e) => setPaymentPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select terms (optional)" />
+                        </div>
+                    </div>
+
+                    <div className="po-item-form-grid">
+                        <div className="po-item-field">
+                            <label>Approved By</label>
+                            <AutoComplete
+                                value={paymentApprovedBy}
+                                suggestions={paymentApprovedBySuggestions}
+                                completeMethod={searchPaymentApprovedByUsers}
+                                field="fullName"
+                                onChange={handlePaymentApprovedByChange}
+                                placeholder="Enter approver name (optional)"
+                                dropdown
+                                panelClassName="po-approved-by-panel"
+                            />
+                        </div>
+                        <div className="po-item-field">
+                            <label>Approved At</label>
+                            <Calendar value={paymentApprovedAt} onChange={(e) => setPaymentApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime />
+                        </div>
+                    </div>
+
+                    <div className="po-item-field">
+                        <label>Remarks (Optional)</label>
+                        <InputTextarea
+                            className="po-item-input"
+                            value={paymentRemarks}
+                            onChange={(e) => setPaymentRemarks(e.target.value)}
                             placeholder="Enter remarks (optional)"
                             rows={3}
                         />

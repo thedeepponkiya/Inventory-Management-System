@@ -1,14 +1,17 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface Unit {
     id: number;
     unit: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
     createdAt: string;
 }
 
 export interface UnitPayload {
     unit: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
 }
 
@@ -27,12 +30,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getUnits(): Promise<Unit[]> {
-    const response = await fetch(`${API_BASE_URL}/units`);
+    const response = await authFetch(`${API_BASE_URL}/units`);
     return parseResponse<Unit[]>(response);
 }
 
 export async function createUnit(payload: UnitPayload): Promise<Unit> {
-    const response = await fetch(`${API_BASE_URL}/units`, {
+    const response = await authFetch(`${API_BASE_URL}/units`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -41,7 +44,7 @@ export async function createUnit(payload: UnitPayload): Promise<Unit> {
 }
 
 export async function updateUnit(id: number, payload: Partial<UnitPayload>): Promise<Unit> {
-    const response = await fetch(`${API_BASE_URL}/units/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/units/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -50,7 +53,7 @@ export async function updateUnit(id: number, payload: Partial<UnitPayload>): Pro
 }
 
 export async function deleteUnit(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/units/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/units/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

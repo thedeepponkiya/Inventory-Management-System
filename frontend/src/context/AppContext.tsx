@@ -15,8 +15,10 @@ import { getInventoryItems, type InventoryItem } from '../services/inventoryServ
 import { getBoms, type Bom } from '../services/bomService';
 import { getUsers, type User } from '../services/userService';
 import { AppContext } from './AppContextDefinition';
+import { useAuthContext } from './AuthContextDefinition';
 
 const AppContextProvider = (props: any) => {
+    const { isAuthenticated } = useAuthContext();
     const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [locations, setLocations] = React.useState<Location[]>([]);
     const [locationsLoading, setLocationsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
@@ -145,7 +147,14 @@ const AppContextProvider = (props: any) => {
             .finally(() => setUsersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    // Every fetch here needs a valid session token (see backend/src/middleware/auth.middleware.js),
+    // so firing them before login just silently 401s and never retries - this effect used to
+    // run once unconditionally on mount, which for a not-yet-logged-in user meant the whole
+    // app rendered permanently empty until a manual refresh (by which point login had already
+    // happened and the token existed). Depending on isAuthenticated makes it re-fire the
+    // moment login succeeds, instead of only on the next full page load.
     React.useEffect(() => {
+        if (!isAuthenticated) return;
         fetchLocations();
         fetchCategories();
         fetchProductTypes();
@@ -160,7 +169,7 @@ const AppContextProvider = (props: any) => {
         fetchInventories();
         fetchBoms();
         fetchUsers();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
+    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
 
     return (
         <>

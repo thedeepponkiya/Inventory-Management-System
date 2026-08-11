@@ -27,9 +27,8 @@ import type { Customer } from '../../services/customerService';
 import type { User } from '../../services/userService';
 import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { Transaction, TransactionType } from '../../mockData/transactionData';
-import type { RecentReport } from '../../mockData/reportData';
-import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus } from '../../services/purchaseOrderService';
-import type { SalesOrder, SalesOrderItem, SalesOrderStatus } from '../../services/salesOrderService';
+import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseOrderPayment } from '../../services/purchaseOrderService';
+import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment } from '../../services/salesOrderService';
 import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
 import type { Invoice, PaymentStatus } from '../../services/invoiceService';
 import type { Bom, BomItem } from '../../services/bomService';
@@ -805,6 +804,36 @@ export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[], onEdi
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
+// Transaction History tab (see PurchaseOrderForm.tsx) - one row per Add Payment dialog
+// submission. Delete is wired up via the caller's own actionBodyTemplate (getActionBodyTemplate),
+// same as getPurchaseOrderItemColumns above, not a column here.
+export const getPurchaseOrderPaymentColumns = (dateFormat: DateFormatOption): ColumnConfig<PurchaseOrderPayment>[] => [
+    { field: 'paymentDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency' },
+    { field: 'paymentMethod', header: 'Method', fieldType: 'text' },
+    { field: 'paymentTerms', header: 'Payment Terms', fieldType: 'text' },
+    { field: 'approvedBy', header: 'Approved By', fieldType: 'text' },
+    { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'remarks', header: 'Remarks', fieldType: 'text' },
+    { field: 'recordedBy', header: 'Recorded By', fieldType: 'text' },
+];
+
+// Transaction History tab (see SalesOrderForm.tsx) - exact mirror of
+// getPurchaseOrderPaymentColumns above. Delete is wired up via the caller's own hand-rolled
+// action render (same reasoning as PurchaseOrderForm.tsx's paymentActionTemplate - the delete
+// handler closes over the `toast` ref, which react-hooks/refs flags if routed through
+// getActionBodyTemplate).
+export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption): ColumnConfig<SalesOrderPayment>[] => [
+    { field: 'paymentDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency' },
+    { field: 'paymentMethod', header: 'Method', fieldType: 'text' },
+    { field: 'paymentTerms', header: 'Payment Terms', fieldType: 'text' },
+    { field: 'approvedBy', header: 'Approved By', fieldType: 'text' },
+    { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'remarks', header: 'Remarks', fieldType: 'text' },
+    { field: 'recordedBy', header: 'Recorded By', fieldType: 'text' },
+];
+
 const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {
     Draft: 'neutral',
     Confirmed: 'success',
@@ -825,13 +854,13 @@ export const getSalesOrderColumns = (dateFormat: DateFormatOption, onEditClick?:
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.soNo}</span>,
     },
-    { field: 'orderDate', header: 'SO Date', fieldType: 'date', options: { formatOption: dateFormat } },
     {
         field: 'customerName',
         header: 'Customer',
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.customerName}</span>,
     },
+    { field: 'orderDate', header: 'SO Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'deliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'status', header: 'Order Status', fieldType: 'status', options: { variantMap: salesOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Confirmed', 'Processing', 'Partially Shipped', 'Dispatched', 'Cancelled'] },
     { field: 'createdBy', header: 'Created By', fieldType: 'text' },
@@ -889,7 +918,7 @@ export const getSalesOrderItemColumns = (items: SalesOrderItemRow[], onEditClick
 export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: Bom) => void): ColumnConfig<Bom>[] => [
     {
         field: 'bomCode',
-        header: 'Order Code',
+        header: 'BOM Code',
         fieldType: 'text',
         // Only clickable while Process - editing a Completed order (stock already moved) is
         // blocked the same way the old pencil icon was hidden (see Bom.tsx's action column).
@@ -901,7 +930,7 @@ export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: 
         field: 'productName',
         header: 'Product Name',
         fieldType: 'text',
-        // Same Process-only click-to-edit rule as the Order Code column above.
+        // Same Process-only click-to-edit rule as the BOM Code column above.
         body: (row) => (row.status === 'Process'
             ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>
             : <span>{row.productName}</span>),
@@ -967,12 +996,4 @@ export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSku
             );
         },
     },
-];
-
-export const getReportsColumns = (): ColumnConfig<RecentReport>[] => [
-    { field: 'name', header: 'Report Name', fieldType: 'text' },
-    { field: 'type', header: 'Report Type', fieldType: 'status', options: { defaultVariant: 'info' } },
-    { field: 'generatedOn', header: 'Generated On', fieldType: 'text' },
-    { field: 'generatedBy', header: 'Generated By', fieldType: 'text' },
-    { field: 'format', header: 'Format', fieldType: 'status', options: { variantMap: { PDF: 'danger', Excel: 'success' } } },
 ];

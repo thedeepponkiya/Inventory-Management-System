@@ -1,8 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
-
-const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const { TOKEN_TTL_MS } = require('../config/authConfig');
 
 async function login(req, res) {
   try {

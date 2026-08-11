@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface Vendor {
@@ -35,12 +36,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getVendors(): Promise<Vendor[]> {
-    const response = await fetch(`${API_BASE_URL}/vendors`);
+    const response = await authFetch(`${API_BASE_URL}/vendors`);
     return parseResponse<Vendor[]>(response);
 }
 
 export async function createVendor(payload: VendorPayload): Promise<Vendor> {
-    const response = await fetch(`${API_BASE_URL}/vendors`, {
+    const response = await authFetch(`${API_BASE_URL}/vendors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -49,7 +50,7 @@ export async function createVendor(payload: VendorPayload): Promise<Vendor> {
 }
 
 export async function updateVendor(id: number, payload: Partial<VendorPayload>): Promise<Vendor> {
-    const response = await fetch(`${API_BASE_URL}/vendors/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/vendors/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -58,7 +59,7 @@ export async function updateVendor(id: number, payload: Partial<VendorPayload>):
 }
 
 export async function deleteVendor(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/vendors/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/vendors/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

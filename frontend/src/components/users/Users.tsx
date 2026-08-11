@@ -7,7 +7,6 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
 import {
     HiOutlinePlus,
     HiOutlineCheckCircle,
@@ -20,6 +19,8 @@ import {
     HiOutlineLockClosed,
     HiOutlinePhone,
     HiOutlineEnvelope,
+    HiOutlineTrash,
+    HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
@@ -27,8 +28,9 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createUser, updateUser, deleteUser, uploadUserImage, type User, type UserPayload } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getUsersColumns, getActionBodyTemplate, ROLE_OPTIONS, DEPARTMENT_OPTIONS } from '../../common/commonFunctions/CommonUtilities';
+import { getUsersColumns, ROLE_OPTIONS, DEPARTMENT_OPTIONS } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import './Users.css';
 
 interface UserFormState {
@@ -118,24 +120,6 @@ const Users = () => {
         }
     };
 
-    const handleDelete = (user: User) => {
-        confirmDialog({
-            message: `Delete user "${user.fullName}"? This cannot be undone.`,
-            header: 'Delete User',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteUser(user.id);
-                    fetchUsers();
-                    showToast(toast, 'success', 'Deleted', 'User deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
-    };
-
     const handleSave = async () => {
         try {
             const payload: UserPayload = {
@@ -175,9 +159,13 @@ const Users = () => {
 
     const columns = getUsersColumns(dateFormat, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<User>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<User>({
+        getId: (row) => row.id,
+        deleteOne: deleteUser,
+        onDeleted: fetchUsers,
+        toast,
+        entityNamePlural: 'users',
+    });
 
     return (
         <div className="users-page">
@@ -188,10 +176,34 @@ const Users = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, roleId: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL })}
-                actions={<Button label="Add User" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add User" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchUsers} loading={usersLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredUsers} columns={columns} loading={usersLoading} actionBodyTemplate={actionTemplate} actionColumnStyle={{ width: '80px' }} />
+            <DataTable
+                value={filteredUsers}
+                columns={columns}
+                loading={usersLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}

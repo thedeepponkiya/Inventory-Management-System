@@ -12,10 +12,17 @@ async function findById(id) {
   return result.rows[0];
 }
 
+// MAX-based (not COUNT-based) - see salesOrder.model.js's getNextSoNo for why COUNT(*)+1
+// silently collides with an already-used number whenever the sequence has any gap. Only
+// reached when there's no linked PO (see generateInwardNo in the controller, which mirrors
+// the PO's own number when one is linked).
 async function getNextInwardNo() {
   const year = new Date().getFullYear();
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE} WHERE "inwardNo" LIKE $1`, [`MI-${year}-%`]);
-  const nextSeq = Number(result.rows[0].count) + 1;
+  const result = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("inwardNo" FROM 9) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "inwardNo" ~ $1`,
+    [`^MI-${year}-[0-9]+$`]
+  );
+  const nextSeq = Number(result.rows[0].maxSeq) + 1;
   return `MI-${year}-${String(nextSeq).padStart(6, '0')}`;
 }
 

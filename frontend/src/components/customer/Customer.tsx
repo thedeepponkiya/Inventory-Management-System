@@ -3,16 +3,16 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createCustomer, updateCustomer, deleteCustomer, type Customer as CustomerType, type CustomerPayload } from '../../services/customerService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getCustomerColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getCustomerColumns } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import './Customer.css';
 
 const emptyForm: CustomerPayload = {
@@ -63,24 +63,6 @@ const Customer = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const handleDelete = (customer: CustomerType) => {
-        confirmDialog({
-            message: `Delete customer "${customer.customerName}"? This cannot be undone.`,
-            header: 'Delete Customer',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteCustomer(customer.id);
-                    fetchCustomers();
-                    showToast(toast, 'success', 'Deleted', 'Customer deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
-    };
-
     const handleSave = async () => {
         try {
             if (editingId) {
@@ -101,9 +83,13 @@ const Customer = () => {
 
     const columns = getCustomerColumns(dateFormat, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<CustomerType>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<CustomerType>({
+        getId: (row) => row.id,
+        deleteOne: deleteCustomer,
+        onDeleted: fetchCustomers,
+        toast,
+        entityNamePlural: 'customers',
+    });
 
     return (
         <div className="customer-page">
@@ -114,10 +100,34 @@ const Customer = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add Customer" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add Customer" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchCustomers} loading={customersLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredCustomers} columns={columns} loading={customersLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredCustomers}
+                columns={columns}
+                loading={customersLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}

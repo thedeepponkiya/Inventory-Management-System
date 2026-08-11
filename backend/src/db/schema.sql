@@ -42,6 +42,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_usercode_lower_idx ON users (LOWER("user
 CREATE TABLE IF NOT EXISTS ims_location (
     id SERIAL PRIMARY KEY,
     location VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -49,35 +50,45 @@ CREATE UNIQUE INDEX IF NOT EXISTS ims_location_location_lower_idx ON ims_locatio
 -- ims_location already existed live before "createdAt" was added to the CREATE TABLE block
 -- above, so this migrates any already-created table too (same pattern used by ims_raw_sku).
 ALTER TABLE ims_location ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Optional free-text note shown in the redesigned Add/Edit Location dialog (200-char limit
+-- enforced client-side, matching the VARCHAR(200) here).
+ALTER TABLE ims_location ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Categories master, backing /api/v1/categories CRUD.
 CREATE TABLE IF NOT EXISTS ims_category (
     id SERIAL PRIMARY KEY,
     category VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_category_category_lower_idx ON ims_category (LOWER(category));
 ALTER TABLE ims_category ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Optional free-text note, same as ims_location's - see its own comment above.
+ALTER TABLE ims_category ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Product types master, backing /api/v1/product-types CRUD.
 CREATE TABLE IF NOT EXISTS ims_product_type (
     id SERIAL PRIMARY KEY,
     "productType" VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_product_type_lower_idx ON ims_product_type (LOWER("productType"));
 ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Units of measure master, backing /api/v1/units CRUD.
 CREATE TABLE IF NOT EXISTS ims_unit (
     id SERIAL PRIMARY KEY,
     unit VARCHAR(20) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_unit_lower_idx ON ims_unit (LOWER(unit));
+ALTER TABLE ims_unit ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Vendors master, backing /api/v1/vendors CRUD.
 CREATE TABLE IF NOT EXISTS ims_vendor (
@@ -152,12 +163,11 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "vendorId" INTEGER NOT NULL REFERENCES ims_vendor(id),
     "poDate" DATE NOT NULL,
     "expectedDeliveryDate" DATE,
+    "shippingDate" DATE,
     "deliveryAddress" TEXT,
-    "paymentTerms" VARCHAR(50),
     status VARCHAR(20) NOT NULL DEFAULT 'Draft',
     "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
     "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
-    currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee',
     items JSONB NOT NULL DEFAULT '[]',
     "totalItems" INTEGER NOT NULL DEFAULT 0,
     "totalQty" NUMERIC NOT NULL DEFAULT 0,
@@ -167,8 +177,6 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
     remarks TEXT,
     "createdBy" VARCHAR(150),
-    "approvedBy" VARCHAR(150),
-    "approvedAt" TIMESTAMPTZ,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -189,7 +197,46 @@ UPDATE ims_purchase_order SET status = 'Sent' WHERE status = 'Approved';
 -- always derived as grandTotal - paidAmount, never stored separately.
 ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid';
 ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
-ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee';
+-- Payment Terms/Approved By/Approved At/Currency were removed from the PO form entirely
+-- (per-transaction equivalents already exist as needed - see Transaction History/Add
+-- Payment) - drops both the columns and any data in them for any DB that already had them.
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "paymentTerms";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "approvedBy";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "approvedAt";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS currency;
+-- ims_purchase_order already existed live before "shippingDate" was added to the CREATE TABLE
+-- block above (Delivery And Notes section), so this migrates any already-created table too.
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "shippingDate" DATE;
+
+-- One row per payment recorded against a Purchase Order (the "Transaction History" tab) -
+-- ims_purchase_order."paidAmount" is no longer typed in directly, it's always the SUM of this
+-- table's rows for that PO (recomputed server-side on every add/delete, see
+-- purchaseOrderPayment.controller.js), same "don't trust a single mutable number, derive it"
+-- reasoning as computeOrderTotals/derivePaymentStatus in orderTotals.js. ON DELETE CASCADE so
+-- deleting a PO cleans up its payment history automatically.
+CREATE TABLE IF NOT EXISTS ims_purchase_order_payments (
+    id SERIAL PRIMARY KEY,
+    "poId" INTEGER NOT NULL REFERENCES ims_purchase_order(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    "paymentDate" DATE NOT NULL,
+    "paymentMethod" VARCHAR(30),
+    remarks TEXT,
+    "recordedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Per-transaction (not PO-level - the PO no longer has its own paymentTerms/approvedBy/
+    -- approvedAt at all) terms/approval, since each payment can be approved separately under
+    -- its own terms.
+    "paymentTerms" VARCHAR(50),
+    "approvedBy" VARCHAR(150),
+    "approvedAt" TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ims_purchase_order_payments_po_idx ON ims_purchase_order_payments ("poId");
+-- ims_purchase_order_payments already existed live before paymentTerms/approvedBy/approvedAt
+-- were (re-)added to the CREATE TABLE block above, so this migrates any already-created table
+-- too.
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "paymentTerms" VARCHAR(50);
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "approvedBy" VARCHAR(150);
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMPTZ;
 
 -- Sales orders, backing /api/v1/sales-orders CRUD.
 -- "items" is a JSONB array of finished-good lines, each shaped like:
@@ -228,12 +275,35 @@ CREATE TABLE IF NOT EXISTS ims_sales_order (
 -- block above, so this migrates any already-created table too. "Remain Amount" (in the
 -- SO list/columns) is always derived as grandTotal - paidAmount, never stored separately.
 ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
--- Payment Terms/Purchase Order Ref./Currency - added for the redesigned Order Information
--- card. Currency is a single fixed option today (no multi-currency conversion logic
--- anywhere in this app) - stored as free text purely for display, not calculation.
-ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "paymentTerms" VARCHAR(50);
 ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "purchaseOrderRef" VARCHAR(100);
-ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS currency VARCHAR(50) NOT NULL DEFAULT 'INR - Indian Rupee';
+-- Payment Terms/Currency were tried at the SO level (mirroring ims_purchase_order's identical
+-- fields) and then removed again - the per-transaction equivalents on
+-- ims_sales_order_payments (Transaction History) cover the same need, see its own comment.
+-- Undoes the ADD COLUMN migration this same file previously carried, for any DB that already
+-- ran it.
+ALTER TABLE ims_sales_order DROP COLUMN IF EXISTS "paymentTerms";
+ALTER TABLE ims_sales_order DROP COLUMN IF EXISTS currency;
+
+-- One row per payment recorded against a Sales Order (the "Transaction History" tab) - exact
+-- mirror of ims_purchase_order_payments (see its comment for the full reasoning: paidAmount
+-- is derived as the SUM of these rows, never typed in directly, recomputed server-side on
+-- every add/delete). paymentTerms/approvedBy/approvedAt are per-transaction, independent of
+-- the SO's own same-named fields. ON DELETE CASCADE so deleting an SO cleans up its payment
+-- history automatically.
+CREATE TABLE IF NOT EXISTS ims_sales_order_payments (
+    id SERIAL PRIMARY KEY,
+    "soId" INTEGER NOT NULL REFERENCES ims_sales_order(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    "paymentDate" DATE NOT NULL,
+    "paymentMethod" VARCHAR(30),
+    remarks TEXT,
+    "recordedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "paymentTerms" VARCHAR(50),
+    "approvedBy" VARCHAR(150),
+    "approvedAt" TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ims_sales_order_payments_so_idx ON ims_sales_order_payments ("soId");
 
 -- Material inwards, backing /api/v1/material-inwards CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:

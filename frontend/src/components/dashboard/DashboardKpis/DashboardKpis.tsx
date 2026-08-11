@@ -33,12 +33,16 @@ const DashboardKpis = () => {
         () => inventoryList.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
         [inventoryList],
     );
+    // Excludes Cancelled orders - a cancelled PO/SO never actually happened financially, so
+    // counting its grandTotal here would overstate real purchase/sales value (same reasoning
+    // totalProfit below already applied via its dispatchedQty-only calc, just made explicit
+    // here too since these two sum grandTotal directly rather than deriving from dispatch).
     const totalPurchaseValue = useMemo(
-        () => purchaseOrderList.reduce((sum, po) => sum + po.grandTotal, 0),
+        () => purchaseOrderList.filter((po) => po.status !== 'Cancelled').reduce((sum, po) => sum + po.grandTotal, 0),
         [purchaseOrderList],
     );
     const totalSalesValue = useMemo(
-        () => salesOrderList.reduce((sum, so) => sum + so.grandTotal, 0),
+        () => salesOrderList.filter((so) => so.status !== 'Cancelled').reduce((sum, so) => sum + so.grandTotal, 0),
         [salesOrderList],
     );
     // Realized margin, not a theoretical one: only dispatchedQty counts (the point where
@@ -65,14 +69,13 @@ const DashboardKpis = () => {
         <KpiCardRow
             columns={6}
             items={[
-                { icon: HiOutlineCube, iconBg: '#e0f2fe', iconColor: '#0284c7', label: 'Total Inventory Stock', value: totalInventoryStock.toLocaleString('en-IN'), sublabel: 'Total units across Inventory Home', linkLabel: 'View inventory', onClick: () => navigate('/home') },
-                { icon: HiOutlineArchiveBox, iconBg: '#dbeafe', iconColor: '#2563eb', label: 'Total Finished SKUs', value: totalFinishedSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/raw-sku') },
-                { icon: HiOutlineClipboardDocumentCheck, iconBg: '#dcfce7', iconColor: '#16a34a', label: 'Total Stock Value', value: `₹${totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View inventory', onClick: () => navigate('/home') },
-                { icon: HiOutlineShoppingBag, iconBg: '#ede9fe', iconColor: '#7c3aed', label: 'Total Purchase Value', value: `₹${totalPurchaseValue.toLocaleString('en-IN')}`, sublabel: 'All purchase orders', linkLabel: 'View purchase orders', onClick: () => navigate('/purchase-order') },
-                { icon: HiOutlineCurrencyRupee, iconBg: '#ffedd5', iconColor: '#ea580c', label: 'Total Sales Value', value: `₹${totalSalesValue.toLocaleString('en-IN')}`, sublabel: 'All sales orders', linkLabel: 'View sales orders', onClick: () => navigate('/sales-order') },
+                { icon: HiOutlineCube, iconColor: '#0284c7', label: 'Total Inventory Stock', value: totalInventoryStock.toLocaleString('en-IN'), sublabel: 'Total units across Inventory Home', linkLabel: 'View inventory', onClick: () => navigate('/home') },
+                { icon: HiOutlineArchiveBox, iconColor: '#2563eb', label: 'Total Finished SKUs', value: totalFinishedSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/raw-sku') },
+                { icon: HiOutlineClipboardDocumentCheck, iconColor: '#16a34a', label: 'Total Stock Value', value: `₹${totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View inventory', onClick: () => navigate('/home') },
+                { icon: HiOutlineShoppingBag, iconColor: '#7c3aed', label: 'Total Purchase Value', value: `₹${totalPurchaseValue.toLocaleString('en-IN')}`, sublabel: 'All purchase orders', linkLabel: 'View purchase orders', onClick: () => navigate('/purchase-order') },
+                { icon: HiOutlineCurrencyRupee, iconColor: '#ea580c', label: 'Total Sales Value', value: `₹${totalSalesValue.toLocaleString('en-IN')}`, sublabel: 'All sales orders', linkLabel: 'View sales orders', onClick: () => navigate('/sales-order') },
                 {
                     icon: HiOutlineBanknotes,
-                    iconBg: totalProfit >= 0 ? '#dcfce7' : '#fee2e2',
                     iconColor: totalProfit >= 0 ? '#16a34a' : '#dc2626',
                     label: 'Total Profit',
                     value: `₹${totalProfit.toLocaleString('en-IN')}`,

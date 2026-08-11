@@ -14,12 +14,15 @@ function App() {
       <DateFormatContextProvider>
         <CompanyLogoContextProvider>
           <CompanySettingsContextProvider>
-            <AppContextProvider>
-              <AuthContextProvider>
+            {/* Auth wraps AppContext (not the other way around) so AppContext can read
+                isAuthenticated and only fire its data fetches once a token actually exists -
+                see AppContext.tsx's fetch-all effect. */}
+            <AuthContextProvider>
+              <AppContextProvider>
                 <ConfirmDialog />
                 <Router></Router>
-              </AuthContextProvider>
-            </AppContextProvider>
+              </AppContextProvider>
+            </AuthContextProvider>
           </CompanySettingsContextProvider>
         </CompanyLogoContextProvider>
       </DateFormatContextProvider>

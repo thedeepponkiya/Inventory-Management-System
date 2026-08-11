@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface AssemblyLine {
@@ -77,19 +78,19 @@ function normalizeInventoryItem(item: InventoryItem): InventoryItem {
 }
 
 export async function getInventoryItems(): Promise<InventoryItem[]> {
-    const response = await fetch(`${API_BASE_URL}/inventories`);
+    const response = await authFetch(`${API_BASE_URL}/inventories`);
     const data = await parseResponse<InventoryItem[]>(response);
     return data.map(normalizeInventoryItem);
 }
 
 export async function getNextSkuId(): Promise<string> {
-    const response = await fetch(`${API_BASE_URL}/inventories/next-sku-id`);
+    const response = await authFetch(`${API_BASE_URL}/inventories/next-sku-id`);
     const data = await parseResponse<{ skuId: string }>(response);
     return data.skuId;
 }
 
 export async function createInventoryItem(payload: InventoryPayload): Promise<InventoryItem> {
-    const response = await fetch(`${API_BASE_URL}/inventories`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -98,7 +99,7 @@ export async function createInventoryItem(payload: InventoryPayload): Promise<In
 }
 
 export async function updateInventoryItem(id: number, payload: Partial<InventoryPayload>): Promise<InventoryItem> {
-    const response = await fetch(`${API_BASE_URL}/inventories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -107,7 +108,7 @@ export async function updateInventoryItem(id: number, payload: Partial<Inventory
 }
 
 export async function deleteInventoryItem(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/inventories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
@@ -121,7 +122,7 @@ export async function deleteInventoryItem(id: number): Promise<void> {
 export async function uploadProductImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await fetch(`${API_BASE_URL}/uploads/product-image`, {
+    const response = await authFetch(`${API_BASE_URL}/uploads/product-image`, {
         method: 'POST',
         body: formData,
     });

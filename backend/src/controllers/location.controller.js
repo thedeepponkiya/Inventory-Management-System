@@ -21,7 +21,7 @@ async function createLocation(req, res) {
       return res.status(409).json({ status: false, message: 'Location already exists', data: null });
     }
 
-    const created = await LocationModel.create(location, status || 'Active');
+    const created = await LocationModel.create(location, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Location created successfully', data: created });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -48,7 +48,8 @@ async function updateLocation(req, res) {
     const updated = await LocationModel.update(
       id,
       location ?? existing.location,
-      status ?? existing.status
+      status ?? existing.status,
+      req.body.description ?? existing.description
     );
     res.json({ status: true, message: 'Location updated successfully', data: updated });
   } catch (err) {

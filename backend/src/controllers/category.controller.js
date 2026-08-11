@@ -21,7 +21,7 @@ async function createCategory(req, res) {
       return res.status(409).json({ status: false, message: 'Category already exists', data: null });
     }
 
-    const created = await CategoryModel.create(category, status || 'Active');
+    const created = await CategoryModel.create(category, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Category created successfully', data: created });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -48,7 +48,8 @@ async function updateCategory(req, res) {
     const updated = await CategoryModel.update(
       id,
       category ?? existing.category,
-      status ?? existing.status
+      status ?? existing.status,
+      req.body.description ?? existing.description
     );
     res.json({ status: true, message: 'Category updated successfully', data: updated });
   } catch (err) {

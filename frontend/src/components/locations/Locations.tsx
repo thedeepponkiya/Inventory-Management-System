@@ -1,23 +1,27 @@
 import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createLocation, updateLocation, deleteLocation, type Location as LocationType, type LocationPayload } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getLocationsColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getLocationsColumns } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import './Locations.css';
+
+const DESCRIPTION_MAX_LENGTH = 200;
 
 const emptyForm: LocationPayload = {
     location: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    description: DEFAULT_DATA_TYPE_VALUE.NULL,
     status: 'Active',
 };
 
@@ -51,27 +55,10 @@ const Locations = () => {
         setEditingId(location.id);
         setForm({
             location: location.location,
+            description: location.description,
             status: location.status,
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
-    };
-
-    const handleDelete = (location: LocationType) => {
-        confirmDialog({
-            message: `Delete location "${location.location}"? This cannot be undone.`,
-            header: 'Delete Location',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteLocation(location.id);
-                    fetchLocations();
-                    showToast(toast, 'success', 'Deleted', 'Location deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
     };
 
     const handleSave = async () => {
@@ -94,9 +81,13 @@ const Locations = () => {
 
     const columns = getLocationsColumns(dateFormat, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<LocationType>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<LocationType>({
+        getId: (row) => row.id,
+        deleteOne: deleteLocation,
+        onDeleted: fetchLocations,
+        toast,
+        entityNamePlural: 'locations',
+    });
 
     return (
         <div className="locations-page">
@@ -107,31 +98,80 @@ const Locations = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add Location" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add Location" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchLocations} loading={locationsLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredLocations} columns={columns} loading={locationsLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredLocations}
+                columns={columns}
+                loading={locationsLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Location' : 'Add New Location'}
-                style={{ width: '480px' }}
+                style={{ width: '520px' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
-                        <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                        <Button label="Save Location" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                     </>
                 }
             >
-                <div className="dialog-form-body">
+                <div className="location-dialog-body">
                     <div className="form-field">
-                        <label>Location Name</label>
-                        <InputText value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Enter location name" />
+                        <label>Location Name <span className="location-required">*</span></label>
+                        <InputText
+                            value={form.location}
+                            onChange={(e) => setForm({ ...form, location: e.target.value })}
+                            placeholder="Enter location name"
+                        />
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>Status</label>
-                        <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
+
+                    <div className="form-field location-field--tight">
+                        <label>Description <span className="location-optional">(Optional)</span></label>
+                        <InputTextarea
+                            value={form.description ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}
+                            onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, DESCRIPTION_MAX_LENGTH) })}
+                            rows={3}
+                            maxLength={DESCRIPTION_MAX_LENGTH}
+                            placeholder="Enter location description (optional)"
+                        />
+                        <span className="location-char-count">{(form.description ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING).length} / {DESCRIPTION_MAX_LENGTH}</span>
+                    </div>
+
+                    <div className="form-field">
+                        <label>Status <span className="location-required">*</span></label>
+                        <div className="location-status-row">
+                            <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
+                            <div className="location-status-text">
+                                <span className="location-status-title">{form.status === 'Active' ? 'Active' : 'Inactive'}</span>
+                                <span className="location-status-desc">
+                                    {form.status === 'Active' ? 'Location will be active and available for use.' : 'Location will be inactive and hidden.'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </Dialog>

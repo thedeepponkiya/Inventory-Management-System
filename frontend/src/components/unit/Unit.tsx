@@ -1,23 +1,27 @@
 import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createUnit, updateUnit, deleteUnit, type Unit as UnitModel, type UnitPayload } from '../../services/unitService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getUnitColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getUnitColumns } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import './Unit.css';
+
+const DESCRIPTION_MAX_LENGTH = 200;
 
 const emptyForm: UnitPayload = {
     unit: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    description: DEFAULT_DATA_TYPE_VALUE.NULL,
     status: 'Active',
 };
 
@@ -51,27 +55,10 @@ const Unit = () => {
         setEditingId(item.id);
         setForm({
             unit: item.unit,
+            description: item.description,
             status: item.status,
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
-    };
-
-    const handleDelete = (item: UnitModel) => {
-        confirmDialog({
-            message: `Delete unit "${item.unit}"? This cannot be undone.`,
-            header: 'Delete Unit',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteUnit(item.id);
-                    fetchUnits();
-                    showToast(toast, 'success', 'Deleted', 'Unit deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
     };
 
     const handleSave = async () => {
@@ -94,9 +81,13 @@ const Unit = () => {
 
     const columns = getUnitColumns(dateFormat, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<UnitModel>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<UnitModel>({
+        getId: (row) => row.id,
+        deleteOne: deleteUnit,
+        onDeleted: fetchUnits,
+        toast,
+        entityNamePlural: 'units',
+    });
 
     return (
         <div className="unit-page">
@@ -107,31 +98,80 @@ const Unit = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add Unit" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add Unit" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchUnits} loading={unitsLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredUnits} columns={columns} loading={unitsLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredUnits}
+                columns={columns}
+                loading={unitsLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Unit' : 'Add New Unit'}
-                style={{ width: '480px' }}
+                style={{ width: '520px' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
-                        <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                        <Button label="Save Unit" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
                     </>
                 }
             >
-                <div className="dialog-form-body">
+                <div className="unit-dialog-body">
                     <div className="form-field">
-                        <label>Unit Name</label>
-                        <InputText value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Enter unit name" />
+                        <label>Unit Name <span className="unit-required">*</span></label>
+                        <InputText
+                            value={form.unit}
+                            onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                            placeholder="Enter unit name"
+                        />
                     </div>
-                    <div className="form-field form-field--row">
-                        <label>Status</label>
-                        <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
+
+                    <div className="form-field unit-field--tight">
+                        <label>Description <span className="unit-optional">(Optional)</span></label>
+                        <InputTextarea
+                            value={form.description ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}
+                            onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, DESCRIPTION_MAX_LENGTH) })}
+                            rows={3}
+                            maxLength={DESCRIPTION_MAX_LENGTH}
+                            placeholder="Enter unit description (optional)"
+                        />
+                        <span className="unit-char-count">{(form.description ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING).length} / {DESCRIPTION_MAX_LENGTH}</span>
+                    </div>
+
+                    <div className="form-field">
+                        <label>Status <span className="unit-required">*</span></label>
+                        <div className="unit-status-row">
+                            <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
+                            <div className="unit-status-text">
+                                <span className="unit-status-title">{form.status === 'Active' ? 'Active' : 'Inactive'}</span>
+                                <span className="unit-status-desc">
+                                    {form.status === 'Active' ? 'Unit will be active and available for use.' : 'Unit will be inactive and hidden.'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </Dialog>

@@ -6,7 +6,6 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
 import {
     HiOutlinePlus,
     HiOutlineCube,
@@ -21,9 +20,12 @@ import {
     HiOutlineInformationCircle,
     HiOutlinePhoto,
     HiOutlineChartBar,
+    HiOutlineTrash,
+    HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
@@ -33,7 +35,7 @@ import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, getStockLevel, type AssemblyRow } from '../../common/commonFunctions/CommonUtilities';
+import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, getStockLevel, type AssemblyRow, type InventoryItemWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './InventoryHome.css';
 
@@ -46,7 +48,7 @@ const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'
 };
 
 const InventoryHome = () => {
-    const { rawSkus, categories, productTypes, locations, inventories, fetchInventories, units } = useContext(AppContext);
+    const { rawSkus, categories, productTypes, locations, inventories, inventoriesLoading, fetchInventories, units } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -172,20 +174,6 @@ const InventoryHome = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const handleDelete = (item: InventoryItem) => {
-        confirmDialog({
-            message: `Delete inventory item "${item.productName}"? This cannot be undone.`,
-            header: 'Delete Inventory Item',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                await deleteInventoryItem(item.id);
-                fetchInventories();
-                showToast(toast, 'success', 'Deleted', 'Inventory item deleted successfully');
-            },
-        });
-    };
-
     const handleSave = async () => {
         if (assemblyRows.length === 0) {
             setActiveDialogTab('assembly');
@@ -227,13 +215,17 @@ const InventoryHome = () => {
     // eslint-disable-next-line react-hooks/refs
     const columns = getInventoryHomeColumns(dateFormat, handleToggleStatus, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<InventoryItem>({ onDelete: handleDelete });
-
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow, (units as Unit[]).map((u) => u.unit));
 
     const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ onDelete: (row) => removeAssemblyRow(row.rowId) });
+
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<InventoryItemWithStockLevel>({
+        getId: (row) => row.id,
+        deleteOne: deleteInventoryItem,
+        onDeleted: fetchInventories,
+        toast,
+        entityNamePlural: 'inventory items',
+    });
 
     return (
         <div className="inventory-home-page">
@@ -244,10 +236,34 @@ const InventoryHome = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add New Item" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add New Item" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchInventories} loading={inventoriesLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredItems} columns={columns} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredItems}
+                columns={columns}
+                loading={inventoriesLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}

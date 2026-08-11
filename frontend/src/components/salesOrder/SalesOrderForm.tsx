@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputNumber } from 'primereact/inputnumber';
+import { AutoComplete, type AutoCompleteProps } from 'primereact/autocomplete';
 import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { TabView, TabPanel } from 'primereact/tabview';
@@ -28,13 +29,13 @@ import {
     HiOutlineMapPin,
     HiOutlineDocumentText,
     HiOutlineExclamationTriangle,
-    HiOutlineCurrencyRupee,
-    HiOutlinePrinter,
-    HiOutlineArrowDownTray,
+    HiOutlineBanknotes,
+    HiOutlineTrash,
 } from 'react-icons/hi2';
 import DataTable, { type ColumnConfig } from '../../common/commonComponents/dataTable/DataTable';
+import StatusBadge, { type StatusVariant } from '../../common/commonComponents/statusBadge/StatusBadge';
 import { AppContext } from '../../context/AppContextDefinition';
-import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
+import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
     createSalesOrder,
     updateSalesOrder,
@@ -43,24 +44,31 @@ import {
     dispatchSalesOrder,
     revertDispatchSalesOrder,
     cancelSalesOrder,
+    addSalesOrderPayment,
+    deleteSalesOrderPayment,
     type SalesOrder as SalesOrderType,
     type SalesOrderItem,
     type SalesOrderPayload,
     type SalesOrderPaymentStatus,
+    type SalesOrderPayment,
 } from '../../services/salesOrderService';
 import type { InventoryItem } from '../../services/inventoryService';
 import type { Customer } from '../../services/customerService';
+import type { User } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getSalesOrderItemColumns, getActionBodyTemplate, type SalesOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { getSalesOrderItemColumns, getSalesOrderPaymentColumns, getActionBodyTemplate, type SalesOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
-import { printSalesOrderInvoicePdf, downloadSalesOrderInvoicePdf } from '../../common/commonFunctions/salesOrderInvoicePdf';
 import './SalesOrderForm.css';
 
-const paymentStatusOptions: SalesOrderPaymentStatus[] = ['Unpaid', 'Partial', 'Paid'];
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
-// Single fixed option - no multi-currency conversion logic exists anywhere in this app,
-// this is purely a display field (see schema.sql's comment on ims_sales_order.currency).
-const currencyOptions = ['INR - Indian Rupee'];
+// Must match PAYMENT_METHODS in the backend's salesOrderPayment.controller.js exactly - that's
+// what actually validates an Add Payment submission server-side.
+const paymentMethodOptions = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'Other'];
+const paymentStatusVariant: Record<SalesOrderPaymentStatus, StatusVariant> = {
+    Unpaid: 'danger',
+    Partial: 'warning',
+    Paid: 'success',
+};
 
 let nextItemRowId = 1;
 
@@ -180,14 +188,24 @@ const SalesOrderForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditRoute = Boolean(id);
-    const { inventories, customers, salesOrders, salesOrdersLoading, fetchSalesOrders, fetchInventories } = useContext(AppContext);
+    const { inventories, customers, users, salesOrders, salesOrdersLoading, fetchSalesOrders, fetchInventories } = useContext(AppContext);
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const { companyLogo } = useCompanyLogoContext();
+    const { dateFormat } = useDateFormatContext();
 
     const existingSo = useMemo(
         () => (isEditRoute ? (salesOrders as SalesOrderType[]).find((so) => so.id === Number(id)) : DEFAULT_DATA_TYPE_VALUE.UNDEFINED),
         [isEditRoute, salesOrders, id],
     );
+
+    // Not local state - paidAmount is entirely server-derived (sum of Transaction History
+    // entries, see salesOrderPayment.controller.js) and never edited here, so it's read
+    // straight off existingSo every render instead of being copied into a useState once. That
+    // copy-once approach (via the "one-time sync" effect below) was the actual bug behind
+    // Order Summary not updating after Add Payment on Purchase Order (same fix applied here) -
+    // fetchSalesOrders() refreshes existingSo just fine, but the effect's loadedForId guard
+    // (there so a background refetch never clobbers an in-progress *edit*) meant the copied
+    // value never got re-synced. Reading it live here instead means there's nothing to go stale.
+    const paidAmount = existingSo?.paidAmount ?? DEFAULT_DATA_TYPE_VALUE.ZERO;
 
     // Locking reflects the SO's *persisted* status, not any live/unsaved value - a
     // brand-new SO is never locked; an existing one locks once it's already been Confirmed
@@ -204,11 +222,7 @@ const SalesOrderForm = () => {
     const [orderDate, setOrderDate] = useState<Date | null>(new Date());
     const [deliveryDate, setDeliveryDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [deliveryAddress, setDeliveryAddress] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [paymentStatus, setPaymentStatus] = useState<SalesOrderPaymentStatus>('Unpaid');
-    const [paidAmount, setPaidAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
-    const [paymentTerms, setPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [purchaseOrderRef, setPurchaseOrderRef] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [currency, setCurrency] = useState(currencyOptions[0]);
     const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [items, setItems] = useState<SalesOrderItemRow[]>([]);
 
@@ -218,7 +232,22 @@ const SalesOrderForm = () => {
 
     const [dispatchDialogVisible, setDispatchDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [dispatchQtyStore] = useState(() => createDispatchQtyStore());
-    const [dispatchInvoice, setDispatchInvoice] = useState<SalesOrderType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+
+    // Add Payment dialog (Transaction History tab) - each submission becomes its own row in
+    // ims_sales_order_payments rather than editing a single "Paid Amount" number. Mirrors
+    // PurchaseOrderForm.tsx's identical block.
+    const [paymentDialogVisible, setPaymentDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const [paymentAmount, setPaymentAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [paymentDate, setPaymentDate] = useState<Date | null>(new Date());
+    const [paymentMethod, setPaymentMethod] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [paymentRemarks, setPaymentRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [paymentSaving, setPaymentSaving] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    // Per-transaction terms/approval - lives on the payment itself (not the SO's own Payment
+    // Terms field), since a given payment can be approved separately under its own terms.
+    const [paymentPaymentTerms, setPaymentPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [paymentApprovedBy, setPaymentApprovedBy] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [paymentApprovedBySuggestions, setPaymentApprovedBySuggestions] = useState<User[]>([]);
+    const [paymentApprovedAt, setPaymentApprovedAt] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     useEffect(() => {
         if (existingSo && loadedForId !== existingSo.id) {
@@ -233,11 +262,7 @@ const SalesOrderForm = () => {
             setOrderDate(new Date(existingSo.orderDate));
             setDeliveryDate(existingSo.deliveryDate ? new Date(existingSo.deliveryDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
             setDeliveryAddress(existingSo.deliveryAddress ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-            setPaymentStatus(existingSo.paymentStatus);
-            setPaidAmount(existingSo.paidAmount);
-            setPaymentTerms(existingSo.paymentTerms);
             setPurchaseOrderRef(existingSo.purchaseOrderRef ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-            setCurrency(existingSo.currency);
             setRemarks(existingSo.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setItems(existingSo.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
             setLoadedForId(existingSo.id);
@@ -366,6 +391,104 @@ const SalesOrderForm = () => {
     const balanceDue = Math.max(totals.grandTotal - paidAmount, DEFAULT_DATA_TYPE_VALUE.ZERO);
     const paidPercent = totals.grandTotal > 0 ? Math.min(100, Math.max(0, (paidAmount / totals.grandTotal) * 100)) : DEFAULT_DATA_TYPE_VALUE.ZERO;
 
+    // Payment Status is derived from Paid Amount vs. Grand Total rather than picked by hand -
+    // same rule (and same reasoning) as PurchaseOrderForm.tsx: 0 paid is Unpaid, paid at/above
+    // the grand total is Paid, anything in between is Partial. Mirrors derivePaymentStatus in
+    // the backend's orderTotals.js, which recomputes the same thing authoritatively on save.
+    const paymentStatus: SalesOrderPaymentStatus = useMemo(() => {
+        if (paidAmount <= 0) return 'Unpaid';
+        if (totals.grandTotal <= 0) return 'Paid';
+        if (paidAmount >= totals.grandTotal) return 'Paid';
+        return 'Partial';
+    }, [paidAmount, totals.grandTotal]);
+
+    const openPaymentDialog = () => {
+        setPaymentAmount(DEFAULT_DATA_TYPE_VALUE.ZERO);
+        setPaymentDate(new Date());
+        setPaymentMethod(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentRemarks(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setPaymentPaymentTerms(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentApprovedBy(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setPaymentApprovedBySuggestions([]);
+        setPaymentApprovedAt(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    };
+
+    // Suggests names from User Management (Active users, matched by name/email) as you type,
+    // or via the dropdown button - but still accepts free text, since Approved By has no FK to
+    // Users in the schema (an approver may not be a system user at all). Mirrors
+    // PurchaseOrderForm.tsx's identical searchPaymentApprovedByUsers.
+    const searchPaymentApprovedByUsers = (e: Parameters<NonNullable<AutoCompleteProps<User>['completeMethod']>>[0]) => {
+        const query = e.query.trim().toLowerCase();
+        const activeUsers = (users as User[]).filter((u) => u.status === 'Active');
+        setPaymentApprovedBySuggestions(
+            query ? activeUsers.filter((u) => u.fullName.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)) : activeUsers,
+        );
+    };
+
+    // PrimeReact's typings say onChange's value is always the suggestion type (User) once a
+    // generic is supplied, but at runtime it's the *typed string* whenever nothing was picked
+    // from the dropdown (no forceSelection here, so free text stays allowed) - a real runtime
+    // union the static types don't capture, hence the cast.
+    const handlePaymentApprovedByChange = (e: Parameters<NonNullable<AutoCompleteProps<User>['onChange']>>[0]) => {
+        const value = e.value as unknown as string | User;
+        setPaymentApprovedBy(typeof value === 'string' ? value : value.fullName);
+    };
+
+    // Records one Transaction History entry against the already-saved SO - the backend
+    // recomputes paidAmount/paymentStatus from the full payments table itself (see
+    // salesOrderPayment.controller.js), so this just triggers a refetch afterwards rather than
+    // locally patching paidAmount, keeping one source of truth.
+    const handleAddPayment = async () => {
+        if (!existingSo) return;
+        if (paymentAmount <= 0) {
+            showToast(toast, 'error', 'Error', 'Amount must be greater than 0');
+            return;
+        }
+        if (!paymentDate) {
+            showToast(toast, 'error', 'Error', 'Payment date is required');
+            return;
+        }
+        setPaymentSaving(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            await addSalesOrderPayment(existingSo.id, {
+                amount: paymentAmount,
+                paymentDate: toIso(paymentDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                paymentMethod,
+                remarks: paymentRemarks || DEFAULT_DATA_TYPE_VALUE.NULL,
+                paymentTerms: paymentPaymentTerms,
+                approvedBy: paymentApprovedBy || DEFAULT_DATA_TYPE_VALUE.NULL,
+                approvedAt: toIso(paymentApprovedAt),
+            });
+            showToast(toast, 'success', 'Payment Recorded', 'Payment recorded successfully');
+            fetchSalesOrders();
+            setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        } finally {
+            setPaymentSaving(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        }
+    };
+
+    const handleDeletePayment = (payment: SalesOrderPayment) => {
+        if (!existingSo) return;
+        confirmDialog({
+            message: 'Are you sure you want to delete this payment entry? This cannot be undone.',
+            header: 'Delete Payment',
+            icon: 'pi pi-exclamation-triangle',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    await deleteSalesOrderPayment(existingSo.id, payment.id);
+                    showToast(toast, 'success', 'Deleted', 'Payment entry deleted successfully');
+                    fetchSalesOrders();
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
+        });
+    };
+
     const handleCancel = () => {
         navigate('/sales-order');
     };
@@ -410,9 +533,7 @@ const SalesOrderForm = () => {
             deliveryAddress: deliveryAddress || DEFAULT_DATA_TYPE_VALUE.NULL,
             paymentStatus,
             paidAmount,
-            paymentTerms,
             purchaseOrderRef: purchaseOrderRef || DEFAULT_DATA_TYPE_VALUE.NULL,
-            currency,
             items: computedItems,
             totalItems: computedItems.length,
             totalQty: totals.totalQty,
@@ -499,12 +620,11 @@ const SalesOrderForm = () => {
             return;
         }
         try {
-            const updated = await dispatchSalesOrder(existingSo.id, shipments);
+            await dispatchSalesOrder(existingSo.id, shipments);
             showToast(toast, 'success', 'Dispatched', 'Items dispatched successfully');
             fetchSalesOrders();
             fetchInventories();
             setDispatchDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
-            setDispatchInvoice(updated);
         } catch (err) {
             showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
         }
@@ -553,6 +673,19 @@ const SalesOrderForm = () => {
     const itemActionTemplate = isLocked
         ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED
         : getActionBodyTemplate<SalesOrderItemRow>({ onDelete: (row) => removeItem(row.rowId) });
+
+    // Transaction History table - deleting a payment is always available regardless of
+    // isLocked, since recording payment is a financial action independent of the Draft-only
+    // Items lock (see the Add Payment button's own disabled condition below). Written by hand
+    // (not via getActionBodyTemplate) for the same react-hooks/refs reason as
+    // PurchaseOrderForm.tsx's identical paymentActionTemplate - handleDeletePayment closes
+    // over the `toast` ref.
+    const paymentColumns = getSalesOrderPaymentColumns(dateFormat);
+    const paymentActionTemplate = (payment: SalesOrderPayment) => (
+        <div className="data-table-actions">
+            <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDeletePayment(payment)} />
+        </div>
+    );
 
     const dispatchItemsList = existingSo?.items.filter((item) => item.pendingQty > 0) ?? [];
     const dispatchColumns: ColumnConfig<SalesOrderItem>[] = [
@@ -697,35 +830,6 @@ const SalesOrderForm = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="so-section">
-                                    <div className="so-section-title">Payment Details</div>
-                                    <div className="sales-order-form-grid sales-order-form-grid--4col">
-                                        <div className="form-field">
-                                            <label>Payment Terms</label>
-                                            <Dropdown value={paymentTerms} onChange={(e) => setPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select payment terms" disabled={isLocked} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Payment Status</label>
-                                            <Dropdown value={paymentStatus} onChange={(e) => setPaymentStatus(e.value)} options={paymentStatusOptions} placeholder="Select payment status" />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Paid Amount (Rs.)</label>
-                                            <InputNumber value={paidAmount} onValueChange={(e) => setPaidAmount(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)} mode="decimal" minFractionDigits={2} max={totals.grandTotal} />
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Currency <span className="so-item-required">*</span></label>
-                                            <Dropdown
-                                                value={currency}
-                                                onChange={(e) => setCurrency(e.value)}
-                                                options={currencyOptions}
-                                                valueTemplate={(option) => (option ? <span className="so-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span> : 'Select currency')}
-                                                itemTemplate={(option) => <span className="so-currency-value"><HiOutlineCurrencyRupee size={14} />{option}</span>}
-                                                disabled={isLocked}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div className="so-section so-section--last">
                                     <div className="so-section-title">Delivery And Notes</div>
                                     <div className="sales-order-form-grid">
@@ -769,6 +873,42 @@ const SalesOrderForm = () => {
                                     emptyMessage="No items added yet."
                                 />
                             </TabPanel>
+
+                            <TabPanel header={<span className="so-tab-label"><HiOutlineBanknotes size={15} />Transaction History</span>}>
+                                <div className="sales-order-items-header">
+                                    <h3>Payment Transactions</h3>
+                                    {/* Available regardless of isLocked - collecting payment is independent of the
+                                        Draft-only Items lock. Disabled once the balance is fully cleared instead. */}
+                                    <Button
+                                        label="Add Payment"
+                                        icon={<HiOutlinePlus className="mr-2" />}
+                                        size="small"
+                                        onClick={openPaymentDialog}
+                                        outlined
+                                        disabled={!existingSo || balanceDue <= 0}
+                                    />
+                                </div>
+                                {!existingSo ? (
+                                    <div className="so-preview-items-empty">
+                                        <div className="so-preview-items-empty-icon">
+                                            <HiOutlineBanknotes size={22} />
+                                        </div>
+                                        <div className="so-preview-items-empty-title">Save the Sales Order first</div>
+                                        <div className="so-preview-items-empty-sub">Payments can only be recorded once the order has been saved.</div>
+                                    </div>
+                                ) : (
+                                    <DataTable
+                                        value={existingSo.payments}
+                                        columns={paymentColumns}
+                                        actionBodyTemplate={paymentActionTemplate}
+                                        rows={5}
+                                        sortable={false}
+                                        filterable={false}
+                                        dataKey="id"
+                                        emptyMessage="No payments recorded yet."
+                                    />
+                                )}
+                            </TabPanel>
                         </TabView>
                     </div>
                 </div>
@@ -797,10 +937,6 @@ const SalesOrderForm = () => {
                                 <div className="so-preview-label">Customer</div>
                                 <div>{customerName || '—'}</div>
                             </div>
-                            <div>
-                                <div className="so-preview-label">Payment Terms</div>
-                                <div>{paymentTerms || '—'}</div>
-                            </div>
                         </div>
 
                         <div className="so-preview-divider" />
@@ -815,26 +951,30 @@ const SalesOrderForm = () => {
                                 <div className="so-preview-items-empty-sub">Add items to see the summary</div>
                             </div>
                         ) : (
-                            <table className="so-preview-items-table">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Qty</th>
-                                        <th>Rate</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.map((item) => (
-                                        <tr key={item.rowId}>
-                                            <td>{item.itemName}</td>
-                                            <td>{item.orderedQty}</td>
-                                            <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
-                                            <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
+                            // Scrolls internally once past 5 rows, instead of pushing Totals/
+                            // Payment Status further and further down the panel as items grow.
+                            <div className="so-preview-items-scroll">
+                                <table className="so-preview-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Rate</th>
+                                            <th>Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {items.map((item) => (
+                                            <tr key={item.rowId}>
+                                                <td>{item.itemName}</td>
+                                                <td>{item.orderedQty}</td>
+                                                <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
+                                                <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
 
                         <div className="so-preview-divider" />
@@ -850,6 +990,10 @@ const SalesOrderForm = () => {
                         <>
                             <div className="so-preview-divider" />
                             <div className="so-payment-progress">
+                                <div className="so-payment-progress-row">
+                                    <span>Payment Status</span>
+                                    <StatusBadge label={paymentStatus} variant={paymentStatusVariant[paymentStatus]} />
+                                </div>
                                 <div className="so-payment-progress-row">
                                     <span>Paid</span>
                                     <span>{formatRupees(paidAmount)}</span>
@@ -995,6 +1139,86 @@ const SalesOrderForm = () => {
             </Dialog>
 
             <Dialog
+                visible={paymentDialogVisible}
+                onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
+                header="Add Payment"
+                style={{ width: '480px' }}
+                className="so-item-dialog"
+                footer={
+                    <>
+                        <Button label="Cancel" outlined onClick={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} disabled={paymentSaving} />
+                        <Button label="Add Payment" icon={<HiOutlinePlus className="mr-2" />} onClick={handleAddPayment} loading={paymentSaving} />
+                    </>
+                }
+            >
+                <div className="so-item-form-body">
+                    <div className="so-item-form-grid">
+                        <div className="so-item-field">
+                            <label>Amount (Rs.) <span className="so-item-required">*</span></label>
+                            <div className="so-item-input-icon-wrapper">
+                                <span className="so-item-input-icon so-item-input-icon--text">₹</span>
+                                <InputNumber
+                                    className="so-item-input so-item-input--icon"
+                                    value={paymentAmount}
+                                    onValueChange={(e) => setPaymentAmount(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)}
+                                    mode="decimal"
+                                    minFractionDigits={2}
+                                    max={balanceDue}
+                                />
+                            </div>
+                            <span className="so-payment-balance-hint">Balance due: {formatRupees(balanceDue)}</span>
+                        </div>
+                        <div className="so-item-field">
+                            <label>Payment Date <span className="so-item-required">*</span></label>
+                            <Calendar value={paymentDate} onChange={(e) => setPaymentDate(e.value as Date)} dateFormat="dd/mm/yy" showIcon />
+                        </div>
+                    </div>
+
+                    <div className="so-item-form-grid">
+                        <div className="so-item-field">
+                            <label>Payment Method</label>
+                            <Dropdown value={paymentMethod} onChange={(e) => setPaymentMethod(e.value)} options={paymentMethodOptions} placeholder="Select method (optional)" />
+                        </div>
+                        <div className="so-item-field">
+                            <label>Payment Terms</label>
+                            <Dropdown value={paymentPaymentTerms} onChange={(e) => setPaymentPaymentTerms(e.value)} options={paymentTermsOptions} placeholder="Select terms (optional)" />
+                        </div>
+                    </div>
+
+                    <div className="so-item-form-grid">
+                        <div className="so-item-field">
+                            <label>Approved By</label>
+                            <AutoComplete
+                                value={paymentApprovedBy}
+                                suggestions={paymentApprovedBySuggestions}
+                                completeMethod={searchPaymentApprovedByUsers}
+                                field="fullName"
+                                onChange={handlePaymentApprovedByChange}
+                                placeholder="Enter approver name (optional)"
+                                dropdown
+                                panelClassName="so-approved-by-panel"
+                            />
+                        </div>
+                        <div className="so-item-field">
+                            <label>Approved At</label>
+                            <Calendar value={paymentApprovedAt} onChange={(e) => setPaymentApprovedAt(e.value as Date)} dateFormat="dd/mm/yy" showIcon showTime />
+                        </div>
+                    </div>
+
+                    <div className="so-item-field">
+                        <label>Remarks (Optional)</label>
+                        <InputTextarea
+                            className="so-item-input"
+                            value={paymentRemarks}
+                            onChange={(e) => setPaymentRemarks(e.target.value)}
+                            placeholder="Enter remarks (optional)"
+                            rows={3}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+
+            <Dialog
                 visible={dispatchDialogVisible}
                 onHide={() => setDispatchDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header="Dispatch Items"
@@ -1017,58 +1241,6 @@ const SalesOrderForm = () => {
                         emptyMessage="Nothing left to dispatch."
                     />
                 </div>
-            </Dialog>
-
-            <Dialog
-                visible={!!dispatchInvoice}
-                onHide={() => setDispatchInvoice(DEFAULT_DATA_TYPE_VALUE.NULL)}
-                header="Dispatch Invoice"
-                style={{ width: '720px', maxWidth: '95vw' }}
-                footer={
-                    <>
-                        <Button label="Close" outlined onClick={() => setDispatchInvoice(DEFAULT_DATA_TYPE_VALUE.NULL)} />
-                        <Button label="Print" icon={<HiOutlinePrinter className="mr-2" />} outlined onClick={() => dispatchInvoice && printSalesOrderInvoicePdf(dispatchInvoice, companyLogo)} />
-                        <Button label="Download" icon={<HiOutlineArrowDownTray className="mr-2" />} onClick={() => dispatchInvoice && downloadSalesOrderInvoicePdf(dispatchInvoice, companyLogo)} />
-                    </>
-                }
-            >
-                {dispatchInvoice && (
-                    <div className="so-invoice">
-                        <div className="so-invoice-header">
-                            <div>
-                                <h3 className="so-invoice-title">{dispatchInvoice.customerName}</h3>
-                                <span className="so-invoice-subtitle">#{dispatchInvoice.soNo}</span>
-                            </div>
-                            <span className={`so-preview-status so-preview-status--${dispatchInvoice.status.toLowerCase().replace(/\s+/g, '-')}`}>{dispatchInvoice.status}</span>
-                        </div>
-                        <table className="so-invoice-table">
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Rate</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {dispatchInvoice.items.map((item) => (
-                                    <tr key={item.skuId}>
-                                        <td>{item.itemName}</td>
-                                        <td>{item.orderedQty} {item.unit}</td>
-                                        <td>Rs. {item.unitPrice.toLocaleString('en-IN')}</td>
-                                        <td>Rs. {(item.orderedQty * item.unitPrice).toLocaleString('en-IN')}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="so-invoice-totals">
-                            <div><span>Sub Total</span><span>Rs. {dispatchInvoice.subTotal.toLocaleString('en-IN')}</span></div>
-                            <div><span>Discount</span><span className="so-discount-value">- Rs. {dispatchInvoice.discountAmount.toLocaleString('en-IN')}</span></div>
-                            <div><span>GST</span><span>Rs. {dispatchInvoice.gstAmount.toLocaleString('en-IN')}</span></div>
-                        </div>
-                        <div className="so-invoice-grand-total"><span>Grand Total</span><span>Rs. {dispatchInvoice.grandTotal.toLocaleString('en-IN')}</span></div>
-                    </div>
-                )}
             </Dialog>
         </div>
     );

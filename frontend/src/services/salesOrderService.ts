@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export type SalesOrderStatus = 'Draft' | 'Confirmed' | 'Processing' | 'Partially Shipped' | 'Dispatched' | 'Cancelled';
@@ -19,6 +20,34 @@ export interface SalesOrderItem {
     lineTotal: number;
 }
 
+// One row per Transaction History entry (see salesOrderPayment.controller.js) - the SO's own
+// paidAmount is always the sum of these, never typed in directly. paymentTerms/approvedBy/
+// approvedAt are per-transaction, independent of the SO's own same-named fields.
+export interface SalesOrderPayment {
+    id: number;
+    soId: number;
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string | null;
+    remarks: string | null;
+    recordedBy: string | null;
+    createdAt: string;
+    paymentTerms: string | null;
+    approvedBy: string | null;
+    approvedAt: string | null;
+}
+
+export interface SalesOrderPaymentPayload {
+    amount: number;
+    paymentDate: string;
+    paymentMethod: string | null;
+    remarks: string | null;
+    recordedBy?: string;
+    paymentTerms: string | null;
+    approvedBy: string | null;
+    approvedAt: string | null;
+}
+
 export interface SalesOrder {
     id: number;
     soNo: string;
@@ -30,10 +59,9 @@ export interface SalesOrder {
     status: SalesOrderStatus;
     paymentStatus: SalesOrderPaymentStatus;
     paidAmount: number;
-    paymentTerms: string | null;
     purchaseOrderRef: string | null;
-    currency: string;
     items: SalesOrderItem[];
+    payments: SalesOrderPayment[];
     totalItems: number;
     totalQty: number;
     subTotal: number;
@@ -54,9 +82,7 @@ export interface SalesOrderPayload {
     deliveryAddress: string | null;
     paymentStatus: SalesOrderPaymentStatus;
     paidAmount: number;
-    paymentTerms: string | null;
     purchaseOrderRef: string | null;
-    currency: string;
     items: SalesOrderItem[];
     totalItems: number;
     totalQty: number;
@@ -98,6 +124,7 @@ function normalizeSalesOrder(so: SalesOrder): SalesOrder {
         gstAmount: Number(so.gstAmount),
         grandTotal: Number(so.grandTotal),
         paidAmount: Number(so.paidAmount),
+        payments: (so.payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })),
         items: so.items.map((item) => ({
             ...item,
             orderedQty: Number(item.orderedQty),
@@ -114,13 +141,13 @@ function normalizeSalesOrder(so: SalesOrder): SalesOrder {
 }
 
 export async function getSalesOrders(): Promise<SalesOrder[]> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders`);
+    const response = await authFetch(`${API_BASE_URL}/sales-orders`);
     const data = await parseResponse<SalesOrder[]>(response);
     return data.map(normalizeSalesOrder);
 }
 
 export async function createSalesOrder(payload: SalesOrderPayload): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders`, {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -129,7 +156,7 @@ export async function createSalesOrder(payload: SalesOrderPayload): Promise<Sale
 }
 
 export async function updateSalesOrder(id: number, payload: Partial<SalesOrderPayload>): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -138,17 +165,17 @@ export async function updateSalesOrder(id: number, payload: Partial<SalesOrderPa
 }
 
 export async function confirmSalesOrder(id: number): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}/confirm`, { method: 'POST' });
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/confirm`, { method: 'POST' });
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
 export async function startProcessingSalesOrder(id: number): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}/start-processing`, { method: 'POST' });
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/start-processing`, { method: 'POST' });
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
 export async function dispatchSalesOrder(id: number, items: DispatchShipment[]): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}/dispatch`, {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
@@ -157,16 +184,34 @@ export async function dispatchSalesOrder(id: number, items: DispatchShipment[]):
 }
 
 export async function revertDispatchSalesOrder(id: number): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}/revert-dispatch`, { method: 'POST' });
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/revert-dispatch`, { method: 'POST' });
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
 export async function cancelSalesOrder(id: number): Promise<SalesOrder> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}/cancel`, { method: 'POST' });
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/cancel`, { method: 'POST' });
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
 export async function deleteSalesOrder(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/sales-orders/${id}`, { method: 'DELETE' });
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}`, { method: 'DELETE' });
     await parseResponse<null>(response);
+}
+
+// Both return the whole updated SalesOrder (with its paidAmount/paymentStatus/payments
+// already recomputed server-side) - mirrors purchaseOrderService.ts's identical pair.
+export async function addSalesOrderPayment(soId: number, payload: SalesOrderPaymentPayload): Promise<SalesOrder> {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${soId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
+}
+
+export async function deleteSalesOrderPayment(soId: number, paymentId: number): Promise<SalesOrder> {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/${soId}/payments/${paymentId}`, {
+        method: 'DELETE',
+    });
+    return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }

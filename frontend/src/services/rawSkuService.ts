@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export type InventoryEntryMode = 'AUTO' | 'MANUAL';
@@ -78,19 +79,19 @@ function normalizeRawSku(rawSku: RawSku): RawSku {
 }
 
 export async function getRawSkus(): Promise<RawSku[]> {
-    const response = await fetch(`${API_BASE_URL}/raw-skus`);
+    const response = await authFetch(`${API_BASE_URL}/raw-skus`);
     const data = await parseResponse<RawSku[]>(response);
     return data.map(normalizeRawSku);
 }
 
 export async function getNextSkuCode(): Promise<string> {
-    const response = await fetch(`${API_BASE_URL}/raw-skus/next-code`);
+    const response = await authFetch(`${API_BASE_URL}/raw-skus/next-code`);
     const data = await parseResponse<{ skuCode: string }>(response);
     return data.skuCode;
 }
 
 export async function createRawSku(payload: RawSkuPayload): Promise<RawSku> {
-    const response = await fetch(`${API_BASE_URL}/raw-skus`, {
+    const response = await authFetch(`${API_BASE_URL}/raw-skus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -99,7 +100,7 @@ export async function createRawSku(payload: RawSkuPayload): Promise<RawSku> {
 }
 
 export async function updateRawSku(id: number, payload: Partial<RawSkuPayload>): Promise<RawSku> {
-    const response = await fetch(`${API_BASE_URL}/raw-skus/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/raw-skus/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -108,7 +109,7 @@ export async function updateRawSku(id: number, payload: Partial<RawSkuPayload>):
 }
 
 export async function deleteRawSku(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/raw-skus/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/raw-skus/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

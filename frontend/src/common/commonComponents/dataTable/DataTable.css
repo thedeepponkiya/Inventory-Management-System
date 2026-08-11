@@ -59,6 +59,29 @@
     color: var(--text-primary);
 }
 
+/* Selection checkbox column (see DataTable.tsx's `selectable` prop). Two separate bugs here:
+   1) no side padding, so the checkbox sat hard against the cell's left edge with no
+      breathing room before the next column's header/value.
+   2) the theme's own .p-checkbox sets `vertical-align: bottom` (see lara theme.css), which
+      only affects inline-level boxes - since .p-checkbox is inline-flex by default this
+      pulled it down against the row's baseline instead of centering it against the header
+      label/next cell's text, making it look "misaligned" rather than just close-set.
+   Fixing both without touching .p-checkbox's own display (staying inline-flex, not flex,
+   is what lets the cell's text-align: center actually center it - a flex/block box ignores
+   text-align entirely). */
+.app-data-table .p-datatable-thead > tr > th.p-selection-column,
+.app-data-table .p-datatable-tbody > tr > td.p-selection-column {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.app-data-table .p-datatable-thead > tr > th.p-selection-column .p-checkbox,
+.app-data-table .p-datatable-tbody > tr > td.p-selection-column .p-checkbox {
+    vertical-align: middle;
+}
+
 .app-data-table .p-datatable-tbody > tr > td {
     font-size: 12px;
     color: var(--text-secondary);

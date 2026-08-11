@@ -1,0 +1,49 @@
+.category-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.category-required {
+    color: var(--accent-danger-text);
+}
+
+.category-optional {
+    color: var(--text-subtle);
+    font-weight: 500;
+}
+
+.category-char-count {
+    align-self: flex-end;
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+/* Pulls the Status field closer, on top of .category-dialog-body's normal 18px gap - only
+   the Description -> Status gap should be tighter, not every field's spacing. */
+.category-field--tight {
+    margin-bottom: -10px;
+}
+
+.category-status-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.category-status-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.category-status-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.category-status-desc {
+    font-size: 12px;
+    color: var(--text-subtle);
+}

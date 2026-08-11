@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface User {
@@ -43,12 +44,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getUsers(): Promise<User[]> {
-    const response = await fetch(`${API_BASE_URL}/users`);
+    const response = await authFetch(`${API_BASE_URL}/users`);
     return parseResponse<User[]>(response);
 }
 
 export async function createUser(payload: UserPayload): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await authFetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -57,7 +58,7 @@ export async function createUser(payload: UserPayload): Promise<User> {
 }
 
 export async function updateUser(id: number, payload: Partial<UserPayload>): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -66,7 +67,7 @@ export async function updateUser(id: number, payload: Partial<UserPayload>): Pro
 }
 
 export async function deleteUser(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
@@ -75,7 +76,7 @@ export async function deleteUser(id: number): Promise<void> {
 export async function uploadUserImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await fetch(`${API_BASE_URL}/uploads/user-image`, {
+    const response = await authFetch(`${API_BASE_URL}/uploads/user-image`, {
         method: 'POST',
         body: formData,
     });

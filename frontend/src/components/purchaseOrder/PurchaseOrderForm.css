@@ -47,16 +47,36 @@
     justify-content: flex-end;
 }
 
+/* The page itself is capped to exactly the height .app-content's flex layout gives it
+   (routers.css's ".app-content > div { flex: 1 1 auto; min-height: 0 }" already sizes this
+   root div to fill the viewport below the header/toolbar) and clipped with overflow:hidden -
+   so the page itself never grows taller than the screen and .app-content never gets anything
+   to scroll. Scrolling instead happens inside .po-form-main / .po-preview-panel below, each
+   independently, once their own content actually needs more room than they have. */
+.purchase-order-form-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .po-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
     gap: 16px;
     align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 @media (max-width: 1000px) {
     .po-form-layout {
         grid-template-columns: 1fr;
+        /* Below the breakpoint the two columns stack instead of sitting side by side, so this
+           is the one case where the page's own scroll is still wanted - a single stacked
+           column can legitimately be taller than the screen on a small viewport. */
+        overflow-y: auto;
     }
 }
 
@@ -91,6 +111,11 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* Each tab's own content scrolls internally within the now fixed-height card, instead of
+       relying on the whole page growing tall enough to show it. The Items & Charges tab's
+       DataTable already manages its own internal scroll (scrollHeight="flex"), so this only
+       actually kicks in for the plainer form tabs (PO Details / Payment Details / Delivery). */
+    overflow-y: auto;
 }
 
 /* The active tab's own content wrapper - flex-fills .p-tabview-panels too, so the Order
@@ -197,6 +222,7 @@
     gap: 16px;
 }
 
+
 @media (max-width: 800px) {
     .purchase-order-form-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -273,17 +299,35 @@
     pointer-events: none;
 }
 
-/* Live preview panel */
+/* Approved By's AutoComplete, so it stretches to the same full width as the InputText/
+   Dropdown fields it sits beside instead of sizing to its own content. */
+.form-field .p-autocomplete,
+.form-field .p-autocomplete .p-inputtext {
+    width: 100%;
+    font-size: 13px;
+}
+
+/* Dropdown panel (rendered via panelClassName, appended to document.body rather than nested
+   under .form-field) - tighter than the theme's default 0.75rem/1.25rem option padding, to
+   match the smaller 13px text. */
+.po-approved-by-panel .p-autocomplete-item {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+/* Live preview panel - position:sticky no longer applies (the page itself doesn't scroll
+   anymore, see .purchase-order-form-page above), so the panel scrolls its own content
+   internally instead if it ever needs more height than the column has. */
 .po-preview-panel {
-    position: sticky;
-    top: 16px;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
 }
 
 .po-preview-card {
     flex: 1 1 auto;
+    min-height: 0;
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -408,11 +452,19 @@
     color: var(--text-subtle);
 }
 
+/* Caps the Item Summary list at ~5 visible rows (header + 5 * ~35px body row) - beyond that
+   it scrolls internally instead of growing the whole panel taller. The header row is sticky
+   so it stays put while the body scrolls underneath it. */
+.po-preview-items-scroll {
+    max-height: 212px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
 .po-preview-items-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    margin-bottom: 16px;
 }
 
 .po-preview-items-table th {
@@ -422,6 +474,9 @@
     color: var(--text-subtle);
     border-bottom: 1px solid var(--border-default);
     padding: 6px 4px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-card);
 }
 
 .po-preview-items-table td {
@@ -461,6 +516,68 @@
     border-top: 1px solid var(--border-default);
 }
 
+/* Payment Status/Paid/Balance-due progress block, matching SalesOrderForm.css's identical
+   so-payment-progress-* rules (Purchase Order gets the same visual treatment on request). */
+.po-payment-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.po-payment-progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.po-payment-progress-balance {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.po-payment-balance-due {
+    color: var(--accent-danger-text);
+}
+
+.po-payment-balance-clear {
+    color: var(--accent-success-text);
+}
+
+.po-payment-progress-track {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    overflow: hidden;
+}
+
+.po-payment-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent-success-text);
+    transition: width 0.2s ease;
+}
+
+.po-preview-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: var(--accent-warning-bg);
+    color: var(--accent-warning-text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 14px;
+}
+
+.po-preview-warning-banner svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
 /* Add/Edit Item dialog (Items & Charges tab) */
 .po-item-dialog.p-dialog {
     border-radius: 16px;
@@ -483,6 +600,12 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
+}
+
+/* Small hint under the Add Payment dialog's Amount field, showing what's still owed. */
+.po-payment-balance-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
 }
 
 .po-item-required {

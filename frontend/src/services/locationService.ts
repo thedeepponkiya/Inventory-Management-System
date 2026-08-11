@@ -1,14 +1,17 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface Location {
     id: number;
     location: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
     createdAt: string;
 }
 
 export interface LocationPayload {
     location: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
 }
 
@@ -27,12 +30,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getLocations(): Promise<Location[]> {
-    const response = await fetch(`${API_BASE_URL}/locations`);
+    const response = await authFetch(`${API_BASE_URL}/locations`);
     return parseResponse<Location[]>(response);
 }
 
 export async function createLocation(payload: LocationPayload): Promise<Location> {
-    const response = await fetch(`${API_BASE_URL}/locations`, {
+    const response = await authFetch(`${API_BASE_URL}/locations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -41,7 +44,7 @@ export async function createLocation(payload: LocationPayload): Promise<Location
 }
 
 export async function updateLocation(id: number, payload: Partial<LocationPayload>): Promise<Location> {
-    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/locations/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -50,7 +53,7 @@ export async function updateLocation(id: number, payload: Partial<LocationPayloa
 }
 
 export async function deleteLocation(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/locations/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

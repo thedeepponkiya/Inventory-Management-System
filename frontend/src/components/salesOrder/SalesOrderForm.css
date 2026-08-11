@@ -47,16 +47,36 @@
     justify-content: flex-end;
 }
 
+/* The page itself is capped to exactly the height .app-content's flex layout gives it
+   (routers.css's ".app-content > div { flex: 1 1 auto; min-height: 0 }" already sizes this
+   root div to fill the viewport below the header/toolbar) and clipped with overflow:hidden -
+   so the page itself never grows taller than the screen and .app-content never gets anything
+   to scroll. Scrolling instead happens inside .so-form-main / .so-preview-panel below, each
+   independently, once their own content actually needs more room than they have. */
+.sales-order-form-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .so-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
     gap: 16px;
     align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 @media (max-width: 1000px) {
     .so-form-layout {
         grid-template-columns: 1fr;
+        /* Below the breakpoint the two columns stack instead of sitting side by side, so this
+           is the one case where the page's own scroll is still wanted - a single stacked
+           column can legitimately be taller than the screen on a small viewport. */
+        overflow-y: auto;
     }
 }
 
@@ -93,6 +113,11 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* Each tab's own content scrolls internally within the now fixed-height card, instead of
+       relying on the whole page growing tall enough to show it. The Items & Charges tab's
+       DataTable already manages its own internal scroll (scrollHeight="flex"), so this only
+       actually kicks in for the plainer form tabs. */
+    overflow-y: auto;
 }
 
 /* The active tab's own content wrapper - needs to flex-fill .p-tabview-panels too, so the
@@ -294,17 +319,19 @@
     align-items: center;
     gap: 6px;
 }
-/* Live preview panel */
+/* Live preview panel - position:sticky no longer applies (the page itself doesn't scroll
+   anymore, see .sales-order-form-page above), so the panel scrolls its own content
+   internally instead if it ever needs more height than the column has. */
 .so-preview-panel {
-    position: sticky;
-    top: 16px;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
 }
 
 .so-preview-card {
     flex: 1 1 auto;
+    min-height: 0;
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -466,6 +493,7 @@
 
 .so-payment-progress-row {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     font-size: 13px;
     color: var(--text-secondary);
@@ -517,11 +545,19 @@
     margin-top: 1px;
 }
 
+/* Caps the Item Summary list at ~5 visible rows (header + 5 * ~35px body row) - beyond that
+   it scrolls internally instead of growing the whole panel taller. The header row is sticky
+   so it stays put while the body scrolls underneath it. */
+.so-preview-items-scroll {
+    max-height: 212px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
 .so-preview-items-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    margin-bottom: 16px;
 }
 
 .so-preview-items-table th {
@@ -531,6 +567,9 @@
     color: var(--text-subtle);
     border-bottom: 1px solid var(--border-default);
     padding: 6px 4px;
+    position: sticky;
+    top: 0;
+    background: var(--surface-card);
 }
 
 .so-preview-items-table td {
@@ -596,6 +635,28 @@
 
 .so-item-required {
     color: var(--accent-danger-text);
+}
+
+/* Approved By's AutoComplete (Add Payment dialog) - stretches to the same full width as the
+   InputText/Dropdown fields it sits beside instead of sizing to its own content. */
+.so-item-field .p-autocomplete,
+.so-item-field .p-autocomplete .p-inputtext {
+    width: 100%;
+    font-size: 13px;
+}
+
+/* Dropdown panel (rendered via panelClassName, appended to document.body rather than nested
+   under .so-item-field) - tighter than the theme's default option padding, to match the
+   smaller 13px text. */
+.so-approved-by-panel .p-autocomplete-item {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+/* Small hint under the Add Payment dialog's Amount field, showing what's still owed. */
+.so-payment-balance-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
 }
 
 .so-item-form-grid {

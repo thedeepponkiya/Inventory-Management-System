@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface Customer {
@@ -35,12 +36,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getCustomers(): Promise<Customer[]> {
-    const response = await fetch(`${API_BASE_URL}/customers`);
+    const response = await authFetch(`${API_BASE_URL}/customers`);
     return parseResponse<Customer[]>(response);
 }
 
 export async function createCustomer(payload: CustomerPayload): Promise<Customer> {
-    const response = await fetch(`${API_BASE_URL}/customers`, {
+    const response = await authFetch(`${API_BASE_URL}/customers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -49,7 +50,7 @@ export async function createCustomer(payload: CustomerPayload): Promise<Customer
 }
 
 export async function updateCustomer(id: number, payload: Partial<CustomerPayload>): Promise<Customer> {
-    const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/customers/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -58,7 +59,7 @@ export async function updateCustomer(id: number, payload: Partial<CustomerPayloa
 }
 
 export async function deleteCustomer(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/customers/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

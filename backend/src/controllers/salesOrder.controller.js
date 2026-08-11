@@ -1,5 +1,23 @@
+const pool = require('../config/db');
 const SalesOrderModel = require('../models/salesOrder.model');
+const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
 const InventoryModel = require('../models/inventory.model');
+const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
+
+// Dispatch (below) tracks ship quantity per line keyed by skuId, both in this controller's
+// own shipMap and in the frontend's dispatch dialog - two lines sharing a SKU would silently
+// collapse into a single entry, applying one line's ship quantity to both lines and deducting
+// Inventory stock twice for a single quantity the user actually entered once. Rejecting
+// duplicates at write-time (create/update) closes this off entirely rather than trying to
+// keep every downstream consumer duplicate-safe.
+function findDuplicateSkuId(items) {
+  const seen = new Set();
+  for (const item of items) {
+    if (seen.has(item.skuId)) return item.skuId;
+    seen.add(item.skuId);
+  }
+  return null;
+}
 
 async function getSalesOrders(req, res) {
   try {
@@ -17,6 +35,11 @@ async function createSalesOrder(req, res) {
       return res.status(400).json({ status: false, message: 'customerName and orderDate are required', data: null });
     }
 
+    const duplicateSkuId = findDuplicateSkuId(req.body.items || []);
+    if (duplicateSkuId) {
+      return res.status(400).json({ status: false, message: `This order has more than one line for the same item (${duplicateSkuId}) - combine them into a single line`, data: null });
+    }
+
     const soNo = await SalesOrderModel.getNextSoNo();
     // Every line starts fully pending - dispatchedQty only grows via the /dispatch action.
     const items = (req.body.items || []).map((item) => ({
@@ -24,6 +47,11 @@ async function createSalesOrder(req, res) {
       dispatchedQty: 0,
       pendingQty: item.orderedQty,
     }));
+    const totals = computeOrderTotals(items);
+    // A brand-new SO can't have any payment transactions yet - Transaction History entries
+    // are only addable once the SO itself has an id (see salesOrderPayment.controller.js) -
+    // so paidAmount always starts at 0 here regardless of what the client sends.
+    const paidAmount = 0;
     const fields = {
       customerName,
       customerCode: req.body.customerCode || null,
@@ -31,18 +59,11 @@ async function createSalesOrder(req, res) {
       deliveryDate: req.body.deliveryDate || null,
       deliveryAddress: req.body.deliveryAddress || null,
       status: 'Draft',
-      paymentStatus: req.body.paymentStatus || 'Unpaid',
-      paidAmount: req.body.paidAmount || 0,
-      paymentTerms: req.body.paymentTerms || null,
+      paymentStatus: derivePaymentStatus(paidAmount, totals.grandTotal),
+      paidAmount,
       purchaseOrderRef: req.body.purchaseOrderRef || null,
-      currency: req.body.currency || 'INR - Indian Rupee',
       items,
-      totalItems: req.body.totalItems || 0,
-      totalQty: req.body.totalQty || 0,
-      subTotal: req.body.subTotal || 0,
-      discountAmount: req.body.discountAmount || 0,
-      gstAmount: req.body.gstAmount || 0,
-      grandTotal: req.body.grandTotal || 0,
+      ...totals,
       remarks: req.body.remarks || null,
       createdBy: req.body.createdBy || 'Admin User',
     };
@@ -64,11 +85,23 @@ async function updateSalesOrder(req, res) {
     if (existing.status !== 'Draft' && req.body.items) {
       return res.status(400).json({ status: false, message: 'Items can only be edited while the order is in Draft', data: null });
     }
+    if (req.body.items) {
+      const duplicateSkuId = findDuplicateSkuId(req.body.items);
+      if (duplicateSkuId) {
+        return res.status(400).json({ status: false, message: `This order has more than one line for the same item (${duplicateSkuId}) - combine them into a single line`, data: null });
+      }
+    }
 
     const body = req.body;
     const items = body.items
       ? body.items.map((item) => ({ ...item, dispatchedQty: 0, pendingQty: item.orderedQty }))
       : existing.items;
+    const totals = computeOrderTotals(items);
+    // paidAmount is never taken from the client - it's always the real sum of this SO's
+    // Transaction History rows (kept in sync by salesOrderPayment.controller.js's addPayment/
+    // deletePayment), so a stale local value in the main form (or a direct API call) can't
+    // overwrite it out of step with reality.
+    const paidAmount = await SalesOrderPaymentModel.getSumBySoId(id);
     const fields = {
       customerName: body.customerName ?? existing.customerName,
       customerCode: body.customerCode ?? existing.customerCode,
@@ -76,18 +109,12 @@ async function updateSalesOrder(req, res) {
       deliveryDate: body.deliveryDate ?? existing.deliveryDate,
       deliveryAddress: body.deliveryAddress ?? existing.deliveryAddress,
       status: existing.status,
-      paymentStatus: body.paymentStatus ?? existing.paymentStatus,
-      paidAmount: body.paidAmount ?? existing.paidAmount,
-      paymentTerms: body.paymentTerms ?? existing.paymentTerms,
+      // Derived from paidAmount vs. the recomputed grandTotal - see derivePaymentStatus.
+      paymentStatus: derivePaymentStatus(paidAmount, totals.grandTotal),
+      paidAmount,
       purchaseOrderRef: body.purchaseOrderRef ?? existing.purchaseOrderRef,
-      currency: body.currency ?? existing.currency,
       items,
-      totalItems: body.totalItems ?? existing.totalItems,
-      totalQty: body.totalQty ?? existing.totalQty,
-      subTotal: body.subTotal ?? existing.subTotal,
-      discountAmount: body.discountAmount ?? existing.discountAmount,
-      gstAmount: body.gstAmount ?? existing.gstAmount,
-      grandTotal: body.grandTotal ?? existing.grandTotal,
+      ...totals,
       remarks: body.remarks ?? existing.remarks,
       createdBy: body.createdBy ?? existing.createdBy,
     };
@@ -99,6 +126,16 @@ async function updateSalesOrder(req, res) {
   }
 }
 
+// Confirming used to have no stock check at all - a Draft order could move all the way to
+// Processing regardless of what was actually left in Inventory, and the customer would only
+// find out at the very last step (Dispatch) that there wasn't enough stock, by which point
+// packing/prep work may already be done. Checking here instead means "not enough stock" shows
+// up as early as possible in the order's lifecycle. This checks each line's ordered quantity
+// against Inventory's current quantity right now - it does NOT reserve stock against other
+// orders that are already Confirmed/Processing but not yet dispatched (Inventory.quantity
+// itself is only ever actually decremented at Dispatch, see dispatchSalesOrder below), so two
+// orders can still both confirm successfully against the same limited stock; the real,
+// row-locked deduction/rejection still happens at Dispatch time as the final source of truth.
 async function confirmSalesOrder(req, res) {
   try {
     const { id } = req.params;
@@ -108,6 +145,18 @@ async function confirmSalesOrder(req, res) {
     }
     if (existing.status !== 'Draft') {
       return res.status(400).json({ status: false, message: 'Only a Draft order can be confirmed', data: null });
+    }
+
+    for (const item of existing.items) {
+      const inventoryItem = await InventoryModel.findBySkuId(item.skuId);
+      const available = Number(inventoryItem?.quantity) || 0;
+      if (available < Number(item.orderedQty)) {
+        return res.status(400).json({
+          status: false,
+          message: `Not enough stock in Inventory to confirm ${item.itemName} - ordered ${item.orderedQty} ${item.unit}, only ${available} ${item.unit} available`,
+          data: null,
+        });
+      }
     }
 
     const updated = await SalesOrderModel.update(id, { ...existing, status: 'Confirmed' });
@@ -140,19 +189,32 @@ async function startProcessing(req, res) {
 // and allowed to happen incrementally across multiple calls instead of one all-or-nothing
 // shot). Status becomes "Dispatched" once every line's pendingQty reaches 0, otherwise
 // "Partially Shipped".
+//
+// Runs inside a single transaction with row-level locks (SELECT ... FOR UPDATE) on the Sales
+// Order itself and every Inventory SKU it ships: without this, two concurrent dispatch
+// requests against the same order (or two orders sharing a SKU) could both read the same
+// starting pendingQty/Inventory quantity, both pass validation, and both deduct - shipping
+// more than was ordered or than actually exists in stock. Everything is still validated
+// before any stock is touched, same as before.
 async function dispatchSalesOrder(req, res) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
-    const existing = await SalesOrderModel.findById(id);
+    const existing = await SalesOrderModel.findByIdForUpdate(id, client);
     if (!existing) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'Sales order not found', data: null });
     }
     if (existing.status !== 'Processing' && existing.status !== 'Partially Shipped') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ status: false, message: 'Only a Processing or Partially Shipped order can be dispatched', data: null });
     }
 
     const shipments = req.body.items;
     if (!Array.isArray(shipments) || shipments.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ status: false, message: 'Provide at least one item to ship', data: null });
     }
     const shipMap = new Map(shipments.map((s) => [s.skuId, Number(s.shipQty) || 0]));
@@ -163,10 +225,12 @@ async function dispatchSalesOrder(req, res) {
       const shipQty = shipMap.get(item.skuId) || 0;
       if (shipQty <= 0) continue;
       if (shipQty > Number(item.pendingQty)) {
+        await client.query('ROLLBACK');
         return res.status(400).json({ status: false, message: `Cannot ship more than the pending quantity for ${item.itemName}`, data: null });
       }
-      const inventoryItem = await InventoryModel.findBySkuId(item.skuId);
+      const inventoryItem = await InventoryModel.findBySkuIdForUpdate(item.skuId, client);
       if (!inventoryItem || Number(inventoryItem.quantity) < shipQty) {
+        await client.query('ROLLBACK');
         return res.status(400).json({ status: false, message: `Not enough stock in Inventory to ship ${item.itemName}`, data: null });
       }
     }
@@ -175,7 +239,7 @@ async function dispatchSalesOrder(req, res) {
     for (const item of existing.items) {
       const shipQty = shipMap.get(item.skuId) || 0;
       if (shipQty > 0) {
-        await InventoryModel.adjustStockBySkuId(item.skuId, -shipQty);
+        await InventoryModel.adjustStockBySkuId(item.skuId, -shipQty, client);
       }
       updatedItems.push({
         ...item,
@@ -189,24 +253,34 @@ async function dispatchSalesOrder(req, res) {
       ...existing,
       items: updatedItems,
       status: allShipped ? 'Dispatched' : 'Partially Shipped',
-    });
+    }, client);
+    await client.query('COMMIT');
     res.json({ status: true, message: 'Items dispatched successfully', data: updated });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ status: false, message: err.message, data: null });
+  } finally {
+    client.release();
   }
 }
 
 // Undoes every shipment made so far on this order in one shot - restores each line's
 // dispatchedQty back to Inventory and resets it to fully pending. Does not support
 // reverting a single partial shipment out of several; only a full reset back to Processing.
+// Same transaction + locking treatment as dispatchSalesOrder.
 async function revertDispatch(req, res) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
-    const existing = await SalesOrderModel.findById(id);
+    const existing = await SalesOrderModel.findByIdForUpdate(id, client);
     if (!existing) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'Sales order not found', data: null });
     }
     if (existing.status !== 'Partially Shipped' && existing.status !== 'Dispatched') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ status: false, message: 'Only a Partially Shipped or Dispatched order can be reverted', data: null });
     }
 
@@ -214,15 +288,19 @@ async function revertDispatch(req, res) {
     for (const item of existing.items) {
       const dispatchedQty = Number(item.dispatchedQty);
       if (dispatchedQty > 0) {
-        await InventoryModel.adjustStockBySkuId(item.skuId, dispatchedQty);
+        await InventoryModel.adjustStockBySkuId(item.skuId, dispatchedQty, client);
       }
       updatedItems.push({ ...item, dispatchedQty: 0, pendingQty: item.orderedQty });
     }
 
-    const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Processing' });
+    const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Processing' }, client);
+    await client.query('COMMIT');
     res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ status: false, message: err.message, data: null });
+  } finally {
+    client.release();
   }
 }
 
