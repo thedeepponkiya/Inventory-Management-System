@@ -22,6 +22,7 @@ import PurchaseOrderForm from '../components/purchaseOrder/PurchaseOrderForm';
 import SalesOrder from '../components/salesOrder/SalesOrder';
 import SalesOrderForm from '../components/salesOrder/SalesOrderForm';
 import Login from '../components/login/Login';
+import DeveloperAdmin from '../components/developerAdmin/DeveloperAdmin';
 import CrmProviders from '../features/crm/CrmProviders';
 import CrmSourcesPage from '../features/crm/pages/CrmSourcesPage';
 import CrmSettingsPage from '../features/crm/pages/CrmSettingsPage';
@@ -74,6 +75,7 @@ const AppRoutes = () => {
                         <Route path='/invoices/:id' element={<InvoiceForm />}></Route>
                         <Route path='/reports' element={<Reports />}></Route>
                         <Route path='/users' element={<Users />}></Route>
+                        <Route path='/developer-admin' element={<DeveloperAdmin />}></Route>
                         <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
                         <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
                         <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>

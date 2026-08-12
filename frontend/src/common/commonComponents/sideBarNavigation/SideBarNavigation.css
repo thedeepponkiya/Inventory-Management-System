@@ -104,6 +104,14 @@
     width: 100%;
 }
 
+/* Extra breathing room between the Inventory sidebar's own menu groups (Operation, Master,
+   Billing, Analytics, Administration). The CRM menu wrapper below them shares this same
+   ".sidebar-group" class but is always the last child, so :not(:last-child) naturally
+   excludes it - the gap right before the CRM menu stays as-is. */
+.sidebar-group:not(:last-child) {
+    margin-bottom: 10px;
+}
+
 .sidebar-group-divider {
     display: flex;
     align-items: center;

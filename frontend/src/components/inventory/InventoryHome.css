@@ -1,8 +1,9 @@
 .inventory-home-thumb {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 36px;
     border-radius: 6px;
     object-fit: cover;
+    cursor: pointer;
 }
 
 /* Current Stock column body (getInventoryHomeColumns / renderStockCell in

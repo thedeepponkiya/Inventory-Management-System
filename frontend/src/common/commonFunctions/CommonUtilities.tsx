@@ -343,6 +343,7 @@ export const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', '
 export const DEPARTMENT_OPTIONS = ['Sales', 'Warehouse', 'Production', 'Accounts', 'Admin'];
 
 export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: (sku: RawSku) => void, onEditClick?: (sku: RawSku) => void): ColumnConfig<RawSkuWithStockLevel>[] => [
+    { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'skuName', preview: true } },
     {
         field: 'skuCode',
         header: 'SKU Code',
@@ -530,7 +531,7 @@ export const getUsersColumns = (dateFormat: DateFormatOption, onEditClick?: (use
 ];
 
 export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void, onEditClick?: (item: InventoryItem) => void): ColumnConfig<InventoryItemWithStockLevel>[] => [
-    { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName', preview: true } },
+    { field: 'images', header: 'Image', filter: false, fieldType: 'image', options: { altField: 'productName', preview: true, className: 'inventory-home-thumb' } },
     {
         field: 'skuId',
         header: 'SKU (ID)',
@@ -882,7 +883,25 @@ export interface SalesOrderItemRow extends SalesOrderItem {
     rowId: number;
 }
 
-export const getSalesOrderItemColumns = (items: SalesOrderItemRow[], onEditClick?: (item: SalesOrderItemRow) => void): ColumnConfig<SalesOrderItemRow>[] => [
+export const getSalesOrderItemColumns = (items: SalesOrderItemRow[], inventories: InventoryItem[], onEditClick?: (item: SalesOrderItemRow) => void): ColumnConfig<SalesOrderItemRow>[] => [
+    {
+        field: 'rowId',
+        key: 'image',
+        header: 'Image',
+        filter: false,
+        style: { width: '56px' },
+        body: (row) => {
+            const src = inventories.find((item) => item.skuId === row.skuId)?.images?.[0];
+            if (!src) {
+                return (
+                    <div className="common-table-thumb common-table-thumb--placeholder">
+                        <HiOutlineCube size={16} />
+                    </div>
+                );
+            }
+            return <Image src={resolveImageUrl(src)} alt={row.itemName} imageClassName="common-table-thumb" preview />;
+        },
+    },
     {
         field: 'rowId',
         key: 'index',
@@ -953,6 +972,24 @@ export interface BomItemRow extends BomItem {
 // looked up live from rawSkus (not stored on the item) so it always reflects the Raw SKU's
 // current location rather than a frozen snapshot from whenever the order was created.
 export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSkus: RawSku[]): ColumnConfig<BomItemRow>[] => [
+    {
+        field: 'rowId',
+        key: 'image',
+        header: 'Image',
+        filter: false,
+        style: { width: '56px' },
+        body: (row) => {
+            const src = rawSkus.find((sku) => sku.skuCode === row.rawSkuCode)?.images?.[0];
+            if (!src) {
+                return (
+                    <div className="common-table-thumb common-table-thumb--placeholder">
+                        <HiOutlineCube size={16} />
+                    </div>
+                );
+            }
+            return <Image src={resolveImageUrl(src)} alt={row.rawSkuName} imageClassName="common-table-thumb" preview />;
+        },
+    },
     {
         field: 'rowId',
         key: 'index',

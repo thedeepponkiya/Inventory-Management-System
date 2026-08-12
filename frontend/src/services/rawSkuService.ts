@@ -6,6 +6,7 @@ export type SourceType = 'Direct Purchase' | 'Processed';
 
 export interface RawSku {
     id: number;
+    images: string[];
     skuCode: string;
     skuName: string;
     categoryId: number | null;
@@ -32,6 +33,7 @@ export interface RawSku {
 }
 
 export interface RawSkuPayload {
+    images: string[];
     skuName: string;
     categoryId: number | null;
     productTypeId: number | null;

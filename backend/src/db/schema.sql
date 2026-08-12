@@ -37,6 +37,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS "profileImage" TEXT;
 ALTER TABLE users DROP COLUMN IF EXISTS "locationId";
 CREATE UNIQUE INDEX IF NOT EXISTS users_usercode_lower_idx ON users (LOWER("userCode"));
+-- Lets a real, fully-functional login row (e.g. a break-glass/system Super Admin account)
+-- exist without ever showing up in the User Management list - see user.model.js's getAll().
+-- There is no RBAC in this app today (any authenticated session already has full API
+-- access), so this column controls list VISIBILITY only, not permissions.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT false;
 
 -- Locations master, backing /api/v1/locations CRUD.
 CREATE TABLE IF NOT EXISTS ims_location (
@@ -149,6 +154,8 @@ CREATE TABLE IF NOT EXISTS ims_raw_sku (
 -- CREATE TABLE block above, so this migrates any already-created table too.
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "productTypeId" INTEGER REFERENCES ims_product_type(id);
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "locationId" INTEGER REFERENCES ims_location(id);
+-- "images" is a JSONB array of image URLs (same shape/upload backing as ims_inventories.images).
+ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
 
 -- Purchase orders, backing /api/v1/purchase-orders CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -689,3 +696,16 @@ CREATE TABLE IF NOT EXISTS crm_notifications (
 );
 CREATE INDEX IF NOT EXISTS crm_notifications_user_idx ON crm_notifications ("userId");
 CREATE INDEX IF NOT EXISTS crm_notifications_read_idx ON crm_notifications ("isRead");
+
+-- Single generic key-value store backing every Developer Admin section (only "Manage
+-- Visibility" exists today, but every future section - API Keys, Webhooks, etc. - persists
+-- through this same table too, one row per "settingKey", instead of each section getting its
+-- own dedicated table). "Manage Visibility"'s data lives under settingKey = 'ui-visibility',
+-- with "settingValue" shaped { hiddenQuickActions: string[], hiddenSidebarItems: string[] } -
+-- see developerAdminSettings.model.js.
+CREATE TABLE IF NOT EXISTS ims_developer_admin_settings (
+    id SERIAL PRIMARY KEY,
+    "settingKey" VARCHAR(100) NOT NULL UNIQUE,
+    "settingValue" JSONB NOT NULL DEFAULT '{}',
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);

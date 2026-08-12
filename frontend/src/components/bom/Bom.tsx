@@ -419,7 +419,8 @@ const Bom = () => {
                             key={form.outputQty}
                             value={items}
                             columns={itemColumns}
-                            paginator={false}
+                            paginator
+                            rows={5}
                             sortable={false}
                             filterable={false}
                             dataKey="rowId"

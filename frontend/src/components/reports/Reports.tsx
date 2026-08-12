@@ -536,7 +536,10 @@ const Reports = () => {
                                 });
                                 return;
                             }
-                            exportReportPdf(activeExport.title, filterSummary, activeExport.data.head, activeExport.data.rows, `${activeExport.filename}.pdf`, companyLogo);
+                            // Async (it may decode/crop the logo on an offscreen canvas
+                            // first) - fire-and-forget from this click handler, same as the
+                            // Stock Summary export above.
+                            void exportReportPdf(activeExport.title, filterSummary, activeExport.data.head, activeExport.data.rows, `${activeExport.filename}.pdf`, companyLogo, { companyName, address });
                         }}
                     />
                 </div>

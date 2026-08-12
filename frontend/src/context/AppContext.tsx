@@ -14,6 +14,7 @@ import { getRawSkus, type RawSku } from '../services/rawSkuService';
 import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
 import { getBoms, type Bom } from '../services/bomService';
 import { getUsers, type User } from '../services/userService';
+import { getUiVisibility, type UiVisibilityConfig } from '../services/uiVisibilityService';
 import { AppContext } from './AppContextDefinition';
 import { useAuthContext } from './AuthContextDefinition';
 
@@ -48,6 +49,8 @@ const AppContextProvider = (props: any) => {
     const [bomsLoading, setBomsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [users, setUsers] = React.useState<User[]>([]);
     const [usersLoading, setUsersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [uiVisibility, setUiVisibility] = React.useState<UiVisibilityConfig | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [uiVisibilityLoading, setUiVisibilityLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -147,6 +150,16 @@ const AppContextProvider = (props: any) => {
             .finally(() => setUsersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    // Exposed separately so VisibilitySettingsDialog can refetch right after saving, instead
+    // of every consumer (FilterBar, SideBarNavigation) needing a full app reload to see the
+    // updated hidden-item lists.
+    const fetchUiVisibility = React.useCallback(() => {
+        getUiVisibility()
+            .then((data) => setUiVisibility(data))
+            .catch(() => setUiVisibility(DEFAULT_DATA_TYPE_VALUE.NULL))
+            .finally(() => setUiVisibilityLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     // Every fetch here needs a valid session token (see backend/src/middleware/auth.middleware.js),
     // so firing them before login just silently 401s and never retries - this effect used to
     // run once unconditionally on mount, which for a not-yet-logged-in user meant the whole
@@ -169,7 +182,8 @@ const AppContextProvider = (props: any) => {
         fetchInventories();
         fetchBoms();
         fetchUsers();
-    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers]);
+        fetchUiVisibility();
+    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers, fetchUiVisibility]);
 
     return (
         <>
@@ -219,6 +233,10 @@ const AppContextProvider = (props: any) => {
                     users,
                     usersLoading,
                     fetchUsers,
+                    hiddenQuickActions: uiVisibility?.hiddenQuickActions ?? [],
+                    hiddenSidebarItems: uiVisibility?.hiddenSidebarItems ?? [],
+                    uiVisibilityLoading,
+                    fetchUiVisibility,
                 }}>
                 {props.children}
             </AppContext.Provider >

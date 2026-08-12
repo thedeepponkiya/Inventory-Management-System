@@ -1,4 +1,5 @@
 const InventoryModel = require('../models/inventory.model');
+const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
 
 async function getInventories(req, res) {
   try {
@@ -80,6 +81,7 @@ async function updateInventory(req, res) {
     };
 
     const updated = await InventoryModel.update(id, fields);
+    deleteRemovedImages(existing.images, fields.images);
     res.json({ status: true, message: 'Inventory item updated successfully', data: updated });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -95,6 +97,7 @@ async function deleteInventory(req, res) {
     }
 
     await InventoryModel.remove(id);
+    deleteAllImages(existing.images);
     res.json({ status: true, message: 'Inventory item deleted successfully', data: null });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });

@@ -6,7 +6,6 @@ import {
     HiOutlineArchiveBox,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
-    HiOutlineCube,
     HiOutlineSquare3Stack3D,
     HiOutlineShoppingCart,
     HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
@@ -27,6 +26,7 @@ import {
     HiOutlineChevronRight,
     HiOutlineChevronDown,
 } from 'react-icons/hi2';
+import { BsBoxSeam } from 'react-icons/bs';
 import inventoryLogo from '../../../assets/inventoryLogo.png';
 import inventoryWordmark from '../../../assets/inventoryWordmark.png';
 import SettingsDialog from '../settingsDialog/SettingsDialog';
@@ -39,7 +39,7 @@ const navGroups = [
     {
         groupLabel: 'Operation',
         items: [
-            { label: 'Inventories', path: '/home', icon: HiOutlineCube },
+            { label: 'Inventories', path: '/home', icon: BsBoxSeam, iconSize: 17 },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
@@ -97,7 +97,11 @@ const crmMenu = {
 };
 
 const SidePanel = () => {
-    const { isSidePanelOpen, setIsSidePanelOpen } = useContext(AppContext);
+    const { isSidePanelOpen, setIsSidePanelOpen, hiddenSidebarItems } = useContext(AppContext);
+    // Admin-controlled (VisibilitySettingsDialog) - covers crmMenu.items too, since every
+    // path across navGroups/dashboardItem/crmMenu is globally unique.
+    const hiddenPaths: string[] = hiddenSidebarItems ?? [];
+    const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path));
     const expanded = isSidePanelOpen;
     const [mobileOpen, setMobileOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [settingsOpen, setSettingsOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
@@ -151,37 +155,47 @@ const SidePanel = () => {
                 </div>
 
                 <div className="sidebar-items">
-                    <NavLink
-                        to={dashboardItem.path}
-                        end
-                        className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
-                        title={dashboardItem.label}
-                        onClick={() => setMobileOpen(false)}
-                    >
-                        <dashboardItem.icon size={19} />
-                        <span>{dashboardItem.label}</span>
-                    </NavLink>
+                    {!hiddenPaths.includes(dashboardItem.path) && (
+                        <NavLink
+                            to={dashboardItem.path}
+                            end
+                            className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
+                            title={dashboardItem.label}
+                            onClick={() => setMobileOpen(false)}
+                        >
+                            <dashboardItem.icon size={19} />
+                            <span>{dashboardItem.label}</span>
+                        </NavLink>
+                    )}
 
-                    {navGroups.map((group) => (
-                        <div key={group.groupLabel} className="sidebar-group">
-                            <div className="sidebar-group-divider">
-                                <span className="sidebar-group-label">{group.groupLabel}</span>
+                    {navGroups.map((group) => {
+                        const visibleItems = group.items.filter((item) => !hiddenPaths.includes(item.path));
+                        // Skip the whole group (divider + label included) once every item in
+                        // it has been hidden - otherwise an empty heading with nothing under
+                        // it would still show.
+                        if (visibleItems.length === 0) return null;
+                        return (
+                            <div key={group.groupLabel} className="sidebar-group">
+                                <div className="sidebar-group-divider">
+                                    <span className="sidebar-group-label">{group.groupLabel}</span>
+                                </div>
+                                {visibleItems.map(({ label, path, icon: Icon, iconSize }) => (
+                                    <NavLink
+                                        key={path}
+                                        to={path}
+                                        className={`sidebar-item${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                        title={label}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <Icon size={iconSize ?? 19} />
+                                        <span>{label}</span>
+                                    </NavLink>
+                                ))}
                             </div>
-                            {group.items.map(({ label, path, icon: Icon }) => (
-                                <NavLink
-                                    key={path}
-                                    to={path}
-                                    className={`sidebar-item${isItemActive(path) ? ' sidebar-item--active' : ''}`}
-                                    title={label}
-                                    onClick={() => setMobileOpen(false)}
-                                >
-                                    <Icon size={19} />
-                                    <span>{label}</span>
-                                </NavLink>
-                            ))}
-                        </div>
-                    ))}
+                        );
+                    })}
 
+                    {visibleCrmItems.length > 0 && (
                     <div className="sidebar-group">
                         <button
                             type="button"
@@ -194,7 +208,7 @@ const SidePanel = () => {
                         </button>
                         {crmMenuOpen && (
                             <div className="sidebar-submenu">
-                                {crmMenu.items.map(({ label, path, icon: Icon }) => (
+                                {visibleCrmItems.map(({ label, path, icon: Icon }) => (
                                     <NavLink
                                         key={path}
                                         to={path}
@@ -210,6 +224,7 @@ const SidePanel = () => {
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
 
                 <div className="sidebar-footer">

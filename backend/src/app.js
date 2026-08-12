@@ -27,6 +27,7 @@ const crmFollowupRoutes = require('./routes/crmFollowup.routes');
 const crmCampaignRoutes = require('./routes/crmCampaign.routes');
 const crmTagRoutes = require('./routes/crmTag.routes');
 const crmMetaIntegrationRoutes = require('./routes/crmMetaIntegration.routes');
+const developerAdminSettingsRoutes = require('./routes/developerAdminSettings.routes');
 
 const app = express();
 
@@ -71,5 +72,6 @@ app.use('/api/v1/crm/followups', crmFollowupRoutes);
 app.use('/api/v1/crm/campaigns', crmCampaignRoutes);
 app.use('/api/v1/crm/tags', crmTagRoutes);
 app.use('/api/v1/crm/meta', crmMetaIntegrationRoutes);
+app.use('/api/v1/developer-admin-settings', developerAdminSettingsRoutes);
 
 module.exports = app;

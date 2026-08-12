@@ -35,6 +35,10 @@ async function login(req, res) {
       data: {
         userName: user.userName,
         email: user.email,
+        profileImage: user.profileImage,
+        // Lets the frontend show the "Developer Admin" sidebar section only to this one
+        // hidden account (see SideBarNavigation.tsx) - never exposed anywhere else.
+        isHidden: user.isHidden,
         token,
       },
     });

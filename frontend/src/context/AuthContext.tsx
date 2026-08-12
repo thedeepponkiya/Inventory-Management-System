@@ -64,7 +64,12 @@ const AuthContextProvider = ({ children }: { children: ReactNode }) => {
             if (!response.ok || !result.status) {
                 return { success: DEFAULT_DATA_TYPE_VALUE.FALSE, message: result.message ?? 'Login failed' };
             }
-            const authUser: AuthUser = { userName: result.data.userName, email: result.data.email };
+            const authUser: AuthUser = {
+                userName: result.data.userName,
+                email: result.data.email,
+                profileImage: result.data.profileImage ?? DEFAULT_DATA_TYPE_VALUE.NULL,
+                isHidden: result.data.isHidden ?? DEFAULT_DATA_TYPE_VALUE.FALSE,
+            };
             setToken(result.data.token);
             setUser(authUser);
             saveAuthToStorage({ token: result.data.token, user: authUser });

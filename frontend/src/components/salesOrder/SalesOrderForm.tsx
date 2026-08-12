@@ -669,7 +669,7 @@ const SalesOrderForm = () => {
         });
     };
 
-    const itemColumns = getSalesOrderItemColumns(items, isLocked ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : openEditItemDialog);
+    const itemColumns = getSalesOrderItemColumns(items, inventories as InventoryItem[], isLocked ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : openEditItemDialog);
     const itemActionTemplate = isLocked
         ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED
         : getActionBodyTemplate<SalesOrderItemRow>({ onDelete: (row) => removeItem(row.rowId) });
