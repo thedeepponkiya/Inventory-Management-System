@@ -9,10 +9,12 @@ import {
     HiOutlineCube,
     HiOutlineFunnel,
     HiOutlineShoppingCart,
-    HiOutlineSquare3Stack3D,
     HiOutlineTruck, // Material Inward quick action hidden below
 } from 'react-icons/hi2';
-import { MdFilterAltOff } from 'react-icons/md';
+// BOM = Bill of Materials, a hierarchical parent/component breakdown - the hi2 (Heroicons)
+// set has no literal tree/hierarchy icon, so this borrows Material Design's outline
+// "account tree" glyph instead (react-icons/md is already a dependency here).
+import { MdFilterAltOff, MdOutlineAccountTree } from 'react-icons/md';
 import { NavLink } from 'react-router-dom';
 import './FilterBar.css';
 
@@ -52,7 +54,7 @@ const defaultQuickActions: FilterBarQuickAction[] = [
     { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
     { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
-    { label: 'BOM', path: '/bom', icon: HiOutlineSquare3Stack3D },
+    { label: 'BOM', path: '/bom', icon: MdOutlineAccountTree },
     { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
 ];
 
