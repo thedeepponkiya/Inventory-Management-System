@@ -1,0 +1,730 @@
+.lead-detail-drawer.p-sidebar {
+    width: min(680px, 92vw);
+    max-width: 95vw;
+}
+
+/* showCloseIcon={false} (see LeadDetailDrawer.tsx) drops the close icon itself, but
+   PrimeReact still renders an empty `.p-sidebar-header` wrapper with its own padding/
+   min-height - collapsing it entirely so our own header row (with its own close button)
+   sits flush at the top instead of leaving a blank strip above it. */
+.lead-detail-drawer .p-sidebar-header {
+    display: none;
+}
+
+/* Matches the established compact tab padding from Inventory's own forms (see
+   MaterialInwardForm.css / PurchaseOrderForm.css, both referencing InventoryHome's dialog
+   tabs) instead of PrimeReact's default 1.25rem tab/panel padding. */
+.lead-detail-drawer .p-tabview-nav-link {
+    padding: 10px 4px !important;
+    margin-right: 20px;
+    font-size: 13px;
+}
+
+.lead-detail-drawer .p-tabview-panels {
+    padding: 16px 0 0 !important;
+}
+
+.lead-detail-drawer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 18px;
+    padding-bottom: 14px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.lead-detail-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.lead-detail-header-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.lead-detail-header-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lead-detail-header-name-row h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.lead-detail-header-code-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lead-detail-drawer-code {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.lead-detail-copy-btn {
+    display: flex;
+    align-items: center;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 0;
+}
+
+.lead-detail-copy-btn:hover {
+    color: var(--accent-info-text);
+}
+
+.lead-detail-edit-btn,
+.lead-detail-delete-btn,
+.lead-detail-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+}
+
+.lead-detail-edit-btn {
+    color: var(--accent-info-text);
+}
+
+.lead-detail-edit-btn:hover {
+    opacity: 0.75;
+}
+
+.lead-detail-delete-btn {
+    color: var(--accent-danger-text);
+}
+
+.lead-detail-delete-btn:hover {
+    opacity: 0.75;
+}
+
+.lead-detail-close-btn {
+    color: var(--text-subtle);
+}
+
+.lead-detail-close-btn:hover {
+    color: var(--text-primary);
+}
+
+.lead-detail-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.lead-detail-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.lead-detail-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.lead-detail-overview-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 4px 14px;
+}
+
+.lead-detail-overview-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.lead-detail-grid-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.lead-detail-grid-row:first-child {
+    padding-top: 4px;
+}
+
+.lead-detail-grid-row:last-child {
+    border-bottom: none;
+    padding-bottom: 4px;
+}
+
+.lead-detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lead-detail-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-subtle);
+}
+
+.lead-detail-value-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lead-detail-icon-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+    flex-shrink: 0;
+}
+
+.lead-detail-field-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lead-detail-value-14 {
+    font-size: 14px;
+}
+
+.lead-detail-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lead-detail-inline-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.lead-detail-inline-icon-btn--call {
+    color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+    border-radius: 50%;
+}
+
+.lead-detail-inline-icon-btn--email {
+    color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+}
+
+.lead-detail-inline-dropdown {
+    width: 100%;
+}
+
+/* Selected-value pills for the Stage/Status dropdowns (valueTemplate in
+   LeadDetailDrawer.tsx) - the dropdown chrome stays, only its closed-state display is
+   restyled to look like a colored badge instead of plain text. */
+.lead-detail-pill-dropdown.p-dropdown {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.lead-detail-pill-dropdown .p-dropdown-label {
+    padding: 0;
+}
+
+.lead-detail-pill-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: fit-content;
+}
+
+.lead-detail-source-badge {
+    display: inline-flex;
+    width: fit-content;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+/* Assigned To's dropdown keeps full dropdown behavior (click to open, pick a user) but
+   visually drops PrimeReact's own arrow in favor of a plain right-chevron drawn inside the
+   valueTemplate itself, matching the reference image's "tap to view/change" affordance
+   instead of looking like a typical form dropdown. */
+.lead-detail-assigned-dropdown.p-dropdown {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.lead-detail-assigned-dropdown .p-dropdown-label {
+    padding: 0;
+    width: 100%;
+}
+
+.lead-detail-assigned-dropdown .p-dropdown-trigger {
+    display: none;
+}
+
+.lead-detail-assigned-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.lead-detail-assigned-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.lead-detail-assigned-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lead-detail-assigned-chevron {
+    color: var(--text-subtle);
+    flex-shrink: 0;
+}
+
+.lead-detail-priority {
+    display: inline-flex;
+    width: fit-content;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.lead-detail-metric-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.lead-detail-metric-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    color: var(--text-subtle);
+}
+
+.lead-detail-metric-card > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.lead-detail-metric-label {
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+.lead-detail-metric-value {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lead-detail-two-col {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.lead-detail-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.lead-detail-view-all {
+    border: none;
+    background: transparent;
+    color: var(--accent-info-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.lead-detail-activity-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.lead-detail-activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.lead-detail-activity-item {
+    display: flex;
+    gap: 10px;
+}
+
+.lead-detail-activity-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Connects each icon to the next one, turning the plain icon+text list into a timeline -
+   the line spans exactly the feed's own item gap (14px), from this icon's bottom edge to
+   the next item's icon top edge. */
+.lead-detail-activity-item:not(:last-child) .lead-detail-activity-icon::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 14px;
+    background: var(--border-subtle);
+}
+
+.lead-detail-activity-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.lead-detail-activity-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.lead-detail-activity-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.lead-detail-activity-date {
+    font-size: 11px;
+    color: var(--text-subtle);
+    white-space: nowrap;
+}
+
+.lead-detail-activity-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.lead-detail-activity-by {
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 2px;
+}
+
+.lead-detail-side-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.lead-detail-summary-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.lead-detail-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    padding: 5px 0;
+}
+
+.lead-detail-summary-row span:last-child {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.lead-detail-summary-success { color: var(--accent-success-text) !important; }
+.lead-detail-summary-warning { color: var(--accent-warning-text) !important; }
+.lead-detail-summary-danger { color: var(--accent-danger-text) !important; }
+
+.lead-detail-conversion {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.lead-detail-conversion-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.lead-detail-conversion-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-subtle);
+    overflow: hidden;
+}
+
+.lead-detail-conversion-fill {
+    height: 100%;
+    background: var(--accent-info-text);
+    border-radius: 999px;
+}
+
+.lead-detail-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+}
+
+.lead-detail-footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.lead-detail-footer-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-subtle);
+}
+
+.lead-detail-footer-value {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lead-detail-footer-notes {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.lead-detail-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 12px;
+}
+
+.lead-detail-add-form .p-button {
+    align-self: flex-end;
+}
+
+.lead-detail-followup-row {
+    display: flex;
+    gap: 8px;
+}
+
+.lead-detail-followup-row > * {
+    flex: 1;
+}
+
+.lead-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100vh - 380px);
+    overflow-y: auto;
+}
+
+.lead-detail-empty {
+    font-size: 13px;
+    color: var(--text-subtle);
+    text-align: center;
+    padding: 16px 0;
+}
+
+.lead-detail-note {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.lead-detail-note-body {
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+.lead-detail-note-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+.lead-detail-note-meta button {
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.lead-detail-note-meta button:hover {
+    color: var(--accent-danger-text);
+}
+
+.lead-detail-followup {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.lead-detail-followup-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.lead-detail-followup-type {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lead-detail-followup-due {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.lead-detail-followup-notes {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-top: 4px;
+    white-space: pre-wrap;
+}
+
+.lead-detail-followup-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.lead-detail-followup-actions button {
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.lead-detail-followup-actions button:hover {
+    color: var(--accent-danger-text);
+}
+
+@media (max-width: 480px) {
+    .lead-detail-grid-row,
+    .lead-detail-metric-row,
+    .lead-detail-two-col {
+        grid-template-columns: 1fr;
+    }
+}

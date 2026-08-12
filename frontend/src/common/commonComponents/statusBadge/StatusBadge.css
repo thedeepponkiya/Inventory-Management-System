@@ -29,3 +29,8 @@
     background: var(--surface-subtle-2);
     color: var(--text-muted);
 }
+
+.status-badge--purple.p-tag {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
+}

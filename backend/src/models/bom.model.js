@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const pool = require('../config/db');
 
 const TABLE = 'ims_bom';
+const CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
 async function getAll() {
   const result = await pool.query(`SELECT * FROM ${TABLE} ORDER BY id ASC`);
@@ -12,10 +14,37 @@ async function findById(id) {
   return result.rows[0];
 }
 
-async function getNextBomCode() {
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE}`);
-  const nextSeq = Number(result.rows[0].count) + 1;
-  return `BOM-${String(nextSeq).padStart(4, '0')}`;
+async function findByCode(bomCode) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "bomCode" = $1`, [bomCode]);
+  return result.rows[0];
+}
+
+// Locks the BOM row (via `FOR UPDATE`) for the duration of a complete/revert transaction, so
+// two concurrent requests against the same order can't both see status = 'Process' and both
+// proceed. Only ever called with a transaction client, never the bare pool.
+async function findByIdForUpdate(id, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE id = $1 FOR UPDATE`, [id]);
+  return result.rows[0];
+}
+
+function randomOrderCode() {
+  const bytes = crypto.randomBytes(8);
+  let suffix = '';
+  for (let i = 0; i < 8; i++) {
+    suffix += CODE_CHARS[bytes[i] % CODE_CHARS.length];
+  }
+  return `ORD-${suffix}`;
+}
+
+// Random (not sequential) so a deleted order can never free up a code another order later
+// collides with - collision odds are astronomically low (36^8 combinations) but this still
+// retries on the off chance one is already taken, rather than trusting probability alone.
+async function generateOrderCode() {
+  let code = randomOrderCode();
+  while (await findByCode(code)) {
+    code = randomOrderCode();
+  }
+  return code;
 }
 
 async function create(bomCode, fields) {
@@ -40,8 +69,11 @@ async function create(bomCode, fields) {
   return result.rows[0];
 }
 
-async function update(id, fields) {
-  const result = await pool.query(
+// Accepts an optional transaction client (`db`), same reasoning as rawSku.model.js's
+// adjustStockBySkuCode - completeBom/revertBomToProcess need this update to commit or roll
+// back atomically together with the raw-material/finished-good stock adjustments.
+async function update(id, fields, db = pool) {
+  const result = await db.query(
     `UPDATE ${TABLE} SET
       "productSku" = $1, "productName" = $2, "categoryName" = $3, version = $4, "outputQty" = $5,
       unit = $6, status = $7, items = $8, "createdBy" = $9, "updatedAt" = now()
@@ -63,8 +95,8 @@ async function update(id, fields) {
   return result.rows[0];
 }
 
-async function remove(id) {
-  await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
+async function remove(id, db = pool) {
+  await db.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, getNextBomCode, create, update, remove };
+module.exports = { getAll, findById, findByCode, findByIdForUpdate, generateOrderCode, create, update, remove };

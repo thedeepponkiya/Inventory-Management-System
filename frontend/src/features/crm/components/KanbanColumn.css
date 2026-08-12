@@ -1,0 +1,94 @@
+.kanban-column {
+    display: flex;
+    flex-direction: column;
+    /* Shrinks to share the board's actual available width instead of always claiming a fixed
+       300px per column - a hardcoded width forced the board wider than the viewport (and
+       triggered dnd-kit's edge auto-scroll during drag) even when the columns would have
+       fit. min-width keeps each column readable once there truly isn't enough room, at
+       which point (many stages, narrow viewport) horizontal scroll is unavoidable. */
+    flex: 1 1 260px;
+    min-width: 260px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    /* Fills the board's real (flex-computed) height instead of a hardcoded viewport-minus-
+       pixels guess - see .kanban-board/.crm-leads-page in CrmLeadsPage.css. */
+    height: 100%;
+}
+
+.kanban-column--over {
+    background: var(--accent-info-bg);
+}
+
+.kanban-column-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 0 14px;
+}
+
+.kanban-column-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    /* flex: 0 1 auto (not flex: 1) so the title only takes the space its text actually
+       needs - the count badge sits snug right after it instead of being pushed to the far
+       right edge of the column by a title box that stretches to fill all available width. */
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* color/background are set inline per-stage from the stage's own `color` value (tinted
+   background + solid text in the same hue) - see KanbanColumn.tsx. */
+.kanban-column-count {
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 9px;
+    flex-shrink: 0;
+}
+
+.kanban-column-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 2px;
+    /* Pushes the add-button to the column's far right regardless of how little space the
+       (now content-sized) title + count actually take up. */
+    margin-left: auto;
+}
+
+.kanban-column-add:hover {
+    color: var(--accent-info-text);
+}
+
+.kanban-column-subtotal {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 14px 12px 14px;
+}
+
+/* border-top-color is set inline per-stage from the stage's own `color` value - see
+   KanbanColumn.tsx. */
+.kanban-column-divider {
+    border-top: 2px solid var(--border-subtle);
+    margin: 0 14px 12px;
+}
+
+.kanban-column-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 14px 14px 14px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 60px;
+}

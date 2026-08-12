@@ -17,18 +17,18 @@ async function findByLocation(location) {
   return result.rows[0];
 }
 
-async function create(location, status) {
+async function create(location, status, description) {
   const result = await pool.query(
-    `INSERT INTO ${TABLE} (location, status) VALUES ($1, $2) RETURNING *`,
-    [location, status]
+    `INSERT INTO ${TABLE} (location, description, status) VALUES ($1, $2, $3) RETURNING *`,
+    [location, description, status]
   );
   return result.rows[0];
 }
 
-async function update(id, location, status) {
+async function update(id, location, status, description) {
   const result = await pool.query(
-    `UPDATE ${TABLE} SET location = $1, status = $2 WHERE id = $3 RETURNING *`,
-    [location, status, id]
+    `UPDATE ${TABLE} SET location = $1, description = $2, status = $3 WHERE id = $4 RETURNING *`,
+    [location, description, status, id]
   );
   return result.rows[0];
 }

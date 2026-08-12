@@ -1,4 +1,5 @@
 import { useContext, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -6,24 +7,25 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlinePlus, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { createRawSku, updateRawSku, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
+import { uploadProductImage } from '../../services/inventoryService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
+import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getRawSkuColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
-import { showToast } from '../../common/commonFunctions/commonFunction';
+import { getRawSkuColumns, getStockLevel, type RawSkuWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
+import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
-const unitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
-
 interface RawSkuForm {
+    images: string[];
     skuName: string;
     categoryId: number | null;
     productTypeId: number | null;
@@ -39,6 +41,7 @@ interface RawSkuForm {
 }
 
 const emptyForm: RawSkuForm = {
+    images: [],
     skuName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     categoryId: DEFAULT_DATA_TYPE_VALUE.NULL,
     productTypeId: DEFAULT_DATA_TYPE_VALUE.NULL,
@@ -54,12 +57,14 @@ const emptyForm: RawSkuForm = {
 };
 
 const RawSku = () => {
-    const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, locations } = useContext(AppContext);
+    const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, units, locations } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState<RawSkuForm>(emptyForm);
+    const [activeImageIndex, setActiveImageIndex] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [uploadingImages, setUploadingImages] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingSkuCode, setEditingSkuCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewSkuCode, setPreviewSkuCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
@@ -70,15 +75,61 @@ const RawSku = () => {
 
     const filteredSkus = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return (rawSkus as RawSkuType[]).filter((sku) => {
-            return !search || sku.skuName.toLowerCase().includes(search) || sku.skuCode.toLowerCase().includes(search);
-        });
+        return (rawSkus as RawSkuType[])
+            .filter((sku) => !search || sku.skuName.toLowerCase().includes(search) || sku.skuCode.toLowerCase().includes(search))
+            // stockLevel is precomputed here (not derived in the column body) so the Current
+            // Stock column's dropdown filter has a plain field to match against.
+            .map((sku) => ({ ...sku, stockLevel: getStockLevel(sku.currentStock, sku.reorderLevel, sku.maxStock).label }));
     }, [rawSkus, filters]);
+
+    // Uploads each file to the backend (see inventoryService.ts's uploadProductImage) and
+    // stores only the returned relative path - not a client-side blob: URL, which never
+    // survives a page reload since it's never actually saved anywhere.
+    const addImages = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        if (form.images.length >= 4) {
+            showToast(toast, 'warn', 'Limit reached', 'You can upload up to 4 images per SKU');
+            return;
+        }
+        const remainingSlots = 4 - form.images.length;
+        const filesToUpload = Array.from(files).slice(0, remainingSlots);
+        if (files.length > remainingSlots) {
+            showToast(toast, 'warn', 'Limit reached', 'You can upload up to 4 images per SKU');
+        }
+        setUploadingImages(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            const uploadedPaths = await Promise.all(filesToUpload.map((file) => uploadProductImage(file)));
+            setForm((prev) => {
+                setActiveImageIndex(prev.images.length);
+                return { ...prev, images: [...prev.images, ...uploadedPaths] };
+            });
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Image upload failed');
+        } finally {
+            setUploadingImages(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        }
+    };
+
+    const handleImagesSelect = (e: ChangeEvent<HTMLInputElement>) => {
+        addImages(e.target.files);
+        e.target.value = DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
+    };
+
+    const handleImageDrop = (e: DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+        addImages(e.dataTransfer.files);
+    };
+
+    const removeImage = (index: number) => {
+        setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+        setActiveImageIndex((prev) => (prev >= index ? Math.max(0, prev - 1) : prev));
+    };
 
     const openAddDialog = async () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setEditingSkuCode(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         setForm(emptyForm);
+        setActiveImageIndex(DEFAULT_DATA_TYPE_VALUE.ZERO);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
             setPreviewSkuCode(await getNextSkuCode());
@@ -91,6 +142,7 @@ const RawSku = () => {
         setEditingId(sku.id);
         setEditingSkuCode(sku.skuCode);
         setForm({
+            images: sku.images,
             skuName: sku.skuName,
             categoryId: sku.categoryId,
             productTypeId: sku.productTypeId,
@@ -104,25 +156,8 @@ const RawSku = () => {
             description: sku.description ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
             status: sku.status,
         });
+        setActiveImageIndex(DEFAULT_DATA_TYPE_VALUE.ZERO);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
-    };
-
-    const handleDelete = (sku: RawSkuType) => {
-        confirmDialog({
-            message: `Delete SKU "${sku.skuName}"? This cannot be undone.`,
-            header: 'Delete SKU',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteRawSku(sku.id);
-                    fetchRawSkus();
-                    showToast(toast, 'success', 'Deleted', 'SKU deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
     };
 
     const handleSave = async () => {
@@ -132,6 +167,7 @@ const RawSku = () => {
         }
 
         const payload: RawSkuPayload = {
+            images: form.images,
             skuName: form.skuName,
             categoryId: form.categoryId,
             productTypeId: form.productTypeId,
@@ -184,9 +220,13 @@ const RawSku = () => {
     // eslint-disable-next-line react-hooks/refs
     const columns = getRawSkuColumns(dateFormat, handleToggleStatus, openEditDialog);
 
-    // toast.current is only read inside handleDelete's own click callback, never during render
-    // eslint-disable-next-line react-hooks/refs
-    const actionTemplate = getActionBodyTemplate<RawSkuType>({ onDelete: handleDelete });
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<RawSkuWithStockLevel>({
+        getId: (row) => row.id,
+        deleteOne: deleteRawSku,
+        onDeleted: fetchRawSkus,
+        toast,
+        entityNamePlural: 'raw SKUs',
+    });
 
     return (
         <div className="raw-sku-page">
@@ -197,16 +237,40 @@ const RawSku = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchRawSkus} loading={rawSkusLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredSkus} columns={columns} loading={rawSkusLoading} actionBodyTemplate={actionTemplate} />
+            <DataTable
+                value={filteredSkus}
+                columns={columns}
+                loading={rawSkusLoading}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit SKU' : 'Add New SKU'}
-                style={{ width: '640px', maxWidth: '95vw' }}
+                style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
@@ -215,6 +279,8 @@ const RawSku = () => {
                 }
             >
                 <div className="raw-sku-dialog-body">
+                <div className="raw-sku-form-columns">
+                <div className="raw-sku-form-main">
                     <div className="raw-sku-form-section">
                         <h3 className="raw-sku-form-section-title">Basic Information</h3>
                         <div className="raw-sku-dialog-grid">
@@ -248,7 +314,7 @@ const RawSku = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={unitOptions} placeholder="Select unit" />
+                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                             <div className="form-field">
                                 <label>Location</label>
@@ -306,6 +372,59 @@ const RawSku = () => {
                             <InputTextarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Enter description" />
                         </div>
                     </div>
+                </div>
+
+                <div className="raw-sku-form-side">
+                    <div className="raw-sku-form-section">
+                        <h3 className="raw-sku-form-section-title">SKU Image</h3>
+                        <span className="raw-sku-form-section-subtitle">Upload clear images of this SKU</span>
+
+                        <label className="raw-sku-image-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop}>
+                            {uploadingImages ? (
+                                <span>Uploading…</span>
+                            ) : form.images.length > 0 ? (
+                                <>
+                                    <img src={resolveImageUrl(form.images[Math.min(activeImageIndex, form.images.length - 1)])} alt="Selected SKU" className="raw-sku-image-dropzone-preview" />
+                                    <span className="raw-sku-image-dropzone-overlay">Drag &amp; drop or click to add more</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="raw-sku-image-dropzone-icon"><HiOutlinePhoto size={22} /></span>
+                                    <span className="raw-sku-image-dropzone-text">
+                                        Drag &amp; drop an image here<br />
+                                        or <span className="raw-sku-image-dropzone-link">click to browse</span>
+                                    </span>
+                                </>
+                            )}
+                            <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} disabled={uploadingImages || form.images.length >= 4} />
+                        </label>
+                        <span className="raw-sku-image-hint">JPG, PNG or WEBP. Max size 2MB.</span>
+
+                        <div className="raw-sku-image-strip">
+                            {form.images.map((src, index) => (
+                                <div
+                                    key={src}
+                                    className={`raw-sku-image-preview${index === activeImageIndex ? ' raw-sku-image-preview--active' : ''}`}
+                                    onClick={() => setActiveImageIndex(index)}
+                                >
+                                    <img src={resolveImageUrl(src)} alt={`SKU ${index + 1}`} />
+                                    <button type="button" className="raw-sku-image-remove" onClick={(e) => { e.stopPropagation(); removeImage(index); }}>
+                                        <HiOutlineXMark size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                            {form.images.length < 4 && (
+                                <label className="raw-sku-image-add">
+                                    <HiOutlinePlus size={18} />
+                                    <span>Add more</span>
+                                    <input type="file" accept="image/*" multiple hidden onChange={handleImagesSelect} />
+                                </label>
+                            )}
+                        </div>
+                        <span className="raw-sku-image-hint">You can upload up to 4 images</span>
+                    </div>
+                </div>
+                </div>
                 </div>
             </Dialog>
         </div>

@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface AssemblyLine {
@@ -20,8 +21,12 @@ export interface InventoryItem {
     locationName: string | null;
     status: 'Active' | 'Inactive';
     unitCost: number;
+    sellingCost: number;
     createdDate: string;
     assembly: AssemblyLine[];
+    minStock: number;
+    maxStock: number;
+    openingStock: number;
 }
 
 export interface InventoryPayload {
@@ -35,7 +40,11 @@ export interface InventoryPayload {
     locationName: string | null;
     status: 'Active' | 'Inactive';
     unitCost: number;
+    sellingCost: number;
     assembly: AssemblyLine[];
+    minStock: number;
+    maxStock: number;
+    openingStock: number;
 }
 
 interface ApiResponse<T> {
@@ -60,24 +69,28 @@ function normalizeInventoryItem(item: InventoryItem): InventoryItem {
         ...item,
         quantity: Number(item.quantity),
         unitCost: Number(item.unitCost),
+        sellingCost: Number(item.sellingCost),
+        minStock: Number(item.minStock),
+        maxStock: Number(item.maxStock),
+        openingStock: Number(item.openingStock),
         assembly: item.assembly.map((line) => ({ ...line, quantity: Number(line.quantity) })),
     };
 }
 
 export async function getInventoryItems(): Promise<InventoryItem[]> {
-    const response = await fetch(`${API_BASE_URL}/inventories`);
+    const response = await authFetch(`${API_BASE_URL}/inventories`);
     const data = await parseResponse<InventoryItem[]>(response);
     return data.map(normalizeInventoryItem);
 }
 
 export async function getNextSkuId(): Promise<string> {
-    const response = await fetch(`${API_BASE_URL}/inventories/next-sku-id`);
+    const response = await authFetch(`${API_BASE_URL}/inventories/next-sku-id`);
     const data = await parseResponse<{ skuId: string }>(response);
     return data.skuId;
 }
 
 export async function createInventoryItem(payload: InventoryPayload): Promise<InventoryItem> {
-    const response = await fetch(`${API_BASE_URL}/inventories`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -86,7 +99,7 @@ export async function createInventoryItem(payload: InventoryPayload): Promise<In
 }
 
 export async function updateInventoryItem(id: number, payload: Partial<InventoryPayload>): Promise<InventoryItem> {
-    const response = await fetch(`${API_BASE_URL}/inventories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -95,7 +108,7 @@ export async function updateInventoryItem(id: number, payload: Partial<Inventory
 }
 
 export async function deleteInventoryItem(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/inventories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/inventories/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
@@ -109,7 +122,7 @@ export async function deleteInventoryItem(id: number): Promise<void> {
 export async function uploadProductImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await fetch(`${API_BASE_URL}/uploads/product-image`, {
+    const response = await authFetch(`${API_BASE_URL}/uploads/product-image`, {
         method: 'POST',
         body: formData,
     });

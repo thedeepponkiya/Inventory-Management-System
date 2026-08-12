@@ -1,8 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
-
-const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const { TOKEN_TTL_MS } = require('../config/authConfig');
 
 async function login(req, res) {
   try {
@@ -16,7 +15,7 @@ async function login(req, res) {
     }
 
     const user = await UserModel.findByEmail(email);
-    const passwordMatches = user && (await bcrypt.compare(password, user.password));
+    const passwordMatches = user && (await bcrypt.compare(password, user.passwordHash));
     if (!user || !passwordMatches) {
       return res.status(401).json({
         status: false,
@@ -28,6 +27,7 @@ async function login(req, res) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
     await UserModel.updateToken(user.id, token, expiresAt);
+    await UserModel.updateLastLogin(user.id);
 
     res.json({
       status: true,
@@ -35,6 +35,10 @@ async function login(req, res) {
       data: {
         userName: user.userName,
         email: user.email,
+        profileImage: user.profileImage,
+        // Lets the frontend show the "Developer Admin" sidebar section only to this one
+        // hidden account (see SideBarNavigation.tsx) - never exposed anywhere else.
+        isHidden: user.isHidden,
         token,
       },
     });

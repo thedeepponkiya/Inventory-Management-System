@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface BomItem {
@@ -17,7 +18,7 @@ export interface Bom {
     version: string;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
     items: BomItem[];
     createdBy: string | null;
     createdAt: string;
@@ -25,13 +26,16 @@ export interface Bom {
 }
 
 export interface BomPayload {
+    // Only meaningful on create - the code previewed in the Add Order dialog (via
+    // getNextBomCode), reused as-is so the previewed code matches what actually gets saved.
+    bomCode?: string;
     productSku: string;
     productName: string;
     categoryName: string | null;
     version: string;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
     items: BomItem[];
     createdBy: string;
 }
@@ -65,19 +69,19 @@ function normalizeBom(bom: Bom): Bom {
 }
 
 export async function getBoms(): Promise<Bom[]> {
-    const response = await fetch(`${API_BASE_URL}/boms`);
+    const response = await authFetch(`${API_BASE_URL}/boms`);
     const data = await parseResponse<Bom[]>(response);
     return data.map(normalizeBom);
 }
 
 export async function getNextBomCode(): Promise<string> {
-    const response = await fetch(`${API_BASE_URL}/boms/next-code`);
+    const response = await authFetch(`${API_BASE_URL}/boms/next-code`);
     const data = await parseResponse<{ bomCode: string }>(response);
     return data.bomCode;
 }
 
 export async function createBom(payload: BomPayload): Promise<Bom> {
-    const response = await fetch(`${API_BASE_URL}/boms`, {
+    const response = await authFetch(`${API_BASE_URL}/boms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -86,7 +90,7 @@ export async function createBom(payload: BomPayload): Promise<Bom> {
 }
 
 export async function updateBom(id: number, payload: Partial<BomPayload>): Promise<Bom> {
-    const response = await fetch(`${API_BASE_URL}/boms/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/boms/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -95,21 +99,23 @@ export async function updateBom(id: number, payload: Partial<BomPayload>): Promi
 }
 
 export async function deleteBom(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/boms/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/boms/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);
 }
 
-// Moves a BOM from Process to Dispatch, deducting each component's scaled quantity from
-// the matching Raw SKU's currentStock (see bom.controller.js's dispatchBom).
-export async function dispatchBom(id: number): Promise<Bom> {
-    const response = await fetch(`${API_BASE_URL}/boms/${id}/dispatch`, { method: 'PUT' });
+// Moves a BOM from Process to Completed: deducts each component's scaled quantity from the
+// matching Raw SKU's currentStock and adds outputQty onto the matching finished-good's
+// Inventory quantity (see bom.controller.js's completeBom).
+export async function completeBom(id: number): Promise<Bom> {
+    const response = await authFetch(`${API_BASE_URL}/boms/${id}/complete`, { method: 'PUT' });
     return normalizeBom(await parseResponse<Bom>(response));
 }
 
-// Reverses dispatchBom: moves Dispatch back to Process and restores the deducted quantities.
+// Reverses completeBom: moves Completed back to Process, restores the deducted raw
+// material, and removes the added Inventory quantity.
 export async function revertBomToProcess(id: number): Promise<Bom> {
-    const response = await fetch(`${API_BASE_URL}/boms/${id}/revert`, { method: 'PUT' });
+    const response = await authFetch(`${API_BASE_URL}/boms/${id}/revert`, { method: 'PUT' });
     return normalizeBom(await parseResponse<Bom>(response));
 }

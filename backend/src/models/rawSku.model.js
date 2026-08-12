@@ -39,8 +39,8 @@ async function create(skuCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
       "skuCode", "skuName", "categoryId", "productTypeId", "locationId", unit, "inventoryEntryMode", "sourceType", "rawMaterialId",
-      "minStock", "maxStock", "reorderLevel", "openingStock", "currentStock", description, status, "createdBy"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      "minStock", "maxStock", "reorderLevel", "openingStock", "currentStock", description, status, "createdBy", images
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       skuCode,
@@ -60,6 +60,7 @@ async function create(skuCode, fields) {
       fields.description,
       fields.status,
       fields.createdBy,
+      JSON.stringify(fields.images),
     ]
   );
   return findById(result.rows[0].id);
@@ -70,8 +71,8 @@ async function update(id, fields) {
     `UPDATE ${TABLE} SET
       "skuName" = $1, "categoryId" = $2, "productTypeId" = $3, "locationId" = $4, unit = $5, "inventoryEntryMode" = $6, "sourceType" = $7,
       "rawMaterialId" = $8, "minStock" = $9, "maxStock" = $10, "reorderLevel" = $11, "openingStock" = $12,
-      "currentStock" = $13, description = $14, status = $15, "createdBy" = $16, "updatedAt" = now()
-    WHERE id = $17
+      "currentStock" = $13, description = $14, status = $15, "createdBy" = $16, images = $17, "updatedAt" = now()
+    WHERE id = $18
     RETURNING *`,
     [
       fields.skuName,
@@ -90,6 +91,7 @@ async function update(id, fields) {
       fields.description,
       fields.status,
       fields.createdBy,
+      JSON.stringify(fields.images),
       id,
     ]
   );
@@ -100,10 +102,23 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-// Atomic increment/decrement (delta can be negative) used by BOM dispatch/revert to adjust
-// a Raw SKU's stock without a read-then-write race. No-ops if skuCode doesn't match any row.
-async function adjustStockBySkuCode(skuCode, delta) {
-  await pool.query(`UPDATE ${TABLE} SET "currentStock" = "currentStock" + $1, "updatedAt" = now() WHERE "skuCode" = $2`, [delta, skuCode]);
+// Atomic increment/decrement (delta can be negative) used by BOM complete/revert and
+// Material Inward receiving to adjust a Raw SKU's stock without a read-then-write race.
+// No-ops if skuCode doesn't match any row. Accepts an optional transaction client (`db`) so
+// callers that need this inside a BEGIN/COMMIT block (e.g. bom.controller.js's completeBom,
+// which validates-then-deducts multiple SKUs atomically) can pass one in; defaults to the
+// shared pool for every existing call site that doesn't need a transaction.
+async function adjustStockBySkuCode(skuCode, delta, db = pool) {
+  await db.query(`UPDATE ${TABLE} SET "currentStock" = "currentStock" + $1, "updatedAt" = now() WHERE "skuCode" = $2`, [delta, skuCode]);
 }
 
-module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode };
+// Used by bom.controller.js's completeBom to check (and, via `FOR UPDATE`, lock) a raw
+// material's live stock before deducting - prevents two concurrent BOM completions from both
+// reading the same starting stock and both passing a sufficiency check that only one of them
+// should have passed. Only ever called with a transaction client, never the bare pool.
+async function findByCodeForUpdate(skuCode, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE "skuCode" = $1 FOR UPDATE`, [skuCode]);
+  return result.rows[0];
+}
+
+module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode, findByCodeForUpdate };

@@ -1,0 +1,32 @@
+.crm-settings-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.crm-settings-section {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.crm-settings-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.crm-settings-section-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.crm-settings-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 12px 0;
+}

@@ -1,12 +1,63 @@
-.inventory-home-page {
-    padding-bottom: 24px;
-}
-
 .inventory-home-thumb {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 36px;
     border-radius: 6px;
     object-fit: cover;
+    cursor: pointer;
+}
+
+/* Current Stock column body (getInventoryHomeColumns / renderStockCell in
+   CommonUtilities.tsx) - same design as Finished SKU's, colored per row via inline style
+   (colors come from data, not a fixed palette, so they can't be plain CSS classes). */
+.inventory-home-stock-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+}
+
+.inventory-home-stock-bar-track {
+    position: relative;
+    flex: 1;
+    min-width: 90px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    overflow: hidden;
+}
+
+.inventory-home-stock-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.inventory-home-stock-bar-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.inventory-home-stock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.inventory-home-stock-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .inventory-home-thumb--placeholder {
@@ -15,6 +66,11 @@
     justify-content: center;
     background: var(--surface-subtle-2);
     color: var(--text-subtle);
+}
+
+.inventory-home-dialog.p-dialog {
+    border-radius: 16px;
+    overflow: hidden;
 }
 
 .inventory-home-form-columns {
@@ -56,7 +112,71 @@
     font-size: 13px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 12px;
+    margin: 0;
+}
+
+.inventory-home-form-section-subtitle {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    margin: 2px 0 12px;
+}
+
+.inventory-home-section-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.inventory-home-section-title-row .inventory-home-form-section-title {
+    margin-bottom: 0;
+}
+
+.inventory-home-section-title-icon {
+    color: var(--text-subtle);
+}
+
+.inventory-home-section-title-info {
+    color: var(--text-faint);
+    cursor: help;
+}
+
+.inventory-home-required {
+    color: var(--accent-danger-text);
+}
+
+.inventory-home-input-icon-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.inventory-home-input {
+    width: 100%;
+}
+
+.inventory-home-input--icon.p-inputtext {
+    padding-right: 32px;
+}
+
+.inventory-home-input--icon .p-inputnumber-input {
+    width: 100%;
+    padding-right: 32px;
+}
+
+.inventory-home-input-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    pointer-events: none;
+}
+
+.inventory-home-location-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .inventory-home-status-switch.p-inputswitch {
@@ -64,54 +184,81 @@
     transform-origin: left center;
 }
 
+/* Always shows the upload prompt, regardless of whether images already exist - uploaded
+   images render only in the thumbnail strip below, not inside this dropzone. */
 .inventory-home-image-dropzone {
     position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 150px;
+    gap: 8px;
+    height: 160px;
     border: 1.5px dashed var(--border-dashed);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--surface-subtle);
     cursor: pointer;
+    text-align: center;
+    padding: 0 16px;
+    margin-bottom: 8px;
     overflow: hidden;
-    margin-bottom: 10px;
 }
 
 .inventory-home-image-dropzone:hover {
-    border-color: #2563eb;
+    border-color: var(--accent-info-text);
 }
 
-.inventory-home-image-dropzone img {
+/* Fills the dropzone edge-to-edge (ignores the box's own padding, used for the empty-state
+   icon/text below) when an image is already selected. */
+.inventory-home-image-dropzone-preview {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.inventory-home-image-dropzone-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 0 16px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.4;
-    text-align: center;
-    color: var(--text-subtle);
-}
-
-.inventory-home-image-dropzone-hint {
+.inventory-home-image-dropzone-overlay {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
     padding: 6px 8px;
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 600;
     text-align: center;
     color: #ffffff;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.65);
+}
+
+.inventory-home-image-dropzone-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.inventory-home-image-dropzone-text {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.inventory-home-image-dropzone-link {
+    color: var(--accent-info-text);
+    font-weight: 700;
+}
+
+.inventory-home-image-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-bottom: 10px;
 }
 
 .inventory-home-image-strip {
@@ -200,6 +347,9 @@
 }
 
 .inventory-home-dialog-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;

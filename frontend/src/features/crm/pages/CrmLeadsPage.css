@@ -1,0 +1,51 @@
+.kanban-board {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-top: 12px;
+}
+
+.crm-leads-view-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 8px;
+    background: var(--surface-subtle);
+}
+
+.crm-leads-view-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+}
+
+.crm-leads-view-btn:hover {
+    color: var(--accent-info-text);
+}
+
+.crm-leads-view-btn--active {
+    color: var(--accent-info-text);
+    background: var(--surface-card);
+    border-color: var(--accent-info-border);
+}
+
+.crm-leads-filter-dialog .p-dialog-content {
+    padding-top: 12px;
+}
+
+.crm-leads-filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}

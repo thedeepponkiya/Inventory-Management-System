@@ -1,11 +1,13 @@
 import { FilterMatchMode } from 'primereact/api';
 import { Column } from 'primereact/column';
+import { Dropdown } from 'primereact/dropdown';
 import type { DataTableFilterMeta } from 'primereact/datatable';
 import { DataTable as PrimeDataTable } from 'primereact/datatable';
 import type { ReactNode } from 'react';
 import { Children, isValidElement, useState } from 'react';
 import type { ColumnBodyType, DateBodyOptions, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
 import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
+import emptyBoxIllustration from '../../../assets/empty-box.png';
 import './DataTable.css';
 
 export interface ColumnConfig<T> {
@@ -14,6 +16,14 @@ export interface ColumnConfig<T> {
     key?: string;
     sortable?: boolean;
     filter?: boolean;
+    // Lets a column's filter target a different (usually derived/computed) field than the
+    // one it displays - e.g. Current Stock's body renders a rich composite cell, but its
+    // filter dropdown matches against a separately-computed tier label field on the row.
+    filterField?: Extract<keyof T, string>;
+    // Defaults to the standard free-text CONTAINS filter; 'dropdown' renders a Dropdown
+    // (populated from filterOptions) doing an exact-match filter instead.
+    filterType?: 'text' | 'dropdown';
+    filterOptions?: string[];
     fieldType?: ColumnBodyType;
     options?: FieldTypeOptions<T>;
     body?: (row: T) => React.ReactNode;
@@ -65,28 +75,61 @@ interface AppDataTableProps<T> {
     columns: ColumnConfig<T>[];
     actionBodyTemplate?: (row: T) => React.ReactNode;
     actionHeader?: string;
+    actionColumnStyle?: React.CSSProperties;
     rows?: number;
     paginator?: boolean;
     emptyMessage?: string;
+    emptyDescription?: string;
     loading?: boolean;
     dataKey?: string;
     sortable?: boolean;
     filterable?: boolean;
     height?: string;
+    // Adds a checkbox column (select-all in the header, per-row below) - selection state is
+    // controlled by the caller (see useBulkDelete.ts), same as every other piece of DataTable
+    // state that already lives outside this component (filters are the one exception, kept
+    // local since no page has ever needed to read/drive them from outside).
+    selectable?: boolean;
+    selection?: T[];
+    onSelectionChange?: (rows: T[]) => void;
 }
 
 function buildDefaultFilters<T>(columns: ColumnConfig<T>[]): DataTableFilterMeta {
     const filters: DataTableFilterMeta = {};
     columns.forEach((col) => {
         if (!col.key && col.filter !== false) {
-            filters[col.field] = { value: null, matchMode: FilterMatchMode.CONTAINS };
+            const key = col.filterField ?? col.field;
+            filters[key] = { value: null, matchMode: col.filterType === 'dropdown' ? FilterMatchMode.EQUALS : FilterMatchMode.CONTAINS };
         }
     });
     return filters;
 }
 
-function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', rows = 10, paginator = true, emptyMessage = 'No records found.', loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex' }: AppDataTableProps<T>) {
+function renderDropdownFilter(placeholder: string, options: string[]) {
+    return (filterOptions: { value: unknown; filterApplyCallback: (value: unknown) => void }) => (
+        <Dropdown
+            value={filterOptions.value}
+            options={options}
+            onChange={(e) => filterOptions.filterApplyCallback(e.value)}
+            placeholder={placeholder}
+            showClear
+            className="p-column-filter"
+        />
+    );
+}
+
+function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange }: AppDataTableProps<T>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
+
+    const emptyTitle = emptyMessage ?? 'No results found';
+    const emptyDesc = emptyMessage ? emptyDescription : (emptyDescription ?? "We couldn't find any items matching your search.");
+    const emptyState = (
+        <div className="app-data-table-empty">
+            <img src={emptyBoxIllustration} alt="" className="app-data-table-empty-illustration" />
+            <h4 className="app-data-table-empty-title">{emptyTitle}</h4>
+            {emptyDesc && <p className="app-data-table-empty-desc">{emptyDesc}</p>}
+        </div>
+    );
 
     return (
         <PrimeDataTable
@@ -96,7 +139,7 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             rowsPerPageOptions={[10, 25, 50]}
             responsiveLayout="scroll"
             loading={loading}
-            emptyMessage={emptyMessage}
+            emptyMessage={emptyState}
             dataKey={dataKey}
             className="app-data-table"
             removableSort
@@ -107,9 +150,18 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
             scrollHeight={paginator ? height : undefined}
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            selectionMode={selectable ? 'checkbox' : null}
+            // PrimeReact's own DataTable generic is keyed off its `value` prop's element type,
+            // which our T-generic wrapper can't propagate through cleanly - same class of
+            // library-type mismatch as e.g. salesOrderInvoicePdf.ts's `(doc as any).lastAutoTable`.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            selection={(selectable ? (selection ?? []) : undefined) as any}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onSelectionChange={selectable && onSelectionChange ? (e: any) => onSelectionChange(e.value as T[]) : undefined}
         >
+            {selectable && <Column key="__selection" selectionMode="multiple" headerStyle={{ width: '3rem' }} style={{ width: '3rem' }} />}
             {actionBodyTemplate && (
-                <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} />
+                <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} style={actionColumnStyle} />
             )}
             {columns.map((col) => (
                 <Column
@@ -118,6 +170,9 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
                     header={col.header}
                     sortable={col.sortable ?? (sortable && !col.key)}
                     filter={filterable && !col.key && col.filter !== false}
+                    filterField={col.filterField}
+                    showFilterMatchModes={col.filterType !== 'dropdown'}
+                    filterElement={col.filterType === 'dropdown' && col.filterOptions ? renderDropdownFilter(`Select ${col.header}`, col.filterOptions) : undefined}
                     filterPlaceholder={`Search ${col.header}`}
                     body={resolveColumnBody(col)}
                     style={col.style}

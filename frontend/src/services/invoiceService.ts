@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export type InvoiceType = 'Purchase' | 'Sales';
@@ -95,13 +96,13 @@ function normalizeInvoice(invoice: Invoice): Invoice {
 }
 
 export async function getInvoices(): Promise<Invoice[]> {
-    const response = await fetch(`${API_BASE_URL}/invoices`);
+    const response = await authFetch(`${API_BASE_URL}/invoices`);
     const data = await parseResponse<Invoice[]>(response);
     return data.map(normalizeInvoice);
 }
 
 export async function createInvoice(payload: InvoicePayload): Promise<Invoice> {
-    const response = await fetch(`${API_BASE_URL}/invoices`, {
+    const response = await authFetch(`${API_BASE_URL}/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -110,7 +111,7 @@ export async function createInvoice(payload: InvoicePayload): Promise<Invoice> {
 }
 
 export async function updateInvoice(id: number, payload: Partial<InvoicePayload>): Promise<Invoice> {
-    const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/invoices/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -119,7 +120,7 @@ export async function updateInvoice(id: number, payload: Partial<InvoicePayload>
 }
 
 export async function deleteInvoice(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/invoices/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

@@ -1,3 +1,279 @@
-.users-page {
-    padding-bottom: 24px;
+/* Scoped to the Add/Edit User dialog only - deliberately NOT touching the shared global
+   .dialog-form-body/.form-field classes (index.css), which are reused by every other form
+   dialog in the app (Vendor, RawSku, ProductType, etc.) and must stay unaffected by this
+   form's two-column redesign. */
+.user-form-dialog.p-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.user-form-body {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 28px;
+    padding: 20px 24px;
+}
+
+.user-form-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-right: 24px;
+    border-right: 1px solid var(--border-subtle);
+}
+
+.user-form-section-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    align-self: flex-start;
+}
+
+.user-form-section-subtitle {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    align-self: flex-start;
+    margin-bottom: 18px;
+}
+
+.user-form-avatar-picker {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    overflow: visible;
+    cursor: pointer;
+}
+
+.user-form-avatar-picker img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-form-avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.user-form-avatar-camera-badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-info-text);
+    color: #fff;
+    border: 2px solid var(--surface-card);
+}
+
+.user-form-avatar-helper {
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 10px;
+}
+
+.user-form-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px 10px;
+    border: 1px dashed var(--border-subtle);
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent-info-text);
+    cursor: pointer;
+}
+
+.user-form-right {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.user-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.user-form-row--single {
+    grid-template-columns: 1fr;
+}
+
+.user-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.user-form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-form-required {
+    color: var(--accent-danger-text);
+}
+
+.user-form-input-icon-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.user-form-input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.user-form-input,
+.user-form-password {
+    width: 100%;
+}
+
+.user-form-input--icon.p-inputtext {
+    padding-left: 34px;
+}
+
+/* PrimeReact 10's Password root is a <div> (block by default, so it already auto-fills its
+   parent's width) wrapping an inner .p-icon-field <div> around the actual input. Forcing the
+   root to `display: flex` (an earlier attempt at this fix) broke that free block-level
+   stretching - flex children don't auto-fill width the way block children do - which is why
+   the field visibly shrank back down. Keeping the root as a plain block and just giving it an
+   explicit width, plus stretching the inner wrapper and input, fixes it without that trade-off. */
+.user-form-password.p-password {
+    width: 100%;
+}
+
+.user-form-password .p-icon-field {
+    width: 100%;
+}
+
+.user-form-password .p-password-input {
+    width: 100%;
+    padding-left: 34px;
+}
+
+/* The theme centers this eye toggle icon via `top: 50%; margin-top: -0.5rem`, which assumes
+   a fixed ~1rem icon height - a mismatch with its actual rendered size here throws off the
+   centering. translate(-50%) self-adjusts to the icon's real height instead of guessing it. */
+.user-form-password .p-input-icon {
+    top: 50%;
+    margin-top: 0;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+}
+
+.user-form-dropdown {
+    width: 100%;
+}
+
+.user-form-dropdown-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-form-field--status {
+    max-width: 260px;
+}
+
+.user-form-status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+}
+
+.user-form-status-active {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-success-text);
+}
+
+.user-form-status-inactive {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.user-form-feature-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.user-form-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.user-form-feature-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.user-form-feature-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-info-text);
+}
+
+.user-form-feature-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Passed as options.className to CommonUtilities.tsx's shared 'image' fieldType renderer -
+   circular thumbnail for the Users table's Photo column, instead of the default rectangular
+   .common-table-thumb used for product images. */
+.users-avatar-thumb {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.users-avatar-thumb--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-subtle-2);
+    color: var(--text-subtle);
+    cursor: default;
 }

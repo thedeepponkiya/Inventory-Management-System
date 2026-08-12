@@ -174,3 +174,23 @@
 .settings-dialog-save:hover {
     background: #1d4ed8;
 }
+
+.settings-dialog-visibility-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+
+.settings-dialog-visibility-btn:hover {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+}

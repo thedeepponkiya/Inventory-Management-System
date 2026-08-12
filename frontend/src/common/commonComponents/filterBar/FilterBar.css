@@ -44,6 +44,13 @@
     border: 1px solid #2563eb;
 }
 
+/* Same specificity as .filter-bar-quick-action:hover above, so source order lets this win
+   and keep the active button's own look instead of picking up the plain hover style. */
+.filter-bar-quick-action--active:hover {
+    background: transparent;
+    color: #2563eb;
+}
+
 .filter-bar-controls {
     display: flex;
     flex-wrap: wrap;

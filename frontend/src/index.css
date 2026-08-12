@@ -106,10 +106,12 @@ textarea::placeholder {
 
 /* Shared table thumbnail (getColumnBodyTemplate's fieldType: 'image' in CommonUtilities.tsx) */
 .common-table-thumb {
-    width: 64px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 6px;
-    object-fit: cover;
+    object-fit: contain;
+    border: 1px solid var(--border-default);
+    padding: 3px;
     cursor: pointer;
 }
 

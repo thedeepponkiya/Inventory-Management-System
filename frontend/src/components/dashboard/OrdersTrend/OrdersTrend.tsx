@@ -17,11 +17,11 @@ const OrdersTrend = () => {
     const orderTrend = useMemo(() => {
         const buckets = buildTrendBuckets(monthFilter);
         const createdDates = bomList.map((bom) => new Date(bom.createdAt));
-        const dispatchedDates = bomList.filter((bom) => bom.status === 'Dispatch').map((bom) => new Date(bom.updatedAt));
+        const completedDates = bomList.filter((bom) => bom.status === 'Completed').map((bom) => new Date(bom.updatedAt));
         return {
             labels: buckets.map((bucket) => bucket.label),
             created: countByBucket(createdDates, buckets),
-            dispatched: countByBucket(dispatchedDates, buckets),
+            completed: countByBucket(completedDates, buckets),
         };
     }, [monthFilter, bomList]);
 
@@ -31,7 +31,7 @@ const OrdersTrend = () => {
                 labels: orderTrend.labels,
                 datasets: [
                     { label: 'Orders Created', data: orderTrend.created, backgroundColor: '#93c5fd', borderRadius: 4 },
-                    { label: 'Orders Dispatched', data: orderTrend.dispatched, backgroundColor: '#86efac', borderRadius: 4 },
+                    { label: 'Orders Completed', data: orderTrend.completed, backgroundColor: '#86efac', borderRadius: 4 },
                 ],
             };
         }
@@ -39,7 +39,7 @@ const OrdersTrend = () => {
             labels: orderTrend.labels,
             datasets: [
                 { label: 'Orders Created', data: orderTrend.created, borderColor: '#93c5fd', backgroundColor: 'rgba(147, 197, 253, 0.15)', tension: 0.4, fill: true },
-                { label: 'Orders Dispatched', data: orderTrend.dispatched, borderColor: '#86efac', backgroundColor: 'rgba(134, 239, 172, 0.15)', tension: 0.4, fill: true },
+                { label: 'Orders Completed', data: orderTrend.completed, borderColor: '#86efac', backgroundColor: 'rgba(134, 239, 172, 0.15)', tension: 0.4, fill: true },
             ],
         };
     }, [orderTrend, chartType]);

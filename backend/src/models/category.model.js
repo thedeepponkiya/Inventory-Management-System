@@ -17,18 +17,18 @@ async function findByCategory(category) {
   return result.rows[0];
 }
 
-async function create(category, status) {
+async function create(category, status, description) {
   const result = await pool.query(
-    `INSERT INTO ${TABLE} (category, status) VALUES ($1, $2) RETURNING *`,
-    [category, status]
+    `INSERT INTO ${TABLE} (category, description, status) VALUES ($1, $2, $3) RETURNING *`,
+    [category, description, status]
   );
   return result.rows[0];
 }
 
-async function update(id, category, status) {
+async function update(id, category, status, description) {
   const result = await pool.query(
-    `UPDATE ${TABLE} SET category = $1, status = $2 WHERE id = $3 RETURNING *`,
-    [category, status, id]
+    `UPDATE ${TABLE} SET category = $1, description = $2, status = $3 WHERE id = $4 RETURNING *`,
+    [category, description, status, id]
   );
   return result.rows[0];
 }

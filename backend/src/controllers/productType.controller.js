@@ -21,7 +21,7 @@ async function createProductType(req, res) {
       return res.status(409).json({ status: false, message: 'Product Type already exists', data: null });
     }
 
-    const created = await ProductTypeModel.create(productType, status || 'Active');
+    const created = await ProductTypeModel.create(productType, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Product Type created successfully', data: created });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -48,7 +48,8 @@ async function updateProductType(req, res) {
     const updated = await ProductTypeModel.update(
       id,
       productType ?? existing.productType,
-      status ?? existing.status
+      status ?? existing.status,
+      req.body.description ?? existing.description
     );
     res.json({ status: true, message: 'Product Type updated successfully', data: updated });
   } catch (err) {

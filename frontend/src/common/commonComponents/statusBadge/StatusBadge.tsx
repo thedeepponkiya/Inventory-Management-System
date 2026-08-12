@@ -1,7 +1,7 @@
 import { Tag } from 'primereact/tag';
 import './StatusBadge.css';
 
-export type StatusVariant = 'success' | 'danger' | 'warning' | 'info' | 'neutral';
+export type StatusVariant = 'success' | 'danger' | 'warning' | 'info' | 'neutral' | 'purple';
 
 interface StatusBadgeProps {
     label: string;
@@ -14,6 +14,7 @@ const variantToSeverity: Record<StatusVariant, 'success' | 'danger' | 'warning' 
     warning: 'warning',
     info: 'info',
     neutral: undefined,
+    purple: undefined,
 };
 
 const StatusBadge = ({ label, variant }: StatusBadgeProps) => {

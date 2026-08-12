@@ -6,19 +6,27 @@ import {
     HiOutlineArchiveBox,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
-    HiOutlineCube,
     HiOutlineSquare3Stack3D,
+    HiOutlineShoppingCart,
     HiOutlineClipboardDocumentList, // Purchase Order nav item hidden below
     HiOutlineFolder,
     HiOutlineTag,
+    HiOutlineScale,
     HiOutlineBuildingStorefront, // Vendor nav item hidden below
+    HiOutlineUserCircle,
     HiOutlineListBullet, // Transactions nav item hidden below
     HiOutlineDocumentText, // Invoices nav item hidden below
     HiOutlineChartBar, // Reports nav item hidden below
     HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineBars3,
+    HiOutlineUserGroup,
+    HiOutlineMegaphone,
+    HiOutlineChartPie,
+    HiOutlineChevronRight,
+    HiOutlineChevronDown,
 } from 'react-icons/hi2';
+import { BsBoxSeam } from 'react-icons/bs';
 import inventoryLogo from '../../../assets/inventoryLogo.png';
 import inventoryWordmark from '../../../assets/inventoryWordmark.png';
 import SettingsDialog from '../settingsDialog/SettingsDialog';
@@ -31,11 +39,12 @@ const navGroups = [
     {
         groupLabel: 'Operation',
         items: [
-            { label: 'Inventories', path: '/home', icon: HiOutlineCube },
+            { label: 'Inventories', path: '/home', icon: BsBoxSeam, iconSize: 17 },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
             { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
-            { label: 'Orders', path: '/bom', icon: HiOutlineSquare3Stack3D },
+            { label: 'BOM', path: '/bom', icon: HiOutlineSquare3Stack3D },
+            { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
         ],
     },
     {
@@ -44,7 +53,9 @@ const navGroups = [
             { label: 'Locations', path: '/locations', icon: HiOutlineMapPin },
             { label: 'Category', path: '/category', icon: HiOutlineFolder },
             { label: 'Product Type', path: '/product-type', icon: HiOutlineTag },
+            { label: 'Unit', path: '/unit', icon: HiOutlineScale },
             { label: 'Vendor', path: '/vendor', icon: HiOutlineBuildingStorefront },
+            { label: 'Customer', path: '/customer', icon: HiOutlineUserCircle },
         ],
     },
     {
@@ -68,14 +79,40 @@ const navGroups = [
     },
 ];
 
+// Rendered separately from navGroups, as its own collapsible parent menu rather than an
+// always-expanded groupLabel section - only Sources and Settings have a real page so far,
+// the rest render a blank content area until their own module ships.
+const crmMenu = {
+    label: 'CRM',
+    icon: HiOutlineUserGroup,
+    items: [
+        { label: 'Dashboard', path: '/crm', icon: HiOutlineChartBar },
+        { label: 'Leads', path: '/crm/leads', icon: HiOutlineUsers },
+        { label: 'Follow-ups', path: '/crm/followups', icon: HiOutlineClipboardDocumentList },
+        { label: 'Campaigns', path: '/crm/campaigns', icon: HiOutlineMegaphone },
+        { label: 'Sources', path: '/crm/sources', icon: HiOutlineBuildingStorefront },
+        { label: 'Reports', path: '/crm/reports', icon: HiOutlineChartPie },
+        { label: 'Settings', path: '/crm/settings', icon: HiOutlineCog6Tooth },
+    ],
+};
+
 const SidePanel = () => {
-    const { isSidePanelOpen, setIsSidePanelOpen } = useContext(AppContext);
+    const { isSidePanelOpen, setIsSidePanelOpen, hiddenSidebarItems } = useContext(AppContext);
+    // Admin-controlled (VisibilitySettingsDialog) - covers crmMenu.items too, since every
+    // path across navGroups/dashboardItem/crmMenu is globally unique.
+    const hiddenPaths: string[] = hiddenSidebarItems ?? [];
+    const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path));
     const expanded = isSidePanelOpen;
     const [mobileOpen, setMobileOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [settingsOpen, setSettingsOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const location = useLocation();
+    // Starts open automatically if already on a CRM page (e.g. after a refresh).
+    const [crmMenuOpen, setCrmMenuOpen] = useState(location.pathname.startsWith('/crm'));
 
-    const isItemActive = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
+    // '/' and '/crm' are index/dashboard routes - startsWith would otherwise also match
+    // every nested path under them (e.g. '/crm/leads'), highlighting Dashboard alongside
+    // whatever CRM sub-page is actually active.
+    const isItemActive = (path: string) => (path === '/' || path === '/crm' ? location.pathname === path : location.pathname.startsWith(path));
 
     const toggleExpanded = () => setIsSidePanelOpen((prev: boolean) => !prev);
 
@@ -118,36 +155,76 @@ const SidePanel = () => {
                 </div>
 
                 <div className="sidebar-items">
-                    <NavLink
-                        to={dashboardItem.path}
-                        end
-                        className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
-                        title={dashboardItem.label}
-                        onClick={() => setMobileOpen(false)}
-                    >
-                        <dashboardItem.icon size={19} />
-                        <span>{dashboardItem.label}</span>
-                    </NavLink>
+                    {!hiddenPaths.includes(dashboardItem.path) && (
+                        <NavLink
+                            to={dashboardItem.path}
+                            end
+                            className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
+                            title={dashboardItem.label}
+                            onClick={() => setMobileOpen(false)}
+                        >
+                            <dashboardItem.icon size={19} />
+                            <span>{dashboardItem.label}</span>
+                        </NavLink>
+                    )}
 
-                    {navGroups.map((group) => (
-                        <div key={group.groupLabel} className="sidebar-group">
-                            <div className="sidebar-group-divider">
-                                <span className="sidebar-group-label">{group.groupLabel}</span>
+                    {navGroups.map((group) => {
+                        const visibleItems = group.items.filter((item) => !hiddenPaths.includes(item.path));
+                        // Skip the whole group (divider + label included) once every item in
+                        // it has been hidden - otherwise an empty heading with nothing under
+                        // it would still show.
+                        if (visibleItems.length === 0) return null;
+                        return (
+                            <div key={group.groupLabel} className="sidebar-group">
+                                <div className="sidebar-group-divider">
+                                    <span className="sidebar-group-label">{group.groupLabel}</span>
+                                </div>
+                                {visibleItems.map(({ label, path, icon: Icon, iconSize }) => (
+                                    <NavLink
+                                        key={path}
+                                        to={path}
+                                        className={`sidebar-item${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                        title={label}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <Icon size={iconSize ?? 19} />
+                                        <span>{label}</span>
+                                    </NavLink>
+                                ))}
                             </div>
-                            {group.items.map(({ label, path, icon: Icon }) => (
-                                <NavLink
-                                    key={path}
-                                    to={path}
-                                    className={`sidebar-item${isItemActive(path) ? ' sidebar-item--active' : ''}`}
-                                    title={label}
-                                    onClick={() => setMobileOpen(false)}
-                                >
-                                    <Icon size={19} />
-                                    <span>{label}</span>
-                                </NavLink>
-                            ))}
-                        </div>
-                    ))}
+                        );
+                    })}
+
+                    {visibleCrmItems.length > 0 && (
+                    <div className="sidebar-group">
+                        <button
+                            type="button"
+                            className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
+                            onClick={() => setCrmMenuOpen((prev) => !prev)}
+                        >
+                            <crmMenu.icon size={19} />
+                            <span>{crmMenu.label}</span>
+                            {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
+                        </button>
+                        {crmMenuOpen && (
+                            <div className="sidebar-submenu">
+                                {visibleCrmItems.map(({ label, path, icon: Icon }) => (
+                                    <NavLink
+                                        key={path}
+                                        to={path}
+                                        end={path === '/crm'}
+                                        className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                        title={label}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <Icon size={17} />
+                                        <span>{label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    )}
                 </div>
 
                 <div className="sidebar-footer">

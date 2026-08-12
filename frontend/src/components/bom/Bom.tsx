@@ -14,9 +14,10 @@ import {
     HiOutlinePrinter,
     HiOutlineArrowDownTray,
     HiOutlineTrash,
-    HiOutlineTruck,
     HiOutlineArrowUturnLeft,
     HiOutlineExclamationTriangle,
+    HiOutlineCheckBadge,
+    HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
@@ -24,16 +25,16 @@ import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
-import { createBom, updateBom, deleteBom, dispatchBom, revertBomToProcess, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
+import { createBom, updateBom, deleteBom, revertBomToProcess, completeBom, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
 import type { InventoryItem } from '../../services/inventoryService';
 import type { RawSku } from '../../services/rawSkuService';
+import type { Unit } from '../../services/unitService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getBomColumns, getBomItemColumns, type BomItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { downloadBomPdf, printBomPdf } from '../../common/commonFunctions/bomPdf';
 import './Bom.css';
-
-const unitOptions = ['PCS', 'KG', 'MTR', 'BOX'];
 
 let nextBomItemRowId = 1;
 const rowsFromItems = (items: BomItem[]): BomItemRow[] => items.map((item) => ({ ...item, rowId: nextBomItemRowId++ }));
@@ -44,7 +45,7 @@ interface BomForm {
     categoryName: string | null;
     outputQty: number;
     unit: string;
-    status: 'Process' | 'Dispatch';
+    status: 'Process' | 'Completed';
 }
 
 // Category is still captured (auto-derived from the selected Product) and Version stays
@@ -68,7 +69,7 @@ const emptyForm: BomForm = {
 };
 
 const Bom = () => {
-    const { boms, bomsLoading, fetchBoms, inventories, rawSkus, fetchRawSkus } = useContext(AppContext);
+    const { boms, bomsLoading, fetchBoms, inventories, fetchInventories, rawSkus, fetchRawSkus, units } = useContext(AppContext);
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
     const { dateFormat } = useDateFormatContext();
@@ -87,7 +88,7 @@ const Bom = () => {
     const [menuBom, setMenuBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const filterFields: FilterField[] = [
-        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by Order code / product name' },
+        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by BOM code / product name' },
     ];
 
     const filteredBoms = useMemo(() => {
@@ -127,25 +128,6 @@ const Bom = () => {
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const handleDelete = (bom: BomType) => {
-        confirmDialog({
-            message: `Delete Order "${bom.bomCode}"? This cannot be undone.`,
-            header: 'Delete Order',
-            icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
-            accept: async () => {
-                try {
-                    await deleteBom(bom.id);
-                    fetchBoms();
-                    fetchRawSkus();
-                    showToast(toast, 'success', 'Deleted', 'Order deleted successfully');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
-    };
-
     const handleSave = async () => {
         if (!form.productSku) {
             showToast(toast, 'error', 'Error', 'Please select a Product');
@@ -157,7 +139,7 @@ const Bom = () => {
             return;
         }
 
-        // Blocks saving an Order that needs more of a Raw SKU than is actually in stock -
+        // Blocks saving a BOM that needs more of a Raw SKU than is actually in stock -
         // dispatching it later would deduct more than is available. Checked against live
         // rawSkus, not a frozen snapshot, so this stays accurate as stock changes.
         const rawSkuList = rawSkus as RawSku[];
@@ -177,6 +159,10 @@ const Bom = () => {
         }
 
         const payload: BomPayload = {
+            // Only sent on create - reuses the code already previewed in this dialog so it
+            // matches what actually gets saved (random codes, unlike the old sequential ones,
+            // would otherwise differ between preview and save if each were generated fresh).
+            ...(editingId ? {} : { bomCode: previewBomCode }),
             productSku: form.productSku,
             productName: form.productName,
             categoryName: form.categoryName,
@@ -196,7 +182,7 @@ const Bom = () => {
 
         try {
             const saved = editingId ? await updateBom(editingId, payload) : await createBom(payload);
-            showToast(toast, 'success', editingId ? 'Updated' : 'Created', `Order ${editingId ? 'updated' : 'created'} successfully`);
+            showToast(toast, 'success', editingId ? 'Updated' : 'Created', `BOM ${editingId ? 'updated' : 'created'} successfully`);
             fetchBoms();
             setForm(emptyForm);
             setItems([]);
@@ -208,18 +194,18 @@ const Bom = () => {
         }
     };
 
-    const handleDispatch = (bom: BomType) => {
+    const handleComplete = (bom: BomType) => {
         confirmDialog({
-            message: `Dispatch Order "${bom.bomCode}"? This deducts the required raw material quantities from stock.`,
-            header: 'Dispatch Order',
+            message: `Mark BOM "${bom.bomCode}" as Completed? This deducts the required raw material quantities from stock and adds ${bom.outputQty} ${bom.unit} of "${bom.productName}" into Inventory stock.`,
+            header: 'Mark as Completed',
             icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
             accept: async () => {
                 try {
-                    await dispatchBom(bom.id);
+                    await completeBom(bom.id);
                     fetchBoms();
                     fetchRawSkus();
-                    showToast(toast, 'success', 'Dispatched', 'Order dispatched and raw material stock updated');
+                    fetchInventories();
+                    showToast(toast, 'success', 'Completed', 'BOM completed - raw material and Inventory stock updated');
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -229,7 +215,7 @@ const Bom = () => {
 
     const handleRevertToProcess = (bom: BomType) => {
         confirmDialog({
-            message: `Revert Order "${bom.bomCode}" back to Process? This restores the deducted raw material quantities.`,
+            message: `Revert BOM "${bom.bomCode}" back to Process? This restores the deducted raw material quantities and removes the ${bom.outputQty} ${bom.unit} added to Inventory stock.`,
             header: 'Revert to Process',
             icon: 'pi pi-exclamation-triangle',
             accept: async () => {
@@ -237,7 +223,8 @@ const Bom = () => {
                     await revertBomToProcess(bom.id);
                     fetchBoms();
                     fetchRawSkus();
-                    showToast(toast, 'success', 'Reverted', 'Order reverted to Process and raw material stock restored');
+                    fetchInventories();
+                    showToast(toast, 'success', 'Reverted', 'BOM reverted to Process - raw material and Inventory stock restored');
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -280,14 +267,23 @@ const Bom = () => {
 
     const bomActionTemplate = (row: BomType) => (
         <div className="data-table-actions">
-            {row.status === 'Process' && <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDelete(row)} />}
-            {row.status === 'Process' && <HiOutlineTruck size={20} color="#16a34a" title="Dispatch" onClick={() => handleDispatch(row)} />}
-            {row.status === 'Dispatch' && <HiOutlineArrowUturnLeft size={16} title="Revert to Process" onClick={() => handleRevertToProcess(row)} />}
+            {row.status === 'Process' && <HiOutlineCheckBadge size={20} color="#16a34a" title="Mark as Completed" onClick={() => handleComplete(row)} />}
+            {row.status === 'Completed' && <HiOutlineArrowUturnLeft size={16} title="Revert to Process" onClick={() => handleRevertToProcess(row)} />}
             <HiOutlinePrinter size={16} title="Print or Download" onClick={(e) => openPrintMenu(e, row)} />
         </div>
     );
 
     const itemColumns = getBomItemColumns(items, form.outputQty, rawSkus as RawSku[]);
+
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<BomType>({
+        getId: (row) => row.id,
+        deleteOne: deleteBom,
+        onDeleted: fetchBoms,
+        toast,
+        entityNamePlural: 'BOMs',
+        canDelete: (row) => row.status !== 'Completed',
+        cannotDeleteMessage: 'Completed BOMs cannot be deleted - revert to Process first if you need to undo it.',
+    });
 
     return (
         <div className="bom-page">
@@ -299,15 +295,40 @@ const Bom = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
-                actions={<Button label="Add Order" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={
+                    <>
+                        {selectedRows.length > 0 && (
+                            <Button
+                                label={`Delete (${selectedRows.length})`}
+                                icon={<HiOutlineTrash className="mr-2" />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleting}
+                                severity="danger"
+                                outlined
+                            />
+                        )}
+                        <Button label="Add BOM" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    </>
+                }
+                trailingActions={
+                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchBoms} loading={bomsLoading} aria-label="Refresh" title="Refresh" />
+                }
             />
 
-            <DataTable value={filteredBoms} columns={columns} loading={bomsLoading} actionBodyTemplate={bomActionTemplate} />
+            <DataTable
+                value={filteredBoms}
+                columns={columns}
+                loading={bomsLoading}
+                actionBodyTemplate={bomActionTemplate}
+                selectable
+                selection={selectedRows}
+                onSelectionChange={setSelectedRows}
+            />
 
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit Order' : 'Add New Order'}
+                header={editingId ? 'Edit BOM' : 'Add New BOM'}
                 style={{ width: '960px', maxWidth: '95vw' }}
                 footer={
                     <>
@@ -321,7 +342,7 @@ const Bom = () => {
                         <div className="bom-stock-error-banner">
                             <div className="bom-stock-error-title">
                                 <HiOutlineExclamationTriangle size={16} />
-                                Insufficient Stock - cannot save this Order
+                                Insufficient Stock - cannot save this BOM
                             </div>
                             <ul className="bom-stock-error-list">
                                 {stockErrors.map((entry) => (
@@ -336,7 +357,7 @@ const Bom = () => {
                         <h3 className="bom-form-section-title">Basic Information</h3>
                         <div className="bom-dialog-grid">
                             <div className="form-field">
-                                <label>Order Code</label>
+                                <label>BOM Code</label>
                                 <InputText value={editingId ? editingBomCode : (previewBomCode || 'Generating...')} disabled />
                             </div>
                             <div className="form-field">
@@ -378,7 +399,7 @@ const Bom = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={unitOptions} placeholder="Select unit" />
+                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                         </div>
                     </div>
@@ -398,7 +419,8 @@ const Bom = () => {
                             key={form.outputQty}
                             value={items}
                             columns={itemColumns}
-                            paginator={false}
+                            paginator
+                            rows={5}
                             sortable={false}
                             filterable={false}
                             dataKey="rowId"
@@ -411,7 +433,7 @@ const Bom = () => {
             <Dialog
                 visible={!!recipeBom}
                 onHide={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)}
-                header="Order Recipe"
+                header="BOM Recipe"
                 style={{ width: '720px', maxWidth: '95vw' }}
                 footer={
                     <>

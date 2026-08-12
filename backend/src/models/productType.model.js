@@ -17,18 +17,18 @@ async function findByProductType(productType) {
   return result.rows[0];
 }
 
-async function create(productType, status) {
+async function create(productType, status, description) {
   const result = await pool.query(
-    `INSERT INTO ${TABLE} ("productType", status) VALUES ($1, $2) RETURNING *`,
-    [productType, status]
+    `INSERT INTO ${TABLE} ("productType", description, status) VALUES ($1, $2, $3) RETURNING *`,
+    [productType, description, status]
   );
   return result.rows[0];
 }
 
-async function update(id, productType, status) {
+async function update(id, productType, status, description) {
   const result = await pool.query(
-    `UPDATE ${TABLE} SET "productType" = $1, status = $2 WHERE id = $3 RETURNING *`,
-    [productType, status, id]
+    `UPDATE ${TABLE} SET "productType" = $1, description = $2, status = $3 WHERE id = $4 RETURNING *`,
+    [productType, description, status, id]
   );
   return result.rows[0];
 }

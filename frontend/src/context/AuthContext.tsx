@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { AuthContext, type AuthUser, type LoginResult } from './AuthContextDefinition';
 
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 const STORAGE_KEY = 'inventory-app:auth';
+// Duplicated in services/httpClient.ts and crmAxiosClient.ts (same circular-import reasoning
+// as STORAGE_KEY) - dispatched there whenever any API call comes back 401, so this context
+// can flip isAuthenticated to false the moment a session actually expires server-side,
+// instead of every page just silently rendering empty (see httpClient.ts's authFetch).
+const SESSION_EXPIRED_EVENT = 'inventory-app:session-expired';
 
 interface StoredAuth {
     token: string;
@@ -39,6 +44,15 @@ const AuthContextProvider = ({ children }: { children: ReactNode }) => {
     const [token, setToken] = useState<string | null>(initialAuth?.token ?? DEFAULT_DATA_TYPE_VALUE.NULL);
     const [user, setUser] = useState<AuthUser | null>(initialAuth?.user ?? DEFAULT_DATA_TYPE_VALUE.NULL);
 
+    useEffect(() => {
+        const handleSessionExpired = () => {
+            setToken(DEFAULT_DATA_TYPE_VALUE.NULL);
+            setUser(DEFAULT_DATA_TYPE_VALUE.NULL);
+        };
+        window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+        return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    }, []);
+
     const login = async (email: string, password: string): Promise<LoginResult> => {
         try {
             const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -50,7 +64,12 @@ const AuthContextProvider = ({ children }: { children: ReactNode }) => {
             if (!response.ok || !result.status) {
                 return { success: DEFAULT_DATA_TYPE_VALUE.FALSE, message: result.message ?? 'Login failed' };
             }
-            const authUser: AuthUser = { userName: result.data.userName, email: result.data.email };
+            const authUser: AuthUser = {
+                userName: result.data.userName,
+                email: result.data.email,
+                profileImage: result.data.profileImage ?? DEFAULT_DATA_TYPE_VALUE.NULL,
+                isHidden: result.data.isHidden ?? DEFAULT_DATA_TYPE_VALUE.FALSE,
+            };
             setToken(result.data.token);
             setUser(authUser);
             saveAuthToStorage({ token: result.data.token, user: authUser });

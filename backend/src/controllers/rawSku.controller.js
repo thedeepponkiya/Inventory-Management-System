@@ -1,4 +1,5 @@
 const RawSkuModel = require('../models/rawSku.model');
+const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
 
 async function getRawSkus(req, res) {
   try {
@@ -45,6 +46,7 @@ async function createRawSku(req, res) {
       description: req.body.description || null,
       status: req.body.status || 'Active',
       createdBy: req.body.createdBy || 'Admin User',
+      images: req.body.images || [],
     };
 
     const created = await RawSkuModel.create(skuCode, fields);
@@ -80,9 +82,11 @@ async function updateRawSku(req, res) {
       description: body.description ?? existing.description,
       status: body.status ?? existing.status,
       createdBy: body.createdBy ?? existing.createdBy,
+      images: body.images ?? existing.images,
     };
 
     const updated = await RawSkuModel.update(id, fields);
+    deleteRemovedImages(existing.images, fields.images);
     res.json({ status: true, message: 'Raw SKU updated successfully', data: updated });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -98,6 +102,7 @@ async function deleteRawSku(req, res) {
     }
 
     await RawSkuModel.remove(id);
+    deleteAllImages(existing.images);
     res.json({ status: true, message: 'Raw SKU deleted successfully', data: null });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });

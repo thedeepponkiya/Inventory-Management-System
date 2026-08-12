@@ -58,8 +58,8 @@ const LowStockAlerts = () => {
 
             {lowStockItems.length > 0 && (
                 <div className="dashboard-low-stock-toolbar">
-                    <span className="dashboard-low-stock-search">
-                        <HiOutlineMagnifyingGlass className="dashboard-low-stock-search-icon" />
+                    <span className="dashboard-search">
+                        <HiOutlineMagnifyingGlass className="dashboard-search-icon" />
                         <InputText value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search SKU name or code..." />
                     </span>
                     <div className="dashboard-chart-type-toggle">

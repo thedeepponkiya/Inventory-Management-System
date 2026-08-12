@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -6,14 +6,16 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { SelectButton } from 'primereact/selectbutton';
 import { Toast } from 'primereact/toast';
-import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle, HiOutlineBuildingOffice2, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle, HiOutlineBuildingOffice2, HiOutlineXMark, HiOutlineEyeSlash } from 'react-icons/hi2';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
 import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
 import { useCompanyLogoContext } from '../../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../../context/CompanySettingsContextDefinition';
+import { AppContext } from '../../../context/AppContextDefinition';
 import { formatDate, type DateFormatOption } from '../../commonFunctions/dateFormat';
+import VisibilitySettingsDialog from '../visibilitySettingsDialog/VisibilitySettingsDialog';
 import './SettingsDialog.css';
 
 const financialYears = ['2024-2025', '2025-2026', '2026-2027'];
@@ -47,6 +49,8 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const { theme, setTheme } = useThemeContext();
     const { dateFormat, setDateFormat } = useDateFormatContext();
     const { companyLogo, setCompanyLogo } = useCompanyLogoContext();
+    const { fetchUiVisibility } = useContext(AppContext);
+    const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
 
     // Read as a base64 data: URL (not URL.createObjectURL) so the logo can be persisted to
     // localStorage and embedded directly into jsPDF documents via doc.addImage() - applied
@@ -172,11 +176,24 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                         options={['Light', 'Dark']}
                                     />
                                 </div>
+                                <div className="form-field settings-dialog-full">
+                                    <label>Menu &amp; Quick Action Visibility</label>
+                                    <button type="button" className="settings-dialog-visibility-btn" onClick={() => setVisibilityDialogOpen(DEFAULT_DATA_TYPE_VALUE.TRUE)}>
+                                        <HiOutlineEyeSlash size={16} />
+                                        Manage Visibility
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </Dialog>
+
+            <VisibilitySettingsDialog
+                visible={visibilityDialogOpen}
+                onHide={() => setVisibilityDialogOpen(DEFAULT_DATA_TYPE_VALUE.FALSE)}
+                onSaved={fetchUiVisibility}
+            />
         </>
     );
 };

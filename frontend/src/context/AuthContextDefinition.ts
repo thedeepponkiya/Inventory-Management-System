@@ -7,6 +7,10 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 export interface AuthUser {
     userName: string;
     email: string;
+    profileImage: string | null;
+    // True only for the one hidden Super Admin account (see backend/user.model.js's
+    // "isHidden" column) - gates the sidebar's "Developer Admin" section.
+    isHidden: boolean;
 }
 
 export interface LoginResult {

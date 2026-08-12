@@ -1,14 +1,17 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface Category {
     id: number;
     category: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
     createdAt: string;
 }
 
 export interface CategoryPayload {
     category: string;
+    description: string | null;
     status: 'Active' | 'Inactive';
 }
 
@@ -27,12 +30,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getCategories(): Promise<Category[]> {
-    const response = await fetch(`${API_BASE_URL}/categories`);
+    const response = await authFetch(`${API_BASE_URL}/categories`);
     return parseResponse<Category[]>(response);
 }
 
 export async function createCategory(payload: CategoryPayload): Promise<Category> {
-    const response = await fetch(`${API_BASE_URL}/categories`, {
+    const response = await authFetch(`${API_BASE_URL}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -41,7 +44,7 @@ export async function createCategory(payload: CategoryPayload): Promise<Category
 }
 
 export async function updateCategory(id: number, payload: Partial<CategoryPayload>): Promise<Category> {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -50,7 +53,7 @@ export async function updateCategory(id: number, payload: Partial<CategoryPayloa
 }
 
 export async function deleteCategory(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/categories/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

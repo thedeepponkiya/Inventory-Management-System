@@ -3,16 +3,23 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { getLocations, type Location } from '../services/locationService';
 import { getCategories, type Category } from '../services/categoryService';
 import { getProductTypes, type ProductType } from '../services/productTypeService';
+import { getUnits, type Unit } from '../services/unitService';
 import { getVendors, type Vendor } from '../services/vendorService';
+import { getCustomers, type Customer } from '../services/customerService';
 import { getPurchaseOrders, type PurchaseOrder } from '../services/purchaseOrderService';
+import { getSalesOrders, type SalesOrder } from '../services/salesOrderService';
 import { getMaterialInwards, type MaterialInward } from '../services/materialInwardService';
 import { getInvoices, type Invoice } from '../services/invoiceService';
 import { getRawSkus, type RawSku } from '../services/rawSkuService';
 import { getInventoryItems, type InventoryItem } from '../services/inventoryService';
 import { getBoms, type Bom } from '../services/bomService';
+import { getUsers, type User } from '../services/userService';
+import { getUiVisibility, type UiVisibilityConfig } from '../services/uiVisibilityService';
 import { AppContext } from './AppContextDefinition';
+import { useAuthContext } from './AuthContextDefinition';
 
 const AppContextProvider = (props: any) => {
+    const { isAuthenticated } = useAuthContext();
     const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [locations, setLocations] = React.useState<Location[]>([]);
     const [locationsLoading, setLocationsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
@@ -20,10 +27,16 @@ const AppContextProvider = (props: any) => {
     const [categoriesLoading, setCategoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [productTypes, setProductTypes] = React.useState<ProductType[]>([]);
     const [productTypesLoading, setProductTypesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [units, setUnits] = React.useState<Unit[]>([]);
+    const [unitsLoading, setUnitsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [vendors, setVendors] = React.useState<Vendor[]>([]);
     const [vendorsLoading, setVendorsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [customers, setCustomers] = React.useState<Customer[]>([]);
+    const [customersLoading, setCustomersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [purchaseOrders, setPurchaseOrders] = React.useState<PurchaseOrder[]>([]);
     const [purchaseOrdersLoading, setPurchaseOrdersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>([]);
+    const [salesOrdersLoading, setSalesOrdersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [materialInwards, setMaterialInwards] = React.useState<MaterialInward[]>([]);
     const [materialInwardsLoading, setMaterialInwardsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [invoices, setInvoices] = React.useState<Invoice[]>([]);
@@ -34,6 +47,10 @@ const AppContextProvider = (props: any) => {
     const [inventoriesLoading, setInventoriesLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [boms, setBoms] = React.useState<Bom[]>([]);
     const [bomsLoading, setBomsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [users, setUsers] = React.useState<User[]>([]);
+    const [usersLoading, setUsersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [uiVisibility, setUiVisibility] = React.useState<UiVisibilityConfig | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [uiVisibilityLoading, setUiVisibilityLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -56,6 +73,13 @@ const AppContextProvider = (props: any) => {
             .finally(() => setProductTypesLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchUnits = React.useCallback(() => {
+        getUnits()
+            .then((data) => setUnits(data))
+            .catch(() => setUnits([]))
+            .finally(() => setUnitsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     const fetchVendors = React.useCallback(() => {
         getVendors()
             .then((data) => setVendors(data))
@@ -63,11 +87,25 @@ const AppContextProvider = (props: any) => {
             .finally(() => setVendorsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchCustomers = React.useCallback(() => {
+        getCustomers()
+            .then((data) => setCustomers(data))
+            .catch(() => setCustomers([]))
+            .finally(() => setCustomersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     const fetchPurchaseOrders = React.useCallback(() => {
         getPurchaseOrders()
             .then((data) => setPurchaseOrders(data))
             .catch(() => setPurchaseOrders([]))
             .finally(() => setPurchaseOrdersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    const fetchSalesOrders = React.useCallback(() => {
+        getSalesOrders()
+            .then((data) => setSalesOrders(data))
+            .catch(() => setSalesOrders([]))
+            .finally(() => setSalesOrdersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
     const fetchMaterialInwards = React.useCallback(() => {
@@ -105,18 +143,47 @@ const AppContextProvider = (props: any) => {
             .finally(() => setBomsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    const fetchUsers = React.useCallback(() => {
+        getUsers()
+            .then((data) => setUsers(data))
+            .catch(() => setUsers([]))
+            .finally(() => setUsersLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    // Exposed separately so VisibilitySettingsDialog can refetch right after saving, instead
+    // of every consumer (FilterBar, SideBarNavigation) needing a full app reload to see the
+    // updated hidden-item lists.
+    const fetchUiVisibility = React.useCallback(() => {
+        getUiVisibility()
+            .then((data) => setUiVisibility(data))
+            .catch(() => setUiVisibility(DEFAULT_DATA_TYPE_VALUE.NULL))
+            .finally(() => setUiVisibilityLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
+    // Every fetch here needs a valid session token (see backend/src/middleware/auth.middleware.js),
+    // so firing them before login just silently 401s and never retries - this effect used to
+    // run once unconditionally on mount, which for a not-yet-logged-in user meant the whole
+    // app rendered permanently empty until a manual refresh (by which point login had already
+    // happened and the token existed). Depending on isAuthenticated makes it re-fire the
+    // moment login succeeds, instead of only on the next full page load.
     React.useEffect(() => {
+        if (!isAuthenticated) return;
         fetchLocations();
         fetchCategories();
         fetchProductTypes();
+        fetchUnits();
         fetchVendors();
+        fetchCustomers();
         fetchPurchaseOrders();
+        fetchSalesOrders();
         fetchMaterialInwards();
         fetchInvoices();
         fetchRawSkus();
         fetchInventories();
         fetchBoms();
-    }, [fetchLocations, fetchCategories, fetchProductTypes, fetchVendors, fetchPurchaseOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms]);
+        fetchUsers();
+        fetchUiVisibility();
+    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers, fetchUiVisibility]);
 
     return (
         <>
@@ -133,12 +200,21 @@ const AppContextProvider = (props: any) => {
                     productTypes,
                     productTypesLoading,
                     fetchProductTypes,
+                    units,
+                    unitsLoading,
+                    fetchUnits,
                     vendors,
                     vendorsLoading,
                     fetchVendors,
+                    customers,
+                    customersLoading,
+                    fetchCustomers,
                     purchaseOrders,
                     purchaseOrdersLoading,
                     fetchPurchaseOrders,
+                    salesOrders,
+                    salesOrdersLoading,
+                    fetchSalesOrders,
                     materialInwards,
                     materialInwardsLoading,
                     fetchMaterialInwards,
@@ -154,6 +230,13 @@ const AppContextProvider = (props: any) => {
                     boms,
                     bomsLoading,
                     fetchBoms,
+                    users,
+                    usersLoading,
+                    fetchUsers,
+                    hiddenQuickActions: uiVisibility?.hiddenQuickActions ?? [],
+                    hiddenSidebarItems: uiVisibility?.hiddenSidebarItems ?? [],
+                    uiVisibilityLoading,
+                    fetchUiVisibility,
                 }}>
                 {props.children}
             </AppContext.Provider >

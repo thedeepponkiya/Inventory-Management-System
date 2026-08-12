@@ -1,6 +1,32 @@
 const MaterialInwardModel = require('../models/materialInward.model');
 const PurchaseOrderModel = require('../models/purchaseOrder.model');
+const RawSkuModel = require('../models/rawSku.model');
 const { createInvoiceFromMaterialInward } = require('./invoice.controller');
+const { computeOrderTotals } = require('../utils/orderTotals');
+
+// computeOrderTotals's grandTotal (subTotal - discount + gst) doesn't know about Material
+// Inward's own freightCharge/otherCharges, which aren't derived from items - they're real
+// user-entered charges layered on top, so they're added back in here rather than trusted
+// as-sent like every other total used to be.
+function computeInwardTotals(items, freightCharge, otherCharges) {
+  const base = computeOrderTotals(items);
+  const freight = Number(freightCharge) || 0;
+  const other = Number(otherCharges) || 0;
+  return { ...base, grandTotal: Math.round((base.grandTotal + freight + other) * 100) / 100 };
+}
+
+// Only accepted quantity becomes usable Raw SKU stock - rejected quantity failed quality
+// check and was never previously reflected anywhere (this whole function was missing before,
+// meaning Raw SKU currentStock never moved on receiving at all). `sign` is 1 to apply a set
+// of items' stock and -1 to reverse it (used by update/delete so edits/deletes never leave a
+// stale delta behind).
+async function applyStockForItems(items, sign) {
+  for (const item of items) {
+    const qty = Number(item.acceptedQty ?? item.receivedQty ?? 0);
+    if (!item.skuCode || !qty) continue;
+    await RawSkuModel.adjustStockBySkuCode(item.skuCode, sign * qty);
+  }
+}
 
 // Inward No. mirrors the linked Purchase Order's number (per the user's ask), since a
 // Material Inward is the execution of that PO, not an independent transaction. "inwardNo"
@@ -29,9 +55,14 @@ async function resyncPurchaseOrderTotals(purchaseOrderId) {
   const relevantInwards = allInwards.filter((mi) => mi.purchaseOrderId === purchaseOrderId);
   const relevantItems = relevantInwards.flatMap((mi) => mi.items);
 
+  // Matched by skuId, not itemName - two PO lines could share a display name (two separate
+  // batches of the same raw material ordered on different lines), which would make a
+  // name-based match ambiguous and double-count a single receipt against both lines.
+  // purchaseOrder.controller.js now rejects duplicate skuIds on a PO at write-time, so skuId
+  // is a reliable per-line key here.
   const updatedItems = po.items.map((item) => {
     const receivedQty = relevantItems
-      .filter((mi) => mi.itemName === item.itemName)
+      .filter((mi) => mi.skuId === item.skuId)
       .reduce((sum, mi) => sum + mi.receivedQty, 0);
     return { ...item, receivedQty, pendingQty: item.orderedQty - receivedQty };
   });
@@ -55,6 +86,9 @@ async function resyncPurchaseOrderTotals(purchaseOrderId) {
     deliveryAddress: po.deliveryAddress,
     paymentTerms: po.paymentTerms,
     status,
+    paymentStatus: po.paymentStatus,
+    paidAmount: po.paidAmount,
+    currency: po.currency,
     items: updatedItems,
     totalItems: po.totalItems,
     totalQty: po.totalQty,
@@ -86,6 +120,10 @@ async function createMaterialInward(req, res) {
     }
 
     const inwardNo = await generateInwardNo(req.body.purchaseOrderId || null, req.body.purchaseOrderNo || null);
+    const items = req.body.items || [];
+    const freightCharge = req.body.freightCharge || 0;
+    const otherCharges = req.body.otherCharges || 0;
+    const totals = computeInwardTotals(items, freightCharge, otherCharges);
     const fields = {
       purchaseOrderId: req.body.purchaseOrderId || null,
       purchaseOrderNo: req.body.purchaseOrderNo || null,
@@ -97,20 +135,16 @@ async function createMaterialInward(req, res) {
       challanNo: req.body.challanNo || null,
       vehicleNo: req.body.vehicleNo || null,
       warehouseId,
-      items: req.body.items || [],
-      totalItems: req.body.totalItems || 0,
-      totalQty: req.body.totalQty || 0,
-      subTotal: req.body.subTotal || 0,
-      discountAmount: req.body.discountAmount || 0,
-      gstAmount: req.body.gstAmount || 0,
-      freightCharge: req.body.freightCharge || 0,
-      otherCharges: req.body.otherCharges || 0,
-      grandTotal: req.body.grandTotal || 0,
+      items,
+      ...totals,
+      freightCharge,
+      otherCharges,
       remarks: req.body.remarks || null,
       receivedBy: req.body.receivedBy || 'Admin User',
     };
 
     const created = await MaterialInwardModel.create(inwardNo, fields);
+    await applyStockForItems(created.items, 1);
     await resyncPurchaseOrderTotals(created.purchaseOrderId);
     try {
       // Best-effort, matching resyncPurchaseOrderTotals's style: the Material Inward save
@@ -134,6 +168,10 @@ async function updateMaterialInward(req, res) {
     }
 
     const body = req.body;
+    const items = body.items ?? existing.items;
+    const freightCharge = body.freightCharge ?? existing.freightCharge;
+    const otherCharges = body.otherCharges ?? existing.otherCharges;
+    const totals = computeInwardTotals(items, freightCharge, otherCharges);
     const fields = {
       purchaseOrderId: body.purchaseOrderId ?? existing.purchaseOrderId,
       purchaseOrderNo: body.purchaseOrderNo ?? existing.purchaseOrderNo,
@@ -145,20 +183,20 @@ async function updateMaterialInward(req, res) {
       challanNo: body.challanNo ?? existing.challanNo,
       vehicleNo: body.vehicleNo ?? existing.vehicleNo,
       warehouseId: body.warehouseId ?? existing.warehouseId,
-      items: body.items ?? existing.items,
-      totalItems: body.totalItems ?? existing.totalItems,
-      totalQty: body.totalQty ?? existing.totalQty,
-      subTotal: body.subTotal ?? existing.subTotal,
-      discountAmount: body.discountAmount ?? existing.discountAmount,
-      gstAmount: body.gstAmount ?? existing.gstAmount,
-      freightCharge: body.freightCharge ?? existing.freightCharge,
-      otherCharges: body.otherCharges ?? existing.otherCharges,
-      grandTotal: body.grandTotal ?? existing.grandTotal,
+      items,
+      ...totals,
+      freightCharge,
+      otherCharges,
       remarks: body.remarks ?? existing.remarks,
       receivedBy: body.receivedBy ?? existing.receivedBy,
     };
 
     const updated = await MaterialInwardModel.update(id, fields);
+    // Reverse the old items' stock effect and re-apply the new items' effect, rather than
+    // diffing - simplest thing that's correct even when SKUs/quantities/line count all
+    // change between the old and new items array.
+    await applyStockForItems(existing.items, -1);
+    await applyStockForItems(updated.items, 1);
     await resyncPurchaseOrderTotals(updated.purchaseOrderId);
     if (existing.purchaseOrderId && existing.purchaseOrderId !== updated.purchaseOrderId) {
       await resyncPurchaseOrderTotals(existing.purchaseOrderId);
@@ -178,6 +216,7 @@ async function deleteMaterialInward(req, res) {
     }
 
     await MaterialInwardModel.remove(id);
+    await applyStockForItems(existing.items, -1);
     await resyncPurchaseOrderTotals(existing.purchaseOrderId);
     res.json({ status: true, message: 'Material inward deleted successfully', data: null });
   } catch (err) {

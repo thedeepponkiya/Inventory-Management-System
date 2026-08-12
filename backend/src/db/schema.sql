@@ -1,20 +1,53 @@
--- Users table backing /api/v1/auth login/logout.
--- Passwords are stored as bcrypt hashes (see auth.controller.js); tokens are
--- opaque session tokens with a 1-hour TTL enforced via "tokenExpiresAt".
+-- Users table backing /api/v1/auth login/logout AND /api/v1/users management CRUD.
+-- Passwords are stored as bcrypt hashes (see auth.controller.js/user.controller.js); tokens
+-- are opaque session tokens with a 1-hour TTL enforced via "tokenExpiresAt".
+-- "userName" is kept as the internal column name (CRM notes/followups/leads join on it via
+-- "userName" AS "assignedToName"/"createdByName") - the User Management API exposes it as
+-- "fullName" via a SELECT alias instead of renaming the column, to avoid touching every CRM
+-- join that already depends on this name.
+-- "roleId"/"departmentId" hold a plain string picked from a fixed frontend dropdown list
+-- (no Roles/Departments master table exists), not a numeric foreign key - named to match the
+-- field list the User Management feature was speced against.
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     "userName" VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
     token TEXT,
     "tokenExpiresAt" TIMESTAMPTZ
 );
+-- users already existed live with a "password" column before it was renamed - migrate any
+-- already-created table too (same pattern used elsewhere for evolved tables).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password') THEN
+        ALTER TABLE users RENAME COLUMN password TO "passwordHash";
+    END IF;
+END $$;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "userCode" VARCHAR(20) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "roleId" VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "departmentId" VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Active';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdBy" VARCHAR(150);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "profileImage" TEXT;
+ALTER TABLE users DROP COLUMN IF EXISTS "locationId";
+CREATE UNIQUE INDEX IF NOT EXISTS users_usercode_lower_idx ON users (LOWER("userCode"));
+-- Lets a real, fully-functional login row (e.g. a break-glass/system Super Admin account)
+-- exist without ever showing up in the User Management list - see user.model.js's getAll().
+-- There is no RBAC in this app today (any authenticated session already has full API
+-- access), so this column controls list VISIBILITY only, not permissions.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT false;
 
 -- Locations master, backing /api/v1/locations CRUD.
 CREATE TABLE IF NOT EXISTS ims_location (
     id SERIAL PRIMARY KEY,
     location VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -22,26 +55,45 @@ CREATE UNIQUE INDEX IF NOT EXISTS ims_location_location_lower_idx ON ims_locatio
 -- ims_location already existed live before "createdAt" was added to the CREATE TABLE block
 -- above, so this migrates any already-created table too (same pattern used by ims_raw_sku).
 ALTER TABLE ims_location ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Optional free-text note shown in the redesigned Add/Edit Location dialog (200-char limit
+-- enforced client-side, matching the VARCHAR(200) here).
+ALTER TABLE ims_location ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Categories master, backing /api/v1/categories CRUD.
 CREATE TABLE IF NOT EXISTS ims_category (
     id SERIAL PRIMARY KEY,
     category VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_category_category_lower_idx ON ims_category (LOWER(category));
 ALTER TABLE ims_category ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Optional free-text note, same as ims_location's - see its own comment above.
+ALTER TABLE ims_category ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Product types master, backing /api/v1/product-types CRUD.
 CREATE TABLE IF NOT EXISTS ims_product_type (
     id SERIAL PRIMARY KEY,
     "productType" VARCHAR(150) NOT NULL,
+    description VARCHAR(200),
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_product_type_lower_idx ON ims_product_type (LOWER("productType"));
 ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE ims_product_type ADD COLUMN IF NOT EXISTS description VARCHAR(200);
+
+-- Units of measure master, backing /api/v1/units CRUD.
+CREATE TABLE IF NOT EXISTS ims_unit (
+    id SERIAL PRIMARY KEY,
+    unit VARCHAR(20) NOT NULL,
+    description VARCHAR(200),
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ims_unit_lower_idx ON ims_unit (LOWER(unit));
+ALTER TABLE ims_unit ADD COLUMN IF NOT EXISTS description VARCHAR(200);
 
 -- Vendors master, backing /api/v1/vendors CRUD.
 CREATE TABLE IF NOT EXISTS ims_vendor (
@@ -56,6 +108,20 @@ CREATE TABLE IF NOT EXISTS ims_vendor (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ims_vendor_vendorname_lower_idx ON ims_vendor (LOWER("vendorName"));
 ALTER TABLE ims_vendor ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- Customer master, backing /api/v1/customers CRUD - mirrors ims_vendor exactly (same
+-- shape/uniqueness rule), just for the sell side instead of the buy side.
+CREATE TABLE IF NOT EXISTS ims_customer (
+    id SERIAL PRIMARY KEY,
+    "customerName" VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    "phoneNumber" VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    "zipCode" VARCHAR(20),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ims_customer_customername_lower_idx ON ims_customer (LOWER("customerName"));
 
 -- Raw SKU master, backing /api/v1/raw-skus CRUD. "rawMaterialId" self-references this same
 -- table (a "Processed" SKU can point at a parent raw material, e.g. Door Stopper <- Steel Rod).
@@ -88,6 +154,8 @@ CREATE TABLE IF NOT EXISTS ims_raw_sku (
 -- CREATE TABLE block above, so this migrates any already-created table too.
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "productTypeId" INTEGER REFERENCES ims_product_type(id);
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "locationId" INTEGER REFERENCES ims_location(id);
+-- "images" is a JSONB array of image URLs (same shape/upload backing as ims_inventories.images).
+ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
 
 -- Purchase orders, backing /api/v1/purchase-orders CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -102,9 +170,11 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "vendorId" INTEGER NOT NULL REFERENCES ims_vendor(id),
     "poDate" DATE NOT NULL,
     "expectedDeliveryDate" DATE,
+    "shippingDate" DATE,
     "deliveryAddress" TEXT,
-    "paymentTerms" VARCHAR(50),
     status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+    "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
     items JSONB NOT NULL DEFAULT '[]',
     "totalItems" INTEGER NOT NULL DEFAULT 0,
     "totalQty" NUMERIC NOT NULL DEFAULT 0,
@@ -114,8 +184,6 @@ CREATE TABLE IF NOT EXISTS ims_purchase_order (
     "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
     remarks TEXT,
     "createdBy" VARCHAR(150),
-    "approvedBy" VARCHAR(150),
-    "approvedAt" TIMESTAMPTZ,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -130,6 +198,119 @@ ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "otherCharges";
 -- receipt" role instead) - migrate any existing rows so they stay consistent with the
 -- new Draft -> Sent -> Received/Cancelled lifecycle.
 UPDATE ims_purchase_order SET status = 'Sent' WHERE status = 'Approved';
+-- ims_purchase_order already existed live before Payment Status/Paid Amount/Currency were
+-- added to the CREATE TABLE block above (mirroring ims_sales_order's own fields), so this
+-- migrates any already-created table too. "Remain Amount" (in the PO list columns) is
+-- always derived as grandTotal - paidAmount, never stored separately.
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid';
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
+-- Payment Terms/Approved By/Approved At/Currency were removed from the PO form entirely
+-- (per-transaction equivalents already exist as needed - see Transaction History/Add
+-- Payment) - drops both the columns and any data in them for any DB that already had them.
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "paymentTerms";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "approvedBy";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS "approvedAt";
+ALTER TABLE ims_purchase_order DROP COLUMN IF EXISTS currency;
+-- ims_purchase_order already existed live before "shippingDate" was added to the CREATE TABLE
+-- block above (Delivery And Notes section), so this migrates any already-created table too.
+ALTER TABLE ims_purchase_order ADD COLUMN IF NOT EXISTS "shippingDate" DATE;
+
+-- One row per payment recorded against a Purchase Order (the "Transaction History" tab) -
+-- ims_purchase_order."paidAmount" is no longer typed in directly, it's always the SUM of this
+-- table's rows for that PO (recomputed server-side on every add/delete, see
+-- purchaseOrderPayment.controller.js), same "don't trust a single mutable number, derive it"
+-- reasoning as computeOrderTotals/derivePaymentStatus in orderTotals.js. ON DELETE CASCADE so
+-- deleting a PO cleans up its payment history automatically.
+CREATE TABLE IF NOT EXISTS ims_purchase_order_payments (
+    id SERIAL PRIMARY KEY,
+    "poId" INTEGER NOT NULL REFERENCES ims_purchase_order(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    "paymentDate" DATE NOT NULL,
+    "paymentMethod" VARCHAR(30),
+    remarks TEXT,
+    "recordedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Per-transaction (not PO-level - the PO no longer has its own paymentTerms/approvedBy/
+    -- approvedAt at all) terms/approval, since each payment can be approved separately under
+    -- its own terms.
+    "paymentTerms" VARCHAR(50),
+    "approvedBy" VARCHAR(150),
+    "approvedAt" TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ims_purchase_order_payments_po_idx ON ims_purchase_order_payments ("poId");
+-- ims_purchase_order_payments already existed live before paymentTerms/approvedBy/approvedAt
+-- were (re-)added to the CREATE TABLE block above, so this migrates any already-created table
+-- too.
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "paymentTerms" VARCHAR(50);
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "approvedBy" VARCHAR(150);
+ALTER TABLE ims_purchase_order_payments ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMPTZ;
+
+-- Sales orders, backing /api/v1/sales-orders CRUD.
+-- "items" is a JSONB array of finished-good lines, each shaped like:
+-- { skuId, skuCode, itemName, unit, orderedQty, dispatchedQty, pendingQty, unitPrice,
+--   discountPercent, discountAmount, gstPercent, gstAmount, lineTotal }
+-- customerName/customerCode are plain fields (no Customer master exists in this app,
+-- same denormalized-string approach as Invoice's "customerSupplier").
+-- Lifecycle: Draft -> Confirmed -> Processing -> (Partially Shipped <-> Dispatched via the
+-- /dispatch action, which deducts each shipped line's qty straight from ims_inventories -
+-- the mirror of BOM's Dispatch step, but on the sell side) -> Cancelled is only reachable
+-- before any stock has actually shipped.
+CREATE TABLE IF NOT EXISTS ims_sales_order (
+    id SERIAL PRIMARY KEY,
+    "soNo" VARCHAR(50) NOT NULL UNIQUE,
+    "customerName" VARCHAR(150) NOT NULL,
+    "customerCode" VARCHAR(50),
+    "orderDate" DATE NOT NULL,
+    "deliveryDate" DATE,
+    "deliveryAddress" TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Draft',
+    "paymentStatus" VARCHAR(20) NOT NULL DEFAULT 'Unpaid',
+    "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    items JSONB NOT NULL DEFAULT '[]',
+    "totalItems" INTEGER NOT NULL DEFAULT 0,
+    "totalQty" NUMERIC NOT NULL DEFAULT 0,
+    "subTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "discountAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "gstAmount" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    "grandTotal" NUMERIC(12,2) NOT NULL DEFAULT 0,
+    remarks TEXT,
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- ims_sales_order already existed live before "paidAmount" was added to the CREATE TABLE
+-- block above, so this migrates any already-created table too. "Remain Amount" (in the
+-- SO list/columns) is always derived as grandTotal - paidAmount, never stored separately.
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "paidAmount" NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE ims_sales_order ADD COLUMN IF NOT EXISTS "purchaseOrderRef" VARCHAR(100);
+-- Payment Terms/Currency were tried at the SO level (mirroring ims_purchase_order's identical
+-- fields) and then removed again - the per-transaction equivalents on
+-- ims_sales_order_payments (Transaction History) cover the same need, see its own comment.
+-- Undoes the ADD COLUMN migration this same file previously carried, for any DB that already
+-- ran it.
+ALTER TABLE ims_sales_order DROP COLUMN IF EXISTS "paymentTerms";
+ALTER TABLE ims_sales_order DROP COLUMN IF EXISTS currency;
+
+-- One row per payment recorded against a Sales Order (the "Transaction History" tab) - exact
+-- mirror of ims_purchase_order_payments (see its comment for the full reasoning: paidAmount
+-- is derived as the SUM of these rows, never typed in directly, recomputed server-side on
+-- every add/delete). paymentTerms/approvedBy/approvedAt are per-transaction, independent of
+-- the SO's own same-named fields. ON DELETE CASCADE so deleting an SO cleans up its payment
+-- history automatically.
+CREATE TABLE IF NOT EXISTS ims_sales_order_payments (
+    id SERIAL PRIMARY KEY,
+    "soId" INTEGER NOT NULL REFERENCES ims_sales_order(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    "paymentDate" DATE NOT NULL,
+    "paymentMethod" VARCHAR(30),
+    remarks TEXT,
+    "recordedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "paymentTerms" VARCHAR(50),
+    "approvedBy" VARCHAR(150),
+    "approvedAt" TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ims_sales_order_payments_so_idx ON ims_sales_order_payments ("soId");
 
 -- Material inwards, backing /api/v1/material-inwards CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -231,6 +412,16 @@ CREATE TABLE IF NOT EXISTS ims_inventories (
     assembly JSONB NOT NULL DEFAULT '[]',
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Stock-health thresholds for the Current Stock column's progress bar/tier badge (same
+-- design as ims_raw_sku, minus a separate Reorder Level - `minStock` doubles as the "Low"
+-- threshold here since Inventory items don't have their own reorder workflow).
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "minStock" NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "maxStock" NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "openingStock" NUMERIC NOT NULL DEFAULT 0;
+-- Selling Cost (what this item is sold for) alongside the existing "unitCost" (Product
+-- Cost - what it costs to acquire/produce) - kept as two separate columns since margin
+-- reporting needs both, not just one overwriting the other.
+ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "sellingCost" NUMERIC(12,2) NOT NULL DEFAULT 0;
 
 -- Bill of Materials, backing /api/v1/boms CRUD.
 -- "productSku"/"productName"/"categoryName" are stored directly (denormalized strings set
@@ -257,11 +448,264 @@ CREATE TABLE IF NOT EXISTS ims_bom (
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- "status" changed from Active/Inactive (was a template-usable toggle) to a Process/
--- Dispatch order lifecycle: a BOM starts Process, and moving it to Dispatch (via the
--- dedicated /:id/dispatch endpoint below) deducts each component's scaled quantity from
--- the matching Raw SKU's currentStock; reverting to Process (via /:id/revert) adds it
--- back. Migrates any rows saved under the old Active/Inactive values.
+-- "status" changed from Active/Inactive (was a template-usable toggle) to a Process ->
+-- Completed order lifecycle: a BOM starts Process, and moving it to Completed (via the
+-- dedicated /:id/complete endpoint) deducts each component's scaled quantity from the
+-- matching Raw SKU's currentStock and adds outputQty onto the finished good's Inventory;
+-- reverting to Process (via /:id/revert) undoes both. Migrates any rows saved under the
+-- old Active/Inactive values.
 ALTER TABLE ims_bom ALTER COLUMN status SET DEFAULT 'Process';
 UPDATE ims_bom SET status = 'Process' WHERE status = 'Active';
 UPDATE ims_bom SET status = 'Dispatch' WHERE status = 'Inactive';
+-- The "Dispatch" stage (shipped-out, which re-deducted Inventory after Completed had added
+-- it) was removed - Sales Order now owns that "shipped to customer" concept instead, so a
+-- BOM's own lifecycle stops at Completed. Any row still sitting in the old Dispatch status
+-- had its Inventory net effect zeroed out (added at Completed, removed again at Dispatch);
+-- since Completed is now terminal and assumes the stock is sitting in Inventory, that
+-- removed quantity is added back before relabeling the row, so on-hand stock stays correct.
+UPDATE ims_inventories inv
+SET quantity = inv.quantity + sub.total_output
+FROM (
+    SELECT "productSku", SUM("outputQty") AS total_output
+    FROM ims_bom
+    WHERE status = 'Dispatch'
+    GROUP BY "productSku"
+) sub
+WHERE inv."skuId" = sub."productSku";
+UPDATE ims_bom SET status = 'Completed' WHERE status = 'Dispatch';
+
+-- =====================================================================
+-- CRM module (crm_*) - Module 1: full schema defined up front since all
+-- 10 tables are FK-interrelated; only crm_stages/crm_sources get CRUD
+-- endpoints in this module. All CRM tables use UUID PKs (first UUID
+-- usage in this repo) to support external-ID lookups for the Meta Lead
+-- Ads webhook integration planned for a later module.
+-- =====================================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Pipeline stages, admin-customizable via /crm/settings. "sortOrder" drives both the
+-- Kanban column order (later module) and this reorder list; "outcome" flags terminal
+-- stages (Won/Lost) without a DB CHECK constraint, validated in the controller instead -
+-- matches this repo's existing convention of validating free-text status columns in code.
+CREATE TABLE IF NOT EXISTS crm_stages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    color VARCHAR(20) NOT NULL DEFAULT '#64748B',
+    "isClosed" BOOLEAN NOT NULL DEFAULT false,
+    outcome VARCHAR(10) NOT NULL DEFAULT 'open',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_stages_name_lower_idx ON crm_stages (LOWER(name));
+
+INSERT INTO crm_stages (name, "sortOrder", outcome, "isClosed") VALUES
+    ('New Lead', 0, 'open', false),
+    ('Contacted', 1, 'open', false),
+    ('Qualified', 2, 'open', false),
+    ('Follow Up', 3, 'open', false),
+    ('Proposal Sent', 4, 'open', false),
+    ('Negotiation', 5, 'open', false),
+    ('Won', 6, 'won', true),
+    ('Lost', 7, 'lost', true)
+ON CONFLICT DO NOTHING;
+
+-- Lead sources (Meta Lead Ads, website forms, manual entry, etc.), seeded per the CRM spec.
+CREATE TABLE IF NOT EXISTS crm_sources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Manual',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_sources_name_lower_idx ON crm_sources (LOWER(name));
+
+INSERT INTO crm_sources (name, type) VALUES
+    ('Meta Lead Ads', 'Meta'),
+    ('Website Form', 'WebForm'),
+    ('Manual Entry', 'Manual'),
+    ('Google Ads', 'GoogleAds'),
+    ('WhatsApp', 'WhatsApp'),
+    ('Referral', 'Referral'),
+    ('IndiaMART', 'IndiaMART'),
+    ('Justdial', 'Justdial')
+ON CONFLICT DO NOTHING;
+
+-- Marketing campaigns, optionally tied to a source. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_campaigns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(150) NOT NULL,
+    "sourceId" UUID REFERENCES crm_sources(id),
+    "startDate" DATE,
+    "endDate" DATE,
+    budget NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_campaigns_source_idx ON crm_campaigns ("sourceId");
+CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_name_lower_idx ON crm_campaigns (LOWER(name));
+
+-- Meta (Facebook/Instagram) Ads read-only sync columns - populated by the Meta Marketing API
+-- pull in metaSync.service.js, null for manually-created campaigns.
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaCampaignId" VARCHAR(50);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaStatus" VARCHAR(30);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS spend NUMERIC(12,2);
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS impressions BIGINT;
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS clicks BIGINT;
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "lastSyncedAt" TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_meta_campaign_id_idx ON crm_campaigns ("metaCampaignId") WHERE "metaCampaignId" IS NOT NULL;
+
+-- Free-form lead tags. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL,
+    color VARCHAR(20) NOT NULL DEFAULT '#64748B',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_tags_name_lower_idx ON crm_tags (LOWER(name));
+
+-- Central leads table. No UI this module (Leads/Kanban land in a later module) - defined
+-- now since crm_followups/crm_notes/crm_activities/crm_lead_tags/crm_notifications all FK
+-- to it. "assignedTo" reuses the existing ERP "users" table (SERIAL PK) rather than
+-- introducing a separate CRM-user concept - CRM shares the same login/user model.
+CREATE TABLE IF NOT EXISTS crm_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadCode" VARCHAR(30) UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(20),
+    email VARCHAR(150),
+    company VARCHAR(150),
+    "stageId" UUID REFERENCES crm_stages(id),
+    "sourceId" UUID REFERENCES crm_sources(id),
+    "campaignId" UUID REFERENCES crm_campaigns(id),
+    "assignedTo" INTEGER REFERENCES users(id),
+    value NUMERIC(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_leads_stage_idx ON crm_leads ("stageId");
+CREATE INDEX IF NOT EXISTS crm_leads_source_idx ON crm_leads ("sourceId");
+CREATE INDEX IF NOT EXISTS crm_leads_campaign_idx ON crm_leads ("campaignId");
+CREATE INDEX IF NOT EXISTS crm_leads_assigned_idx ON crm_leads ("assignedTo");
+
+-- Priority for the Kanban board's lead card (Module 3) - not part of the original table
+-- since Leads CRUD (Module 2) didn't need it yet.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'Medium';
+
+-- Starred/pinned flag for the Kanban card - added for the redesigned card, not part of the
+-- original table.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "isStarred" BOOLEAN NOT NULL DEFAULT false;
+
+-- Manual position within a stage's Kanban column, independent of createdAt - lets a drag-drop
+-- reorder land a card exactly where it was dropped instead of always re-sorting by creation
+-- date. Set on create (appended to the end of its stage) and rewritten for every lead in a
+-- stage whenever that stage's column is reordered - see CrmLeadModel.reorderStage.
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "sortOrder" INTEGER NOT NULL DEFAULT 0;
+
+-- Meta (Facebook/Instagram) Lead Ads polling sync columns - populated by
+-- metaSync.service.js, null for manually-created/other-source leads. The partial unique
+-- index makes re-polling idempotent (upsert-by-metaLeadId) without constraining every
+-- other lead (which all have metaLeadId IS NULL).
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaLeadId" VARCHAR(50);
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormId" VARCHAR(50);
+ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormName" VARCHAR(150);
+CREATE UNIQUE INDEX IF NOT EXISTS crm_leads_meta_lead_id_idx ON crm_leads ("metaLeadId") WHERE "metaLeadId" IS NOT NULL;
+
+-- Stores the single connected Meta Page/Ad Account (manual long-lived Page Access Token,
+-- pasted by the admin in CRM Settings - see crmMetaIntegration.*). One row in practice.
+CREATE TABLE IF NOT EXISTS crm_meta_integration (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "pageId" VARCHAR(50) NOT NULL,
+    "pageName" VARCHAR(150),
+    "pageAccessTokenEnc" TEXT NOT NULL,
+    "adAccountId" VARCHAR(50),
+    "adAccountName" VARCHAR(150),
+    "tokenExpiresAt" TIMESTAMPTZ,
+    "lastLeadSyncAt" TIMESTAMPTZ,
+    "lastCampaignSyncAt" TIMESTAMPTZ,
+    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    "connectedBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ
+);
+
+-- Scheduled follow-ups per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_followups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    "dueAt" TIMESTAMPTZ NOT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'Call',
+    notes TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    "completedAt" TIMESTAMPTZ,
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_followups_lead_idx ON crm_followups ("leadId");
+CREATE INDEX IF NOT EXISTS crm_followups_due_idx ON crm_followups ("dueAt");
+
+-- Free-text notes per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_notes_lead_idx ON crm_notes ("leadId");
+
+-- Append-only activity/timeline log per lead. No UI this module.
+CREATE TABLE IF NOT EXISTS crm_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    description TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    "createdBy" INTEGER REFERENCES users(id),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_activities_lead_idx ON crm_activities ("leadId");
+CREATE INDEX IF NOT EXISTS crm_activities_created_idx ON crm_activities ("createdAt");
+
+-- Lead <-> Tag join table (composite PK, no surrogate id - pure junction table). No UI
+-- this module.
+CREATE TABLE IF NOT EXISTS crm_lead_tags (
+    "leadId" UUID NOT NULL REFERENCES crm_leads(id) ON DELETE CASCADE,
+    "tagId" UUID NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY ("leadId", "tagId")
+);
+CREATE INDEX IF NOT EXISTS crm_lead_tags_tag_idx ON crm_lead_tags ("tagId");
+
+-- Per-user notifications (e.g. new lead assigned, follow-up due). No UI this module.
+CREATE TABLE IF NOT EXISTS crm_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "userId" INTEGER REFERENCES users(id),
+    "leadId" UUID REFERENCES crm_leads(id) ON DELETE CASCADE,
+    type VARCHAR(40) NOT NULL,
+    message TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS crm_notifications_user_idx ON crm_notifications ("userId");
+CREATE INDEX IF NOT EXISTS crm_notifications_read_idx ON crm_notifications ("isRead");
+
+-- Single generic key-value store backing every Developer Admin section (only "Manage
+-- Visibility" exists today, but every future section - API Keys, Webhooks, etc. - persists
+-- through this same table too, one row per "settingKey", instead of each section getting its
+-- own dedicated table). "Manage Visibility"'s data lives under settingKey = 'ui-visibility',
+-- with "settingValue" shaped { hiddenQuickActions: string[], hiddenSidebarItems: string[] } -
+-- see developerAdminSettings.model.js.
+CREATE TABLE IF NOT EXISTS ims_developer_admin_settings (
+    id SERIAL PRIMARY KEY,
+    "settingKey" VARCHAR(100) NOT NULL UNIQUE,
+    "settingValue" JSONB NOT NULL DEFAULT '{}',
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);

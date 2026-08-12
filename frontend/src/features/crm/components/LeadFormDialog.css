@@ -1,0 +1,161 @@
+/* Scoped to this dialog only - deliberately NOT touching the shared global `.dialog-form-body`/
+   `.form-field` classes (index.css), which are reused by every other form dialog in the app
+   (Vendor, RawSku, Users, Login, etc.) and must stay unaffected by this one form's redesign. */
+.lead-form-dialog.p-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.lead-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 14px 24px 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.lead-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.lead-form-row--single {
+    grid-template-columns: 1fr;
+}
+
+.lead-form-row--triple {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.lead-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.lead-form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lead-form-required {
+    color: var(--accent-danger-text);
+}
+
+.lead-form-helper {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+}
+
+.lead-form-error {
+    font-size: 11.5px;
+    color: var(--accent-danger-text);
+}
+
+.lead-form-input-icon-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.lead-form-input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.lead-form-input-icon-wrapper--textarea .lead-form-input-icon--textarea {
+    top: 14px;
+    transform: none;
+}
+
+.lead-form-input,
+.lead-form-textarea {
+    width: 100%;
+}
+
+/* PrimeReact's InputText/InputTextarea render the className directly on the <input>/
+   <textarea> element, so padding-left works straight away for those. InputNumber and
+   Dropdown wrap their actual control in a container, so their icon-clearance padding is
+   applied to the inner element specifically further below. */
+.lead-form-input--icon.p-inputtext,
+.lead-form-input--icon.p-inputtextarea {
+    padding-left: 34px;
+}
+
+.lead-form-input-number {
+    width: 100%;
+}
+
+.lead-form-input-number .p-inputnumber-input {
+    width: 100%;
+    padding-left: 34px;
+}
+
+.lead-form-dropdown {
+    width: 100%;
+}
+
+.lead-form-priority-dropdown .p-dropdown-label {
+    font-weight: 700;
+    color: inherit;
+}
+
+.lead-form-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-subtle);
+    font-size: 12.5px;
+    font-weight: 600;
+    margin: 4px 0;
+}
+
+.lead-form-divider::before,
+.lead-form-divider::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--border-subtle);
+}
+
+.lead-form-status-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+}
+
+.lead-form-status-active {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-success-text);
+}
+
+.lead-form-status-archived {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.lead-form-char-count {
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    font-size: 11px;
+    color: var(--text-subtle);
+    pointer-events: none;
+}
+
+.lead-form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    width: 100%;
+}

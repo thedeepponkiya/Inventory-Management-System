@@ -1,4 +1,5 @@
 const InventoryModel = require('../models/inventory.model');
+const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
 
 async function getInventories(req, res) {
   try {
@@ -37,8 +38,12 @@ async function createInventory(req, res) {
       locationName: req.body.locationName || null,
       status: req.body.status || 'Active',
       unitCost: req.body.unitCost || 0,
+      sellingCost: req.body.sellingCost || 0,
       createdDate: req.body.createdDate || new Date().toISOString().slice(0, 10),
       assembly: req.body.assembly || [],
+      minStock: req.body.minStock || 0,
+      maxStock: req.body.maxStock || 0,
+      openingStock: req.body.openingStock || 0,
     };
 
     const created = await InventoryModel.create(skuId, fields);
@@ -68,10 +73,15 @@ async function updateInventory(req, res) {
       locationName: body.locationName ?? existing.locationName,
       status: body.status ?? existing.status,
       unitCost: body.unitCost ?? existing.unitCost,
+      sellingCost: body.sellingCost ?? existing.sellingCost,
       assembly: body.assembly ?? existing.assembly,
+      minStock: body.minStock ?? existing.minStock,
+      maxStock: body.maxStock ?? existing.maxStock,
+      openingStock: body.openingStock ?? existing.openingStock,
     };
 
     const updated = await InventoryModel.update(id, fields);
+    deleteRemovedImages(existing.images, fields.images);
     res.json({ status: true, message: 'Inventory item updated successfully', data: updated });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });
@@ -87,6 +97,7 @@ async function deleteInventory(req, res) {
     }
 
     await InventoryModel.remove(id);
+    deleteAllImages(existing.images);
     res.json({ status: true, message: 'Inventory item deleted successfully', data: null });
   } catch (err) {
     res.status(500).json({ status: false, message: err.message, data: null });

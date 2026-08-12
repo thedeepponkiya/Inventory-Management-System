@@ -1,0 +1,75 @@
+.stage-reorder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stage-reorder-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+}
+
+.stage-reorder-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stage-reorder-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.stage-reorder-outcome {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border-radius: 999px;
+    color: var(--text-muted);
+    background: var(--surface-subtle);
+}
+
+.stage-reorder-outcome--won {
+    color: var(--accent-success-text);
+    background: var(--accent-success-bg);
+}
+
+.stage-reorder-outcome--lost {
+    color: var(--accent-danger-text);
+    background: var(--accent-danger-bg);
+}
+
+.stage-reorder-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stage-reorder-actions button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.stage-reorder-actions button:hover:not(:disabled) {
+    color: var(--accent-info-text);
+}
+
+.stage-reorder-actions button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}

@@ -45,10 +45,21 @@ export function countByBucket(dates: Date[], buckets: TrendBucket[]): number[] {
     return buckets.map(({ start, end }) => dates.filter((date) => date >= start && date <= end).length);
 }
 
-// Shared "This Month / Last Month / Last 3 Months" range resolver - for filters that need a
-// single start/end window rather than per-bucket counts (e.g. SKU Movement).
+// Shared "This Week / Last Week / This Month / Last Month / Last 3 Months / This Year / Last
+// Year" range resolver - for filters that need a single start/end window rather than
+// per-bucket counts (e.g. SKU Movement). Weeks start on Monday.
 export function getFilterRange(filter: string): { start: Date; end: Date } {
     const now = new Date();
+    if (filter === 'This Week' || filter === 'Last Week') {
+        const dayOffset = (now.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6
+        const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOffset);
+        if (filter === 'Last Week') {
+            const start = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 7);
+            const end = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 1, 23, 59, 59, 999);
+            return { start, end };
+        }
+        return { start: thisWeekStart, end: now };
+    }
     if (filter === 'Last Month') {
         const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
@@ -57,6 +68,14 @@ export function getFilterRange(filter: string): { start: Date; end: Date } {
     if (filter === 'Last 3 Months') {
         const start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
         return { start, end: now };
+    }
+    if (filter === 'This Year') {
+        return { start: new Date(now.getFullYear(), 0, 1), end: now };
+    }
+    if (filter === 'Last Year') {
+        const start = new Date(now.getFullYear() - 1, 0, 1);
+        const end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        return { start, end };
     }
     return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
 }

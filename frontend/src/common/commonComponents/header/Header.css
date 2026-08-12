@@ -93,9 +93,125 @@
     cursor: pointer;
 }
 
+/* Avatar's circular size/shape normally comes from PrimeReact's theme CSS (a separate,
+   async-loaded chunk - see theme-*.css in the build output), so on a cold page load the
+   <img> can briefly render at its natural (often much larger) size before that chunk
+   finishes and clamps it. Setting width/height/border-radius/overflow explicitly here (in
+   Header's own eagerly-bundled CSS) guarantees a fixed circular box from first paint,
+   regardless of the theme chunk's load timing. object-fit:cover also stops a non-square
+   uploaded photo from stretching to fill the circle instead of being cropped to it. */
+.app-header-avatar-btn .p-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.app-header-avatar-btn .p-avatar img,
+.app-header-user-menu-avatar.p-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.app-header-user-menu-avatar.p-avatar {
+    border-radius: 50%;
+    overflow: hidden;
+}
+
 @media (max-width: 700px) {
     .app-header-brand,
     .app-header-crumb-sep {
         display: none;
     }
+}
+
+.app-header-user-menu.p-menu {
+    width: 240px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-default);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+
+.app-header-user-menu .p-menu-separator {
+    margin: 6px 2px;
+    border-top: 1px solid var(--border-default);
+}
+
+.app-header-user-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px 10px;
+}
+
+.app-header-user-menu-avatar-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.app-header-user-menu-avatar.p-avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.app-header-user-menu-online-dot {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 2px solid var(--surface-card);
+}
+
+.app-header-user-menu-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.app-header-user-menu-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-header-user-menu-email {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-header-user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.app-header-user-menu-item:hover {
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.app-header-user-menu-item-icon {
+    flex-shrink: 0;
+    color: inherit;
 }

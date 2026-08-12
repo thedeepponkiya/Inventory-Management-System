@@ -1,3 +1,4 @@
+import { authFetch } from './httpClient';
 const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 export interface MaterialInwardItem {
@@ -105,13 +106,13 @@ function normalizeMaterialInward(mi: MaterialInward): MaterialInward {
 }
 
 export async function getMaterialInwards(): Promise<MaterialInward[]> {
-    const response = await fetch(`${API_BASE_URL}/material-inwards`);
+    const response = await authFetch(`${API_BASE_URL}/material-inwards`);
     const data = await parseResponse<MaterialInward[]>(response);
     return data.map(normalizeMaterialInward);
 }
 
 export async function createMaterialInward(payload: MaterialInwardPayload): Promise<MaterialInward> {
-    const response = await fetch(`${API_BASE_URL}/material-inwards`, {
+    const response = await authFetch(`${API_BASE_URL}/material-inwards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -120,7 +121,7 @@ export async function createMaterialInward(payload: MaterialInwardPayload): Prom
 }
 
 export async function updateMaterialInward(id: number, payload: Partial<MaterialInwardPayload>): Promise<MaterialInward> {
-    const response = await fetch(`${API_BASE_URL}/material-inwards/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/material-inwards/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -129,7 +130,7 @@ export async function updateMaterialInward(id: number, payload: Partial<Material
 }
 
 export async function deleteMaterialInward(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/material-inwards/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/material-inwards/${id}`, {
         method: 'DELETE',
     });
     await parseResponse<null>(response);

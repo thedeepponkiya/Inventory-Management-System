@@ -12,6 +12,28 @@ async function findById(id) {
   return result.rows[0];
 }
 
+async function findBySkuId(skuId) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "skuId" = $1`, [skuId]);
+  return result.rows[0];
+}
+
+// Atomic delta-update (mirrors rawSku.model.js's adjustStockBySkuCode) - used when a BOM
+// Order is Completed/reverted, so the finished-good's quantity is added to/subtracted from
+// directly rather than a read-then-write that could race with another update. Accepts an
+// optional transaction client (`db`), same reasoning as adjustStockBySkuCode.
+async function adjustStockBySkuId(skuId, delta, db = pool) {
+  await db.query(`UPDATE ${TABLE} SET quantity = quantity + $1, "updatedAt" = now() WHERE "skuId" = $2`, [delta, skuId]);
+}
+
+// Locks the Inventory row (via `FOR UPDATE`) while checking/adjusting stock inside a Sales
+// Order dispatch transaction, so two concurrent dispatches against the same SKU can't both
+// read the same starting quantity and both pass a sufficiency check. Only ever called with a
+// transaction client, never the bare pool.
+async function findBySkuIdForUpdate(skuId, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE "skuId" = $1 FOR UPDATE`, [skuId]);
+  return result.rows[0];
+}
+
 async function getNextSkuId() {
   const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE}`);
   const nextSeq = Number(result.rows[0].count) + 1;
@@ -22,8 +44,9 @@ async function create(skuId, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
       images, "skuId", "productName", "categoryName", "productType", barcode,
-      quantity, unit, "locationName", status, "unitCost", "createdDate", assembly
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      quantity, unit, "locationName", status, "unitCost", "sellingCost", "createdDate", assembly,
+      "minStock", "maxStock", "openingStock"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *`,
     [
       JSON.stringify(fields.images),
@@ -37,8 +60,12 @@ async function create(skuId, fields) {
       fields.locationName,
       fields.status,
       fields.unitCost,
+      fields.sellingCost,
       fields.createdDate,
       JSON.stringify(fields.assembly),
+      fields.minStock,
+      fields.maxStock,
+      fields.openingStock,
     ]
   );
   return result.rows[0];
@@ -48,9 +75,9 @@ async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
       images = $1, "productName" = $2, "categoryName" = $3, "productType" = $4, barcode = $5,
-      quantity = $6, unit = $7, "locationName" = $8, status = $9, "unitCost" = $10, assembly = $11,
-      "updatedAt" = now()
-    WHERE id = $12
+      quantity = $6, unit = $7, "locationName" = $8, status = $9, "unitCost" = $10, "sellingCost" = $11, assembly = $12,
+      "minStock" = $13, "maxStock" = $14, "openingStock" = $15, "updatedAt" = now()
+    WHERE id = $16
     RETURNING *`,
     [
       JSON.stringify(fields.images),
@@ -63,7 +90,11 @@ async function update(id, fields) {
       fields.locationName,
       fields.status,
       fields.unitCost,
+      fields.sellingCost,
       JSON.stringify(fields.assembly),
+      fields.minStock,
+      fields.maxStock,
+      fields.openingStock,
       id,
     ]
   );
@@ -74,4 +105,4 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, getNextSkuId, create, update, remove };
+module.exports = { getAll, findById, findBySkuId, findBySkuIdForUpdate, adjustStockBySkuId, getNextSkuId, create, update, remove };

@@ -2,8 +2,18 @@ const pool = require('../config/db');
 
 const TABLE = 'ims_purchase_order';
 
+// "payments" is aggregated in here (rather than fetched separately by the frontend) so the
+// Transaction History tab gets its data for free from the same global fetch-all-POs call
+// AppContext already makes on load - no extra per-page fetch pattern needed, matching how
+// "items" is already embedded directly on every PO row. COALESCE(..., '[]') so a PO with no
+// payments yet gets an empty array instead of a SQL NULL.
 const SELECT_WITH_VENDOR = `
-  SELECT po.*, v."vendorName"
+  SELECT po.*, v."vendorName",
+    COALESCE(
+      (SELECT json_agg(p.* ORDER BY p."paymentDate" ASC, p."createdAt" ASC)
+       FROM ims_purchase_order_payments p WHERE p."poId" = po.id),
+      '[]'
+    ) AS payments
   FROM ${TABLE} po
   LEFT JOIN ims_vendor v ON v.id = po."vendorId"
 `;
@@ -18,19 +28,25 @@ async function findById(id) {
   return result.rows[0];
 }
 
+// MAX-based (not COUNT-based) - see salesOrder.model.js's getNextSoNo for why COUNT(*)+1
+// silently collides with an already-used number whenever the sequence has any gap.
 async function getNextPoNo() {
   const year = new Date().getFullYear();
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE} WHERE "poNo" LIKE $1`, [`PO-${year}-%`]);
-  const nextSeq = Number(result.rows[0].count) + 1;
+  const result = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("poNo" FROM 9) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "poNo" ~ $1`,
+    [`^PO-${year}-[0-9]+$`]
+  );
+  const nextSeq = Number(result.rows[0].maxSeq) + 1;
   return `PO-${year}-${String(nextSeq).padStart(6, '0')}`;
 }
 
 async function create(poNo, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "poNo", "vendorId", "poDate", "expectedDeliveryDate", "deliveryAddress", "paymentTerms", status, items,
+      "poNo", "vendorId", "poDate", "expectedDeliveryDate", "shippingDate", "deliveryAddress", status,
+      "paymentStatus", "paidAmount", items,
       "totalItems", "totalQty", "subTotal", "discountAmount", "gstAmount",
-      "grandTotal", remarks, "createdBy", "approvedBy", "approvedAt"
+      "grandTotal", remarks, "createdBy"
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
@@ -38,9 +54,11 @@ async function create(poNo, fields) {
       fields.vendorId,
       fields.poDate,
       fields.expectedDeliveryDate,
+      fields.shippingDate,
       fields.deliveryAddress,
-      fields.paymentTerms,
       fields.status,
+      fields.paymentStatus,
+      fields.paidAmount,
       JSON.stringify(fields.items),
       fields.totalItems,
       fields.totalQty,
@@ -50,8 +68,6 @@ async function create(poNo, fields) {
       fields.grandTotal,
       fields.remarks,
       fields.createdBy,
-      fields.approvedBy,
-      fields.approvedAt,
     ]
   );
   return result.rows[0];
@@ -60,19 +76,22 @@ async function create(poNo, fields) {
 async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
-      "vendorId" = $1, "poDate" = $2, "expectedDeliveryDate" = $3, "deliveryAddress" = $4, "paymentTerms" = $5, status = $6,
-      items = $7, "totalItems" = $8, "totalQty" = $9, "subTotal" = $10, "discountAmount" = $11,
-      "gstAmount" = $12, "grandTotal" = $13,
-      remarks = $14, "createdBy" = $15, "approvedBy" = $16, "approvedAt" = $17, "updatedAt" = now()
+      "vendorId" = $1, "poDate" = $2, "expectedDeliveryDate" = $3, "shippingDate" = $4, "deliveryAddress" = $5, status = $6,
+      "paymentStatus" = $7, "paidAmount" = $8,
+      items = $9, "totalItems" = $10, "totalQty" = $11, "subTotal" = $12, "discountAmount" = $13,
+      "gstAmount" = $14, "grandTotal" = $15,
+      remarks = $16, "createdBy" = $17, "updatedAt" = now()
     WHERE id = $18
     RETURNING *`,
     [
       fields.vendorId,
       fields.poDate,
       fields.expectedDeliveryDate,
+      fields.shippingDate,
       fields.deliveryAddress,
-      fields.paymentTerms,
       fields.status,
+      fields.paymentStatus,
+      fields.paidAmount,
       JSON.stringify(fields.items),
       fields.totalItems,
       fields.totalQty,
@@ -82,8 +101,6 @@ async function update(id, fields) {
       fields.grandTotal,
       fields.remarks,
       fields.createdBy,
-      fields.approvedBy,
-      fields.approvedAt,
       id,
     ]
   );
