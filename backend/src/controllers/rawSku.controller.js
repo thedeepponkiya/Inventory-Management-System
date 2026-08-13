@@ -45,7 +45,9 @@ async function createRawSku(req, res) {
       currentStock: req.body.currentStock ?? openingStock,
       description: req.body.description || null,
       status: req.body.status || 'Active',
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
       images: req.body.images || [],
     };
 

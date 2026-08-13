@@ -70,7 +70,11 @@ async function addPayment(req, res) {
         paymentDate: req.body.paymentDate,
         paymentMethod: req.body.paymentMethod || null,
         remarks: req.body.remarks || null,
-        recordedBy: req.body.recordedBy || 'Admin User',
+        // Whoever is actually recording this payment right now, from the authenticated
+        // session - not trusted from the request body. approvedBy stays request-driven: it's
+        // a free-text/autocomplete field on the form naming a DIFFERENT person (the approver),
+        // not necessarily whoever is logged in and recording the payment.
+        recordedBy: req.user.userName,
         paymentTerms: req.body.paymentTerms || null,
         approvedBy: req.body.approvedBy || null,
         approvedAt: req.body.approvedAt || null,

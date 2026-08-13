@@ -123,10 +123,17 @@
     margin: 6px 0 16px;
 }
 
+/* Caps the visible list to roughly 5 items (5 * ~80px row height) then scrolls internally for
+   the rest - same "outer card always fully visible, only this one inner area scrolls" pattern
+   as StockDistribution.css's .dashboard-location-legend, applied unconditionally (not just
+   mobile) since this panel has no separate desktop layout to fall back on. */
 .sku-movement-list {
     display: flex;
     flex-direction: column;
     flex: 1;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .sku-movement-item {
@@ -146,14 +153,22 @@
     padding-bottom: 0;
 }
 
+/* Doubles as the className on both an <img> (real SKU photo) and a <span> (icon placeholder
+   when there's no photo - see SkuMovementThumb in SkuMovement.tsx), so it needs to work for
+   both: object-fit only affects <img>, the flex centering only matters for the <span>'s icon
+   glyph child. Matches LowStockAlerts' thumbnail sizing/shape for visual consistency across
+   dashboard widgets. */
 .sku-movement-item-icon {
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    object-fit: cover;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 4px;
 }
 
 .sku-movement-item-icon--negative {
@@ -209,5 +224,30 @@
 
 .sku-movement-item-value--positive + .sku-movement-item-unit {
     color: var(--accent-success-text);
+}
+
+/* Same overflow problem this session already fixed for Recent Sales Orders' header - the
+   title block + search + date-range dropdown don't fit one row on a narrow phone. Stacks
+   them and lets the search box flex instead of staying pinned to 220px. */
+@media (max-width: 700px) {
+    .sku-movement-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .sku-movement-header-right {
+        flex-wrap: wrap;
+    }
+
+    .sku-movement-header-right .dashboard-search {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    .sku-movement-panel {
+        padding: 14px;
+    }
 }
 

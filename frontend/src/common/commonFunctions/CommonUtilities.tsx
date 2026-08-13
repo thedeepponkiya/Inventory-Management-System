@@ -4,6 +4,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Image } from 'primereact/image';
+import { Avatar } from 'primereact/avatar';
 import {
     HiOutlineTrash,
     HiOutlineEye,
@@ -26,7 +27,6 @@ import type { Vendor } from '../../services/vendorService';
 import type { Customer } from '../../services/customerService';
 import type { User } from '../../services/userService';
 import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
-import type { Transaction, TransactionType } from '../../mockData/transactionData';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseOrderPayment } from '../../services/purchaseOrderService';
 import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment } from '../../services/salesOrderService';
 import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
@@ -44,7 +44,7 @@ import type { Bom, BomItem } from '../../services/bomService';
 // Below that, this file also holds one getXColumns() per page's DataTable, so
 // the `columns` array itself lives here too instead of inline per page.
 
-export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'badgeCount' | 'signedQuantity' | 'date';
+export type ColumnBodyType = 'text' | 'status' | 'currency' | 'image' | 'badgeCount' | 'signedQuantity' | 'date' | 'userAvatar';
 
 export interface StatusBodyOptions {
     activeValue?: string;
@@ -90,13 +90,24 @@ export interface DateBodyOptions {
     formatOption: DateFormatOption;
 }
 
+// "Created By"/"Approved By"/"Recorded By"/"Received By" columns across the app are all plain
+// name snapshots taken at creation time (VARCHAR columns, no user ID stored anywhere in the
+// DB - see backend/src/db/schema.sql) - there's no foreign key to join back to a specific
+// user record. This does a best-effort match by full name against the currently-fetched users
+// list, so it can miss or show the wrong photo if a user was since renamed, deleted, or
+// happens to share a name with someone else - falls back to plain initials in that case.
+export interface UserAvatarBodyOptions {
+    users: Pick<User, 'fullName' | 'profileImage'>[];
+}
+
 export type FieldTypeOptions<T> =
     | StatusBodyOptions
     | CurrencyBodyOptions
     | ImageBodyOptions<T>
     | BadgeCountBodyOptions
     | SignedQuantityBodyOptions<T>
-    | DateBodyOptions;
+    | DateBodyOptions
+    | UserAvatarBodyOptions;
 
 export type RowDataColumn<T> =
     | { field: keyof T; fieldType: 'text' }
@@ -105,7 +116,8 @@ export type RowDataColumn<T> =
     | { field: keyof T; fieldType: 'image'; options?: ImageBodyOptions<T> }
     | { field: keyof T; fieldType: 'badgeCount'; options: BadgeCountBodyOptions }
     | { field: keyof T; fieldType: 'signedQuantity'; options: SignedQuantityBodyOptions<T> }
-    | { field: keyof T; fieldType: 'date'; options: DateBodyOptions };
+    | { field: keyof T; fieldType: 'date'; options: DateBodyOptions }
+    | { field: keyof T; fieldType: 'userAvatar'; options: UserAvatarBodyOptions };
 
 // -- plain-text resolvers: single source of truth for both the tooltip and, --
 // -- where the cell itself is text (currency), the visible content too.    --
@@ -170,6 +182,25 @@ function renderImage<T>(rowData: T, field: keyof T, options?: ImageBodyOptions<T
     return <img src={resolvedSrc} alt={getImageAltText(rowData, options)} className={className} />;
 }
 
+function renderUserAvatar<T>(rowData: T, field: keyof T, options: UserAvatarBodyOptions): ReactNode {
+    const name = String(rowData[field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    if (!name) return <span>—</span>;
+    // See UserAvatarBodyOptions - name match only, no user ID exists to look up reliably.
+    const matchedUser = options.users.find((u) => u.fullName === name);
+    const photo = matchedUser?.profileImage ? resolveImageUrl(matchedUser.profileImage) : undefined;
+    return (
+        <span className="common-table-user-cell">
+            <Avatar
+                label={photo ? undefined : name.charAt(0).toUpperCase()}
+                image={photo}
+                shape="circle"
+                className="common-table-user-avatar bg-purple-500 text-white"
+            />
+            <span className="common-table-user-name">{name}</span>
+        </span>
+    );
+}
+
 function renderAction<T>(rowData: T, options: ActionBodyOptions<T>): ReactNode {
     return (
         <div className="data-table-actions">
@@ -225,6 +256,8 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return getSignedQuantityText(rowData, col.field, col.options);
             case 'date':
                 return formatDate(rowData[col.field] as unknown as string, col.options.formatOption);
+            case 'userAvatar':
+                return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             default:
                 return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         }
@@ -244,6 +277,8 @@ export function getRowData<T>(rowData: T, col: RowDataColumn<T>): ReactNode {
                 return renderSignedQuantity(rowData, col.field, col.options);
             case 'date':
                 return formatDate(rowData[col.field] as unknown as string, col.options.formatOption);
+            case 'userAvatar':
+                return renderUserAvatar(rowData, col.field, col.options);
             default:
                 return String(rowData[col.field] ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         }
@@ -356,8 +391,8 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.skuName}</span>,
     },
-    { field: 'categoryName', header: 'Category', fieldType: 'text' },
-    { field: 'productTypeName', header: 'Product Type', fieldType: 'text' },
+    { field: 'categoryName', header: 'Category', fieldType: 'text', hideOnMobile: true },
+    { field: 'productTypeName', header: 'Product Type', fieldType: 'text', hideOnMobile: true },
     {
         field: 'currentStock',
         header: 'Current Stock',
@@ -369,11 +404,12 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
         // Progress bar (currentStock as a % of maxStock, value centered on top) + tier badge
         // (see renderStockCell) - lowThreshold here is Reorder Level.
         body: (row) => renderStockCell(row.currentStock, row.reorderLevel, row.maxStock, 'raw-sku-stock'),
+        hideOnMobile: true,
     },
-    { field: 'unit', header: 'Unit', fieldType: 'text' },
-    { field: 'locationName', header: 'Location', fieldType: 'text' },
-    { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
+    { field: 'locationName', header: 'Location', fieldType: 'text', hideOnMobile: true },
+    { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text', hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
     {
         field: 'status',
         header: 'Status',
@@ -389,6 +425,7 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
             )
             : undefined,
         fieldType: 'status',
+        hideOnMobile: true,
     },
 ];
 
@@ -406,8 +443,8 @@ export const getLocationsColumns = (dateFormat: DateFormatOption, onEditClick?: 
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.location}</span>,
     },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS, hideOnMobile: true },
 ];
 
 export const getCategoryColumns = (dateFormat: DateFormatOption, onEditClick?: (category: CategoryRecord) => void): ColumnConfig<CategoryRecord>[] => [
@@ -424,8 +461,8 @@ export const getCategoryColumns = (dateFormat: DateFormatOption, onEditClick?: (
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.category}</span>,
     },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS, hideOnMobile: true },
 ];
 
 export const getProductTypeColumns = (dateFormat: DateFormatOption, onEditClick?: (type: ProductTypeModel) => void): ColumnConfig<ProductTypeModel>[] => [
@@ -442,8 +479,8 @@ export const getProductTypeColumns = (dateFormat: DateFormatOption, onEditClick?
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productType}</span>,
     },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS, hideOnMobile: true },
 ];
 
 export const getUnitColumns = (dateFormat: DateFormatOption, onEditClick?: (unit: UnitModel) => void): ColumnConfig<UnitModel>[] => [
@@ -460,8 +497,8 @@ export const getUnitColumns = (dateFormat: DateFormatOption, onEditClick?: (unit
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.unit}</span>,
     },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS, hideOnMobile: true },
 ];
 
 export const getVendorColumns = (dateFormat: DateFormatOption, onEditClick?: (vendor: Vendor) => void): ColumnConfig<Vendor>[] => [
@@ -478,12 +515,12 @@ export const getVendorColumns = (dateFormat: DateFormatOption, onEditClick?: (ve
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.vendorName}</span>,
     },
-    { field: 'email', header: 'Email', fieldType: 'text' },
-    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text' },
-    { field: 'address', header: 'Address', fieldType: 'text' },
-    { field: 'city', header: 'City', fieldType: 'text' },
-    { field: 'zipCode', header: 'Zip Code', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'email', header: 'Email', fieldType: 'text', hideOnMobile: true },
+    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text', hideOnMobile: true },
+    { field: 'address', header: 'Address', fieldType: 'text', hideOnMobile: true },
+    { field: 'city', header: 'City', fieldType: 'text', hideOnMobile: true },
+    { field: 'zipCode', header: 'Zip Code', fieldType: 'text', hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
 export const getCustomerColumns = (dateFormat: DateFormatOption, onEditClick?: (customer: Customer) => void): ColumnConfig<Customer>[] => [
@@ -500,12 +537,12 @@ export const getCustomerColumns = (dateFormat: DateFormatOption, onEditClick?: (
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.customerName}</span>,
     },
-    { field: 'email', header: 'Email', fieldType: 'text' },
-    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text' },
-    { field: 'address', header: 'Address', fieldType: 'text' },
-    { field: 'city', header: 'City', fieldType: 'text' },
-    { field: 'zipCode', header: 'Zip Code', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'email', header: 'Email', fieldType: 'text', hideOnMobile: true },
+    { field: 'phoneNumber', header: 'Phone Number', fieldType: 'text', hideOnMobile: true },
+    { field: 'address', header: 'Address', fieldType: 'text', hideOnMobile: true },
+    { field: 'city', header: 'City', fieldType: 'text', hideOnMobile: true },
+    { field: 'zipCode', header: 'Zip Code', fieldType: 'text', hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
 export const getUsersColumns = (dateFormat: DateFormatOption, onEditClick?: (user: User) => void): ColumnConfig<User>[] => [
@@ -522,12 +559,12 @@ export const getUsersColumns = (dateFormat: DateFormatOption, onEditClick?: (use
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.fullName}</span>,
     },
-    { field: 'email', header: 'Email', fieldType: 'text' },
-    { field: 'phone', header: 'Phone', fieldType: 'text' },
-    { field: 'roleId', header: 'Role', fieldType: 'text', filterType: 'dropdown', filterOptions: ROLE_OPTIONS },
-    { field: 'departmentId', header: 'Department', fieldType: 'text', filterType: 'dropdown', filterOptions: DEPARTMENT_OPTIONS },
-    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS },
-    { field: 'lastLogin', header: 'Last Login', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'email', header: 'Email', fieldType: 'text', hideOnMobile: true },
+    { field: 'phone', header: 'Phone', fieldType: 'text', hideOnMobile: true },
+    { field: 'roleId', header: 'Role', fieldType: 'text', filterType: 'dropdown', filterOptions: ROLE_OPTIONS, hideOnMobile: true },
+    { field: 'departmentId', header: 'Department', fieldType: 'text', filterType: 'dropdown', filterOptions: DEPARTMENT_OPTIONS, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', filterType: 'dropdown', filterOptions: ACTIVE_INACTIVE_OPTIONS, hideOnMobile: true },
+    { field: 'lastLogin', header: 'Last Login', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
 export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleStatus?: (item: InventoryItem) => void, onEditClick?: (item: InventoryItem) => void): ColumnConfig<InventoryItemWithStockLevel>[] => [
@@ -544,9 +581,9 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>,
     },
-    { field: 'categoryName', header: 'Category', fieldType: 'text' },
-    { field: 'productType', header: 'Product Type', fieldType: 'text' },
-    { field: 'barcode', header: 'Barcode', fieldType: 'text' },
+    { field: 'categoryName', header: 'Category', fieldType: 'text', hideOnMobile: true },
+    { field: 'productType', header: 'Product Type', fieldType: 'text', hideOnMobile: true },
+    { field: 'barcode', header: 'Barcode', fieldType: 'text', hideOnMobile: true },
     {
         field: 'quantity',
         header: 'Current Stock',
@@ -558,9 +595,10 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         // Same design as Finished SKU's Current Stock column (renderStockCell) - lowThreshold
         // here is Min Stock, since Inventory items don't have a separate Reorder Level.
         body: (row) => renderStockCell(row.quantity, row.minStock, row.maxStock, 'inventory-home-stock'),
+        hideOnMobile: true,
     },
-    { field: 'unit', header: 'Unit', fieldType: 'text' },
-    { field: 'locationName', header: 'Location', fieldType: 'text' },
+    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
+    { field: 'locationName', header: 'Location', fieldType: 'text', hideOnMobile: true },
     {
         field: 'status',
         header: 'Status',
@@ -576,11 +614,12 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
             )
             : undefined,
         fieldType: 'status',
+        hideOnMobile: true,
     },
-    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency' },
-    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency' },
-    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
+    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency', hideOnMobile: true },
+    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency', hideOnMobile: true },
+    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
 ];
 
 export interface AssemblyRow extends AssemblyLine {
@@ -646,10 +685,14 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
         // assembly line itself) so it always reflects that SKU's current location,
         // including for rows loaded from an already-saved assembly.
         body: (row) => skusData.find((s) => s.skuCode === row.skuCode)?.locationName ?? '—',
+        // The other columns (SKU/Qty Used/Unit) are required inputs for filling out a row -
+        // Location is the only purely-informational one, so it's the one curated away on
+        // mobile rather than forcing the whole editable grid into a horizontal scroll.
+        hideOnMobile: true,
     },
 ];
 
-export const getMaterialInwardColumns = (dateFormat: DateFormatOption, onEditClick?: (mi: MaterialInward) => void): ColumnConfig<MaterialInward>[] => [
+export const getMaterialInwardColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users'], onEditClick?: (mi: MaterialInward) => void): ColumnConfig<MaterialInward>[] => [
     {
         field: 'inwardNo',
         header: 'Inward No.',
@@ -658,10 +701,10 @@ export const getMaterialInwardColumns = (dateFormat: DateFormatOption, onEditCli
     },
     { field: 'receivedDate', header: 'Received Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
-    { field: 'purchaseOrderNo', header: 'PO No.', fieldType: 'text' },
-    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
-    { field: 'receivedBy', header: 'Received By', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'purchaseOrderNo', header: 'PO No.', fieldType: 'text', hideOnMobile: true },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
+    { field: 'receivedBy', header: 'Received By', fieldType: 'userAvatar', options: { users }, hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
 export interface MaterialInwardItemRow extends MaterialInwardItem {
@@ -699,26 +742,6 @@ export const getMaterialInwardItemColumns = (items: MaterialInwardItemRow[], dat
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
 ];
 
-const transactionTypeVariant: Record<TransactionType, StatusVariant> = {
-    'Material Inward': 'info',
-    'Issue Kit': 'warning',
-    Transfer: 'success',
-    Return: 'danger',
-};
-
-export const getTransactionsColumns = (): ColumnConfig<Transaction>[] => [
-    { field: 'dateTime', header: 'Date & Time', fieldType: 'text' },
-    { field: 'type', header: 'Transaction Type', fieldType: 'status', options: { variantMap: transactionTypeVariant } },
-    { field: 'referenceNo', header: 'Reference No.', fieldType: 'text' },
-    { field: 'itemType', header: 'Item Type', fieldType: 'text' },
-    { field: 'itemName', header: 'Item / Kit Name', fieldType: 'text' },
-    { field: 'locationName', header: 'Location', fieldType: 'text' },
-    { field: 'quantity', header: 'Quantity', fieldType: 'signedQuantity', options: { directionField: 'direction' } },
-    { field: 'unit', header: 'Unit', fieldType: 'text' },
-    { field: 'createdBy', header: 'Created By', fieldType: 'text' },
-    { field: 'remarks', header: 'Remarks', fieldType: 'text' },
-];
-
 const paymentStatusVariant: Record<PaymentStatus, StatusVariant> = {
     Unpaid: 'danger',
     Partial: 'warning',
@@ -733,12 +756,12 @@ export const getInvoiceColumns = (dateFormat: DateFormatOption, onEditClick?: (i
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.invoiceNo}</span>,
     },
     { field: 'invoiceDate', header: 'Invoice Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'invoiceType', header: 'Type', fieldType: 'status', options: { defaultVariant: 'info' }, filterType: 'dropdown', filterOptions: ['Purchase', 'Sales'] },
+    { field: 'invoiceType', header: 'Type', fieldType: 'status', options: { defaultVariant: 'info' }, filterType: 'dropdown', filterOptions: ['Purchase', 'Sales'], hideOnMobile: true },
     { field: 'customerSupplier', header: 'Customer / Supplier', fieldType: 'text' },
-    { field: 'materialInwardNo', header: 'Material Inward No.', fieldType: 'text' },
-    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
-    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'] },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'materialInwardNo', header: 'Material Inward No.', fieldType: 'text', hideOnMobile: true },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'], hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
 const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
@@ -748,7 +771,7 @@ const purchaseOrderStatusVariant: Record<PurchaseOrderStatus, StatusVariant> = {
     Cancelled: 'danger',
 };
 
-export const getPurchaseOrderColumns = (dateFormat: DateFormatOption, onEditClick?: (po: PurchaseOrder) => void): ColumnConfig<PurchaseOrder>[] => [
+export const getPurchaseOrderColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users'], onEditClick?: (po: PurchaseOrder) => void): ColumnConfig<PurchaseOrder>[] => [
     {
         field: 'poNo',
         header: 'PO No.',
@@ -757,21 +780,22 @@ export const getPurchaseOrderColumns = (dateFormat: DateFormatOption, onEditClic
     },
     { field: 'poDate', header: 'PO Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'vendorName', header: 'Vendor', fieldType: 'text' },
-    { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Sent', 'Received', 'Cancelled'] },
-    { field: 'createdBy', header: 'Created By', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'] },
-    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'expectedDeliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: purchaseOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Sent', 'Received', 'Cancelled'], hideOnMobile: true },
+    { field: 'createdBy', header: 'Created By', fieldType: 'userAvatar', options: { users }, hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'], hideOnMobile: true },
+    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
     {
         field: 'paidAmount',
         key: 'remainAmount',
         header: 'Remaining Payment',
+        hideOnMobile: true,
         // Always derived (grandTotal - paidAmount), never stored separately - so it can
         // never drift out of sync if either of those two changes.
         body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
     },
-    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'grandTotal', header: 'Grand Total (Rs.)', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
 ];
 
 export interface PurchaseOrderItemRow extends PurchaseOrderItem {
@@ -808,15 +832,15 @@ export const getPurchaseOrderItemColumns = (items: PurchaseOrderItemRow[], onEdi
 // Transaction History tab (see PurchaseOrderForm.tsx) - one row per Add Payment dialog
 // submission. Delete is wired up via the caller's own actionBodyTemplate (getActionBodyTemplate),
 // same as getPurchaseOrderItemColumns above, not a column here.
-export const getPurchaseOrderPaymentColumns = (dateFormat: DateFormatOption): ColumnConfig<PurchaseOrderPayment>[] => [
+export const getPurchaseOrderPaymentColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<PurchaseOrderPayment>[] => [
     { field: 'paymentDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency' },
     { field: 'paymentMethod', header: 'Method', fieldType: 'text' },
     { field: 'paymentTerms', header: 'Payment Terms', fieldType: 'text' },
-    { field: 'approvedBy', header: 'Approved By', fieldType: 'text' },
+    { field: 'approvedBy', header: 'Approved By', fieldType: 'userAvatar', options: { users } },
     { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
-    { field: 'recordedBy', header: 'Recorded By', fieldType: 'text' },
+    { field: 'recordedBy', header: 'Recorded By', fieldType: 'userAvatar', options: { users } },
 ];
 
 // Transaction History tab (see SalesOrderForm.tsx) - exact mirror of
@@ -824,15 +848,15 @@ export const getPurchaseOrderPaymentColumns = (dateFormat: DateFormatOption): Co
 // action render (same reasoning as PurchaseOrderForm.tsx's paymentActionTemplate - the delete
 // handler closes over the `toast` ref, which react-hooks/refs flags if routed through
 // getActionBodyTemplate).
-export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption): ColumnConfig<SalesOrderPayment>[] => [
+export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<SalesOrderPayment>[] => [
     { field: 'paymentDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency' },
     { field: 'paymentMethod', header: 'Method', fieldType: 'text' },
     { field: 'paymentTerms', header: 'Payment Terms', fieldType: 'text' },
-    { field: 'approvedBy', header: 'Approved By', fieldType: 'text' },
+    { field: 'approvedBy', header: 'Approved By', fieldType: 'userAvatar', options: { users } },
     { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
-    { field: 'recordedBy', header: 'Recorded By', fieldType: 'text' },
+    { field: 'recordedBy', header: 'Recorded By', fieldType: 'userAvatar', options: { users } },
 ];
 
 const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {
@@ -848,7 +872,7 @@ const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {
 // lifecycle with real stock-deduction side effects (see SalesOrder.tsx's dedicated
 // Confirm/Process/Dispatch/Revert/Cancel actions) - shown as a plain badge here, same
 // reasoning as Bom's Order status column.
-export const getSalesOrderColumns = (dateFormat: DateFormatOption, onEditClick?: (so: SalesOrder) => void): ColumnConfig<SalesOrder>[] => [
+export const getSalesOrderColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users'], onEditClick?: (so: SalesOrder) => void): ColumnConfig<SalesOrder>[] => [
     {
         field: 'soNo',
         header: 'SO No.',
@@ -862,21 +886,22 @@ export const getSalesOrderColumns = (dateFormat: DateFormatOption, onEditClick?:
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.customerName}</span>,
     },
     { field: 'orderDate', header: 'SO Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'deliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'status', header: 'Order Status', fieldType: 'status', options: { variantMap: salesOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Confirmed', 'Processing', 'Partially Shipped', 'Dispatched', 'Cancelled'] },
-    { field: 'createdBy', header: 'Created By', fieldType: 'text' },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
-    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'] },
-    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'deliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: 'Order Status', fieldType: 'status', options: { variantMap: salesOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Confirmed', 'Processing', 'Partially Shipped', 'Dispatched', 'Cancelled'], hideOnMobile: true },
+    { field: 'createdBy', header: 'Created By', fieldType: 'userAvatar', options: { users }, hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'], hideOnMobile: true },
+    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
     {
         field: 'paidAmount',
         key: 'remainAmount',
         header: 'Remaining Payment',
+        hideOnMobile: true,
         // Always derived (grandTotal - paidAmount), never stored separately - so it can
         // never drift out of sync if either of those two changes.
         body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
     },
-    { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 } },
+    { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
 ];
 
 export interface SalesOrderItemRow extends SalesOrderItem {
@@ -954,11 +979,11 @@ export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: 
             ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>
             : <span>{row.productName}</span>),
     },
-    { field: 'productSku', header: 'Product SKU', fieldType: 'text' },
-    { field: 'outputQty', header: 'Output Qty', fieldType: 'text' },
-    { field: 'unit', header: 'Unit', fieldType: 'text' },
-    { field: 'items', header: 'Components', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'productSku', header: 'Product SKU', fieldType: 'text', hideOnMobile: true },
+    { field: 'outputQty', header: 'Output Qty', fieldType: 'text', hideOnMobile: true },
+    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
+    { field: 'items', header: 'Components', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
+    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
     { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: { Process: 'info', Completed: 'success' } }, filterType: 'dropdown', filterOptions: ['Process', 'Completed'] },
 ];
 

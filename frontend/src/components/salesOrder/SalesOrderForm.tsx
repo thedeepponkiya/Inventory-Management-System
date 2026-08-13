@@ -680,7 +680,7 @@ const SalesOrderForm = () => {
     // (not via getActionBodyTemplate) for the same react-hooks/refs reason as
     // PurchaseOrderForm.tsx's identical paymentActionTemplate - handleDeletePayment closes
     // over the `toast` ref.
-    const paymentColumns = getSalesOrderPaymentColumns(dateFormat);
+    const paymentColumns = getSalesOrderPaymentColumns(dateFormat, users);
     const paymentActionTemplate = (payment: SalesOrderPayment) => (
         <div className="data-table-actions">
             <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDeletePayment(payment)} />
@@ -1021,7 +1021,7 @@ const SalesOrderForm = () => {
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingItemRowId ? 'Edit Item' : 'Add Item'}
-                style={{ width: '540px' }}
+                style={{ width: '540px', maxWidth: '95vw' }}
                 className="so-item-dialog"
                 footer={
                     <>
@@ -1142,7 +1142,7 @@ const SalesOrderForm = () => {
                 visible={paymentDialogVisible}
                 onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header="Add Payment"
-                style={{ width: '480px' }}
+                style={{ width: '480px', maxWidth: '95vw' }}
                 className="so-item-dialog"
                 footer={
                     <>

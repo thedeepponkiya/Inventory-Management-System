@@ -83,7 +83,7 @@ const FilterBar = ({ fields, values, onChange, onReset, actions, trailingActions
                         className={({ isActive }) => `filter-bar-quick-action${isActive ? ' filter-bar-quick-action--active' : ''}`}
                     >
                         <qa.icon size={qa.iconSize ?? 15} />
-                        {qa.label}
+                        <span className="filter-bar-quick-action-label">{qa.label}</span>
                     </NavLink>
                 ))}
             </div>

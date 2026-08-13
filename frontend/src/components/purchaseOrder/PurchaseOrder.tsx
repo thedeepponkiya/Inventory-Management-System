@@ -19,7 +19,7 @@ import './PurchaseOrder.css';
 
 const PurchaseOrder = () => {
     const navigate = useNavigate();
-    const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders } = useContext(AppContext);
+    const { vendors, purchaseOrders, purchaseOrdersLoading, fetchPurchaseOrders, users } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
@@ -37,7 +37,7 @@ const PurchaseOrder = () => {
         });
     }, [purchaseOrders, filters]);
 
-    const columns = getPurchaseOrderColumns(dateFormat, (po) => navigate(`/purchase-order/${po.id}`));
+    const columns = getPurchaseOrderColumns(dateFormat, users, (po) => navigate(`/purchase-order/${po.id}`));
 
     const actionTemplate = getActionBodyTemplate<PurchaseOrderType>({
         icons: [{
@@ -76,11 +76,11 @@ const PurchaseOrder = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Purchase Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/purchase-order/new')} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Purchase Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/purchase-order/new')} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchPurchaseOrders} loading={purchaseOrdersLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchPurchaseOrders} loading={purchaseOrdersLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 

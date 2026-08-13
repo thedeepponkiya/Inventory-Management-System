@@ -140,7 +140,9 @@ async function createMaterialInward(req, res) {
       freightCharge,
       otherCharges,
       remarks: req.body.remarks || null,
-      receivedBy: req.body.receivedBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      receivedBy: req.user.userName,
     };
 
     const created = await MaterialInwardModel.create(inwardNo, fields);

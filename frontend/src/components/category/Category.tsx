@@ -110,11 +110,11 @@ const Category = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Category" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Category" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchCategories} loading={categoriesLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchCategories} loading={categoriesLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
@@ -131,7 +131,7 @@ const Category = () => {
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Category' : 'Add New Category'}
-                style={{ width: '520px' }}
+                style={{ width: '520px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />

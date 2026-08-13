@@ -66,11 +66,11 @@ const Invoices = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/invoices/new')} size="small" outlined />
+                        <Button className="filter-bar-add-btn" label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/invoices/new')} size="small" outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchInvoices} loading={invoicesLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchInvoices} loading={invoicesLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 

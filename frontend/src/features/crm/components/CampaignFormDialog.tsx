@@ -47,7 +47,7 @@ const CampaignFormDialog = ({ visible, editing, onHide, onSave }: CampaignFormDi
             visible={visible}
             onHide={onHide}
             header={editing ? 'Edit Campaign' : 'Add New Campaign'}
-            style={{ width: '480px' }}
+            style={{ width: '480px', maxWidth: '95vw' }}
             footer={
                 <>
                     <Button label="Cancel" outlined onClick={onHide} />

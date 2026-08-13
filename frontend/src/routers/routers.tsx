@@ -12,7 +12,6 @@ import Vendor from '../components/vendor/Vendor';
 import Customer from '../components/customer/Customer';
 import InventoryHome from '../components/inventory/InventoryHome';
 import Bom from '../components/bom/Bom';
-import Transactions from '../components/transactions/Transactions';
 import Invoices from '../components/invoices/Invoices';
 import InvoiceForm from '../components/invoices/InvoiceForm';
 import Reports from '../components/reports/Reports';
@@ -69,7 +68,6 @@ const AppRoutes = () => {
                         <Route path='/customer' element={<Customer />}></Route>
                         <Route path='/home' element={<InventoryHome />}></Route>
                         <Route path='/bom' element={<Bom />}></Route>
-                        <Route path='/transactions' element={<Transactions />}></Route>
                         <Route path='/invoices' element={<Invoices />}></Route>
                         <Route path='/invoices/new' element={<InvoiceForm />}></Route>
                         <Route path='/invoices/:id' element={<InvoiceForm />}></Route>

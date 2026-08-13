@@ -33,7 +33,7 @@ async function getStatus(req, res) {
 
 async function connect(req, res) {
   try {
-    const { pageAccessToken, pageId, adAccountId, connectedBy } = req.body;
+    const { pageAccessToken, pageId, adAccountId } = req.body;
     if (!pageAccessToken || !pageId) {
       return res.status(400).json({ status: false, message: 'pageAccessToken and pageId are required', data: null });
     }
@@ -55,7 +55,9 @@ async function connect(req, res) {
       adAccountId: adAccountId || null,
       adAccountName,
       tokenExpiresAt: null,
-      connectedBy: connectedBy || 'Admin User',
+      // Whoever is actually connecting this integration, from the authenticated session -
+      // not trusted from the request body.
+      connectedBy: req.user.userName,
     });
 
     res.status(201).json({ status: true, message: 'Meta account connected successfully', data: toSafeConnection(connection) });

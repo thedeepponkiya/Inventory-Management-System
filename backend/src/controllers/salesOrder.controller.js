@@ -65,7 +65,9 @@ async function createSalesOrder(req, res) {
       items,
       ...totals,
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
     };
 
     const created = await SalesOrderModel.create(soNo, fields);

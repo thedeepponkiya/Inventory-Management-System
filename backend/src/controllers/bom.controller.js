@@ -51,7 +51,9 @@ async function createBom(req, res) {
       unit: req.body.unit || 'PCS',
       status: req.body.status || 'Process',
       items: req.body.items || [],
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
     };
 
     const created = await BomModel.create(bomCode, fields);

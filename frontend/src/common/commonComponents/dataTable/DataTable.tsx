@@ -28,6 +28,11 @@ export interface ColumnConfig<T> {
     options?: FieldTypeOptions<T>;
     body?: (row: T) => React.ReactNode;
     style?: React.CSSProperties;
+    // Opt-out, not opt-in - defaults to false (column always shows) so every existing table's
+    // columns behave exactly as before (still reachable via horizontal scroll on mobile
+    // regardless). Only set true on columns a page has explicitly curated as non-essential on
+    // a phone-width screen - see DataTable.css's mobile breakpoint.
+    hideOnMobile?: boolean;
 }
 
 // Best-effort plain-text extraction from a custom column's rendered output, used to give
@@ -176,6 +181,7 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
                     filterPlaceholder={`Search ${col.header}`}
                     body={resolveColumnBody(col)}
                     style={col.style}
+                    className={col.hideOnMobile ? 'app-data-table-col-hide-mobile' : undefined}
                 />
             ))}
         </PrimeDataTable>

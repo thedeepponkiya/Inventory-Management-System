@@ -506,7 +506,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header="Edit Item"
-                style={{ width: '480px' }}
+                style={{ width: '480px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />

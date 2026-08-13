@@ -24,6 +24,7 @@ import {
 import { useAuthContext } from '../../context/AuthContextDefinition';
 import { AppContext } from '../../context/AppContextDefinition';
 import VisibilitySettingsPanel, { type VisibilitySettingsPanelHandle } from '../../common/commonComponents/visibilitySettingsDialog/VisibilitySettingsPanel';
+import DatabaseResetPanel from '../../common/commonComponents/databaseResetPanel/DatabaseResetPanel';
 import './DeveloperAdmin.css';
 
 const devAdminMenu = [
@@ -33,7 +34,7 @@ const devAdminMenu = [
     { key: 'custom-fields', label: 'Custom Fields', icon: HiOutlineListBullet },
     { key: 'modules-features', label: 'Modules & Features', icon: HiOutlinePuzzlePiece },
     { key: 'manage-visibility', label: 'Manage Visibility', icon: HiOutlineEyeSlash },
-    { key: 'database-backup', label: 'Database Backup', icon: HiOutlineCircleStack },
+    { key: 'database-settings', label: 'Database Settings', icon: HiOutlineCircleStack },
     { key: 'system-logs', label: 'System Logs', icon: HiOutlineDocumentText },
     { key: 'scheduled-jobs', label: 'Scheduled Jobs', icon: HiOutlineClock },
     { key: 'email-templates', label: 'Email Templates', icon: HiOutlineEnvelope },
@@ -105,6 +106,10 @@ const DeveloperAdmin = () => {
                 {activeSection === 'manage-visibility' ? (
                     <div className="developer-admin-content developer-admin-content--panel">
                         <VisibilitySettingsPanel ref={visibilityPanelRef} onSaved={fetchUiVisibility} hideHeader />
+                    </div>
+                ) : activeSection === 'database-settings' ? (
+                    <div className="developer-admin-content developer-admin-content--panel">
+                        <DatabaseResetPanel />
                     </div>
                 ) : (
                     <div className="developer-admin-content">

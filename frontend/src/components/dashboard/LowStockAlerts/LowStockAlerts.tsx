@@ -1,12 +1,13 @@
 import { useContext, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InputText } from 'primereact/inputtext';
-import { HiOutlineExclamationTriangle, HiOutlineListBullet, HiOutlineTableCells, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlineExclamationTriangle, HiOutlineListBullet, HiOutlineTableCells, HiOutlineMagnifyingGlass, HiChevronRight, HiOutlineCube } from 'react-icons/hi2';
 import DataTable from '../../../common/commonComponents/dataTable/DataTable';
 import type { ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../../context/AppContextDefinition';
 import type { RawSku } from '../../../services/rawSkuService';
 import { getStockSeverityColor } from '../dashboardUtils';
+import { resolveImageUrl } from '../../../common/commonFunctions/commonFunction';
 import '../Dashboard.css';
 import './LowStockAlerts.css';
 
@@ -53,7 +54,10 @@ const LowStockAlerts = () => {
                     Low Stock Alerts
                     {lowStockItems.length > 0 && <span className="dashboard-card-header-count">{lowStockItems.length}</span>}
                 </h2>
-                <span className="dashboard-card-link" onClick={() => navigate('/raw-sku')}>View all</span>
+                <span className="dashboard-card-link" onClick={() => navigate('/raw-sku')}>
+                    View all
+                    <HiChevronRight size={14} />
+                </span>
             </div>
 
             {lowStockItems.length > 0 && (
@@ -66,7 +70,7 @@ const LowStockAlerts = () => {
                         <button type="button" className={`dashboard-chart-type-btn${viewMode === 'list' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setViewMode('list')} title="List view">
                             <HiOutlineListBullet size={16} />
                         </button>
-                        <button type="button" className={`dashboard-chart-type-btn${viewMode === 'table' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setViewMode('table')} title="Table view">
+                        <button type="button" className={`dashboard-chart-type-btn dashboard-low-stock-table-toggle${viewMode === 'table' ? ' dashboard-chart-type-btn--active' : ''}`} onClick={() => setViewMode('table')} title="Table view">
                             <HiOutlineTableCells size={16} />
                         </button>
                     </div>
@@ -77,32 +81,47 @@ const LowStockAlerts = () => {
                 <div className="dashboard-empty-state">No SKUs are currently below their minimum stock level.</div>
             ) : filteredItems.length === 0 ? (
                 <div className="dashboard-empty-state">No SKUs match "{search}".</div>
-            ) : viewMode === 'table' ? (
-                <DataTable value={filteredItems} columns={tableColumns} dataKey="id" rows={10} />
             ) : (
-                <div className="dashboard-low-stock-list dashboard-low-stock-list--scroll">
-                    {filteredItems.map((item) => {
-                        const ratio = Math.min(100, (item.currentStock / item.minStock) * 100);
-                        const severityColor = getStockSeverityColor(item.currentStock, item.minStock);
-                        return (
-                            <div className="dashboard-low-stock-item" key={item.id}>
-                                <div className="dashboard-low-stock-info">
-                                    <div className="dashboard-low-stock-name">{item.skuName}</div>
-                                    <div className="dashboard-low-stock-sub">
-                                        Current Stock: <span style={{ color: severityColor, fontWeight: 700 }}>{item.currentStock}</span>
+                <>
+                    {/* Both views are always rendered (not just the JS-selected one) so the
+                        700px CSS override below can force the list on mobile regardless of
+                        `viewMode` - e.g. someone resizing down from desktop while already in
+                        Table view would otherwise be stuck on it with no way back, since the
+                        toggle button itself is also hidden on mobile (see LowStockAlerts.css). */}
+                    <div className={`dashboard-low-stock-table-view${viewMode !== 'table' ? ' dashboard-low-stock-view--hidden' : ''}`}>
+                        <DataTable value={filteredItems} columns={tableColumns} dataKey="id" rows={10} />
+                    </div>
+                    <div className={`dashboard-low-stock-list dashboard-low-stock-list--scroll${viewMode !== 'list' ? ' dashboard-low-stock-view--hidden' : ''}`}>
+                        {filteredItems.map((item) => {
+                            const ratio = Math.min(100, (item.currentStock / item.minStock) * 100);
+                            const severityColor = getStockSeverityColor(item.currentStock, item.minStock);
+                            return (
+                                <div className="dashboard-low-stock-item" key={item.id}>
+                                    {item.images?.[0] ? (
+                                        <img src={resolveImageUrl(item.images[0])} alt={item.skuName} className="dashboard-low-stock-thumb" />
+                                    ) : (
+                                        <span className="dashboard-low-stock-thumb dashboard-low-stock-thumb--placeholder">
+                                            <HiOutlineCube size={22} />
+                                        </span>
+                                    )}
+                                    <div className="dashboard-low-stock-info">
+                                        <div className="dashboard-low-stock-name">{item.skuName}</div>
+                                        <div className="dashboard-low-stock-sub">
+                                            Current Stock: <span style={{ color: severityColor, fontWeight: 700 }}>{item.currentStock}</span>
+                                        </div>
+                                        <div className="dashboard-low-stock-sub">Location: {item.locationName ?? '—'}</div>
                                     </div>
-                                    <div className="dashboard-low-stock-sub">Location: {item.locationName ?? '—'}</div>
-                                </div>
-                                <div className="dashboard-low-stock-meta">
-                                    <div className="dashboard-low-stock-min">Min. Stock: {item.minStock}</div>
-                                    <div className="dashboard-low-stock-bar">
-                                        <div className="dashboard-low-stock-bar-fill" style={{ width: `${ratio}%`, background: severityColor }} />
+                                    <div className="dashboard-low-stock-meta">
+                                        <div className="dashboard-low-stock-min">Min. Stock: {item.minStock}</div>
+                                        <div className="dashboard-low-stock-bar">
+                                            <div className="dashboard-low-stock-bar-fill" style={{ width: `${ratio}%`, background: severityColor }} />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                </>
             )}
         </div>
     );

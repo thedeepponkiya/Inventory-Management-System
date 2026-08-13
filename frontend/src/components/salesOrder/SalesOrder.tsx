@@ -18,7 +18,7 @@ import './SalesOrder.css';
 
 const SalesOrder = () => {
     const navigate = useNavigate();
-    const { salesOrders, salesOrdersLoading, fetchSalesOrders } = useContext(AppContext);
+    const { salesOrders, salesOrdersLoading, fetchSalesOrders, users } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
@@ -36,7 +36,7 @@ const SalesOrder = () => {
         });
     }, [salesOrders, filters]);
 
-    const columns = getSalesOrderColumns(dateFormat, (so) => navigate(`/sales-order/${so.id}`));
+    const columns = getSalesOrderColumns(dateFormat, users, (so) => navigate(`/sales-order/${so.id}`));
 
     const actionTemplate = getActionBodyTemplate<SalesOrderType>({
         icons: [{
@@ -75,11 +75,11 @@ const SalesOrder = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Sales Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/sales-order/new')} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Sales Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/sales-order/new')} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchSalesOrders} loading={salesOrdersLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchSalesOrders} loading={salesOrdersLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 

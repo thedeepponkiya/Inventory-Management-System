@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { DEFAULT_DATA_TYPE_VALUE } from '../common/constants/commonConstant';
 import { AuthContext, type AuthUser, type LoginResult } from './AuthContextDefinition';
+import { API_BASE_URL } from '../services/apiConfig';
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
 const STORAGE_KEY = 'inventory-app:auth';
 // Duplicated in services/httpClient.ts and crmAxiosClient.ts (same circular-import reasoning
 // as STORAGE_KEY) - dispatched there whenever any API call comes back 401, so this context

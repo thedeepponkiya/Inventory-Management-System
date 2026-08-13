@@ -401,7 +401,7 @@ const CrmLeadsPage = () => {
                 onHide={() => setFilterDialogVisible(false)}
                 position="bottom-right"
                 header="Filter Leads"
-                style={{ width: '320px' }}
+                style={{ width: '320px', maxWidth: '95vw' }}
                 className="crm-leads-filter-dialog"
             >
                 <div className="dialog-form-body">

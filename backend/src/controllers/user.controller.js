@@ -14,7 +14,7 @@ async function getUsers(req, res) {
 
 async function createUser(req, res) {
   try {
-    const { fullName, email, phone, password, roleId, departmentId, profileImage, status, createdBy } = req.body;
+    const { fullName, email, phone, password, roleId, departmentId, profileImage, status } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ status: false, message: 'fullName, email and password are required', data: null });
     }
@@ -37,7 +37,9 @@ async function createUser(req, res) {
       departmentId,
       profileImage,
       status: status || 'Active',
-      createdBy: createdBy || 'Admin User',
+      // Whoever (the admin) is actually creating this account, from the authenticated
+      // session - not trusted from the request body.
+      createdBy: req.user.userName,
     });
     res.status(201).json({ status: true, message: 'User created successfully', data: created });
   } catch (err) {

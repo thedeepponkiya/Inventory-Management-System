@@ -14,12 +14,10 @@ import {
     HiOutlineScale,
     HiOutlineBuildingStorefront, // Vendor nav item hidden below
     HiOutlineUserCircle,
-    HiOutlineListBullet, // Transactions nav item hidden below
     HiOutlineDocumentText, // Invoices nav item hidden below
     HiOutlineChartBar, // Reports nav item hidden below
     HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
-    HiOutlineBars3,
     HiOutlineUserGroup,
     HiOutlineMegaphone,
     HiOutlineChartPie,
@@ -61,7 +59,6 @@ const navGroups = [
     {
         groupLabel: 'Billing',
         items: [
-            { label: 'Transactions', path: '/transactions', icon: HiOutlineListBullet },
             { label: 'Invoices', path: '/invoices', icon: HiOutlineDocumentText },
         ],
     },
@@ -97,13 +94,17 @@ const crmMenu = {
 };
 
 const SidePanel = () => {
-    const { isSidePanelOpen, setIsSidePanelOpen, hiddenSidebarItems } = useContext(AppContext);
+    const { isSidePanelOpen, setIsSidePanelOpen, isMobileSidebarOpen, setIsMobileSidebarOpen, hiddenSidebarItems } = useContext(AppContext);
     // Admin-controlled (VisibilitySettingsDialog) - covers crmMenu.items too, since every
     // path across navGroups/dashboardItem/crmMenu is globally unique.
     const hiddenPaths: string[] = hiddenSidebarItems ?? [];
     const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path));
     const expanded = isSidePanelOpen;
-    const [mobileOpen, setMobileOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    // Lifted to AppContext (not local state) so Header.tsx's hamburger button - a proper
+    // flex child of the header row, so it always vertically aligns with the title text
+    // regardless of the header's height - can open this same drawer from a sibling component.
+    const mobileOpen = isMobileSidebarOpen;
+    const setMobileOpen = setIsMobileSidebarOpen;
     const [settingsOpen, setSettingsOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const location = useLocation();
     // Starts open automatically if already on a CRM page (e.g. after a refresh).
@@ -118,16 +119,6 @@ const SidePanel = () => {
 
     return (
         <>
-            {/* Mobile toggle button */}
-            <button
-                type="button"
-                className="sidebar-mobile-toggle"
-                onClick={() => setMobileOpen((prev) => !prev)}
-                aria-label="Toggle navigation"
-            >
-                <HiOutlineBars3 size={22} />
-            </button>
-
             {mobileOpen && (
                 <div
                     className="sidebar-overlay"
@@ -135,7 +126,10 @@ const SidePanel = () => {
                 />
             )}
 
-            <div className={`side-panel${expanded ? ' side-panel--expanded' : ''} ${mobileOpen ? 'side-panel--open' : ''}`}>
+            {/* On mobile the drawer always opens fully expanded (labels visible), regardless
+                of the desktop collapse/expand toggle state - a narrow icon-only rail sliding
+                in wouldn't be usable as a mobile drawer. */}
+            <div className={`side-panel${(expanded || mobileOpen) ? ' side-panel--expanded' : ''} ${mobileOpen ? 'side-panel--open' : ''}`}>
                 <div
                     className="sidebar-logo"
                     onClick={toggleExpanded}
@@ -196,34 +190,34 @@ const SidePanel = () => {
                     })}
 
                     {visibleCrmItems.length > 0 && (
-                    <div className="sidebar-group">
-                        <button
-                            type="button"
-                            className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
-                            onClick={() => setCrmMenuOpen((prev) => !prev)}
-                        >
-                            <crmMenu.icon size={19} />
-                            <span>{crmMenu.label}</span>
-                            {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
-                        </button>
-                        {crmMenuOpen && (
-                            <div className="sidebar-submenu">
-                                {visibleCrmItems.map(({ label, path, icon: Icon }) => (
-                                    <NavLink
-                                        key={path}
-                                        to={path}
-                                        end={path === '/crm'}
-                                        className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
-                                        title={label}
-                                        onClick={() => setMobileOpen(false)}
-                                    >
-                                        <Icon size={17} />
-                                        <span>{label}</span>
-                                    </NavLink>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                        <div className="sidebar-group">
+                            <button
+                                type="button"
+                                className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
+                                onClick={() => setCrmMenuOpen((prev) => !prev)}
+                            >
+                                <crmMenu.icon size={19} />
+                                <span>{crmMenu.label}</span>
+                                {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
+                            </button>
+                            {crmMenuOpen && (
+                                <div className="sidebar-submenu">
+                                    {visibleCrmItems.map(({ label, path, icon: Icon }) => (
+                                        <NavLink
+                                            key={path}
+                                            to={path}
+                                            end={path === '/crm'}
+                                            className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                            title={label}
+                                            onClick={() => setMobileOpen(false)}
+                                        >
+                                            <Icon size={17} />
+                                            <span>{label}</span>
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 

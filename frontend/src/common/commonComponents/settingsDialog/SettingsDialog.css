@@ -194,3 +194,26 @@
     background: var(--surface-subtle);
     color: var(--text-primary);
 }
+
+@media (max-width: 640px) {
+    .settings-dialog-body {
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .settings-dialog-tabs {
+        flex-direction: row;
+        width: 100%;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .settings-dialog-tab {
+        flex-shrink: 0;
+    }
+
+    .settings-dialog-grid {
+        grid-template-columns: 1fr;
+    }
+}

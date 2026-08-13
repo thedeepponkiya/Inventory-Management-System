@@ -12,8 +12,22 @@ import { AppContext } from '../../../context/AppContextDefinition';
 import type { RawSku } from '../../../services/rawSkuService';
 import type { Bom } from '../../../services/bomService';
 import { getFilterRange } from '../dashboardUtils';
+import { resolveImageUrl } from '../../../common/commonFunctions/commonFunction';
 import '../Dashboard.css';
 import './SkuMovement.css';
+
+// Shared by both the Non-Moving and Top Moving item rows - shows the SKU's actual photo when
+// it has one (matching LowStockAlerts' thumbnail pattern), falling back to a plain icon in a
+// colored box otherwise.
+const SkuMovementThumb = ({ images, variant }: { images: string[]; variant: 'negative' | 'positive' }) => (
+    images[0] ? (
+        <img src={resolveImageUrl(images[0])} alt="" className="sku-movement-item-icon" />
+    ) : (
+        <span className={`sku-movement-item-icon sku-movement-item-icon--${variant}`}>
+            <HiOutlineCube size={20} />
+        </span>
+    )
+);
 
 const SkuMovement = () => {
     const { rawSkus, boms } = useContext(AppContext);
@@ -33,7 +47,7 @@ const SkuMovement = () => {
         const matchesSearch = (name: string, code: string) =>
             !term || name.toLowerCase().includes(term) || code.toLowerCase().includes(term);
 
-        const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number; locationName: string | null }>();
+        const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number; locationName: string | null; images: string[] }>();
         bomList
             .filter((bom) => bom.status === 'Completed' && new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
             .forEach((bom) => {
@@ -43,27 +57,27 @@ const SkuMovement = () => {
                     if (existing) {
                         existing.total += consumedQty;
                     } else {
-                        // BomItem has no location of its own - look it up from the Raw SKU
-                        // master, same denormalize-at-read approach used everywhere else.
-                        const locationName = rawSkuList.find((sku) => sku.skuCode === item.rawSkuCode)?.locationName ?? null;
-                        consumedBySku.set(item.rawSkuCode, { rawSkuName: item.rawSkuName, unit: item.unit, total: consumedQty, locationName });
+                        // BomItem has no location/images of its own - look them up from the
+                        // Raw SKU master, same denormalize-at-read approach used everywhere else.
+                        const rawSku = rawSkuList.find((sku) => sku.skuCode === item.rawSkuCode);
+                        consumedBySku.set(item.rawSkuCode, { rawSkuName: item.rawSkuName, unit: item.unit, total: consumedQty, locationName: rawSku?.locationName ?? null, images: rawSku?.images ?? [] });
                     }
                 });
             });
 
-        // Search narrows the full candidate pool before ranking/capping at 5, so searching
-        // for a specific SKU can surface it even if it wouldn't otherwise make the top 5.
+        // No slice() cap - sorted by relevance and the panel's own list scrolls after ~5 items
+        // (see .sku-movement-list's max-height in SkuMovement.css), so every matching SKU is
+        // reachable rather than only the top 5, same approach as Recent Sales Orders/Low
+        // Stock Alerts' own scrollable lists.
         const topMoving = Array.from(consumedBySku.entries())
             .map(([skuCode, data]) => ({ skuCode, ...data }))
             .filter((sku) => matchesSearch(sku.rawSkuName, sku.skuCode))
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5);
+            .sort((a, b) => b.total - a.total);
 
         const nonMoving = rawSkuList
             .filter((sku) => !consumedBySku.has(sku.skuCode))
             .filter((sku) => matchesSearch(sku.skuName, sku.skuCode))
-            .sort((a, b) => b.currentStock - a.currentStock)
-            .slice(0, 5);
+            .sort((a, b) => b.currentStock - a.currentStock);
 
         return { topMoving, nonMoving };
     }, [bomList, rawSkuList, movementFilter, search]);
@@ -115,9 +129,7 @@ const SkuMovement = () => {
                         <div className="sku-movement-list">
                             {skuMovement.nonMoving.map((sku) => (
                                 <div className="sku-movement-item" key={sku.id}>
-                                    <div className="sku-movement-item-icon sku-movement-item-icon--negative">
-                                        <HiOutlineCube size={16} />
-                                    </div>
+                                    <SkuMovementThumb images={sku.images} variant="negative" />
                                     <div className="sku-movement-item-info">
                                         <div className="sku-movement-item-name">{sku.skuName}</div>
                                         <div className="sku-movement-item-sub">#{sku.skuCode}</div>
@@ -153,9 +165,7 @@ const SkuMovement = () => {
                         <div className="sku-movement-list">
                             {skuMovement.topMoving.map((sku) => (
                                 <div className="sku-movement-item" key={sku.skuCode}>
-                                    <div className="sku-movement-item-icon sku-movement-item-icon--positive">
-                                        <HiOutlineCube size={16} />
-                                    </div>
+                                    <SkuMovementThumb images={sku.images} variant="positive" />
                                     <div className="sku-movement-item-info">
                                         <div className="sku-movement-item-name">{sku.rawSkuName}</div>
                                         <div className="sku-movement-item-sub">#{sku.skuCode}</div>

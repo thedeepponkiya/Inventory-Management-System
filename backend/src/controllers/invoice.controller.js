@@ -76,7 +76,9 @@ async function createInvoice(req, res) {
       paymentTerms: req.body.paymentTerms || null,
       paymentStatus: req.body.paymentStatus || 'Unpaid',
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
     };
 
     const created = await InvoiceModel.create(invoiceNo, fields);

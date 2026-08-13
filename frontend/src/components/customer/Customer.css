@@ -1,0 +1,150 @@
+/* Mobile/tablet redesign (Quick Actions grid + compact toolbar + wrapped paginator) - scoped
+   to this page only via the .customer-page prefix so no other page sharing FilterBar/
+   DataTable is affected. Matches the reference mobile app screenshot. Desktop (>900px) is
+   completely untouched - every rule here only takes effect inside this media query. */
+@media (max-width: 900px) {
+    .customer-page .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        background: transparent;
+        border: none;
+        padding: 0;
+        gap: 12px;
+    }
+
+    .customer-page .filter-bar-quick-actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        width: 100%;
+        gap: 8px;
+        overflow: visible;
+        padding: 12px;
+        background: var(--surface-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+    }
+
+    .customer-page .filter-bar-quick-action {
+        flex-direction: row;
+        align-items: center;
+        flex-shrink: initial;
+        min-width: 0;
+        min-height: 48px;
+        gap: 6px;
+        padding: 8px 6px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        background: var(--surface-card);
+        font-size: 10.5px;
+        white-space: nowrap;
+        text-align: left;
+    }
+
+    /* Uniform icon size regardless of each item's own `iconSize` prop (13-18px across the
+       default list) - forcing one consistent size here is what actually reads as "balanced"
+       across the grid. CSS wins over the SVG's inline width/height presentation attributes. */
+    .customer-page .filter-bar-quick-action svg {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Label wrapped in its own span (see FilterBar.tsx) specifically so ellipsis has a real
+       box to clip - a bare text node next to the icon can't take overflow/text-overflow on
+       its own. min-width:0 lets it actually shrink below its content width in the flex row
+       instead of forcing the row to overflow. */
+    .customer-page .filter-bar-quick-action-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .customer-page .filter-bar-quick-action--active {
+        border: 1px solid #2563eb;
+        background: var(--accent-info-bg);
+        color: #2563eb;
+    }
+
+    .customer-page .filter-bar-controls {
+        width: 100%;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .customer-page .filter-bar-field {
+        min-width: 0;
+    }
+
+    .customer-page .filter-bar-search {
+        flex: 1 1 140px;
+        min-width: 0;
+        width: auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+    }
+
+    .customer-page .filter-bar-add-btn.p-button {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .customer-page .filter-bar-add-btn.p-button .p-button-label {
+        display: none;
+    }
+
+    .customer-page .filter-bar-add-btn.p-button .mr-2 {
+        margin-right: 0;
+    }
+
+    /* Reuses the existing "clear filters" and "refresh" buttons (there's no separate
+       advanced-filter panel on this page) - only restyled to a neutral bordered square look
+       (PrimeReact's own `outlined` variant otherwise renders these in the primary blue). */
+    .customer-page .filter-bar-clear-btn.p-button,
+    .customer-page .filter-bar-refresh-btn.p-button {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 10px;
+        color: var(--text-tertiary) !important;
+        background: var(--surface-card) !important;
+    }
+
+    .customer-page .filter-bar-add-btn.p-button.p-button-outlined {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff;
+    }
+
+    .customer-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        color: #ffffff;
+    }
+
+    .customer-page .app-data-table .p-paginator {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding: 10px 8px;
+    }
+
+    .customer-page .app-data-table .p-paginator .p-paginator-current {
+        order: 3;
+        width: 100%;
+        text-align: center;
+        margin-left: 0;
+    }
+
+    .customer-page .app-data-table .p-paginator .p-dropdown {
+        order: 2;
+        margin-left: 0;
+    }
+}

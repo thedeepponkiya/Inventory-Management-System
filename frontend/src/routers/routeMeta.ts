@@ -24,7 +24,6 @@ export const routeMetaList: RouteMeta[] = [
     { path: '/sales-order/new', title: 'New Sales Order', subtitle: 'Create a new sales order raised by a customer.' },
     { path: '/sales-order/:id', title: 'Sales Order Details', subtitle: 'View and manage this sales order.' },
     { path: '/sales-order', title: 'Sales Order', subtitle: 'Create, track and manage all sales orders raised by customers.' },
-    { path: '/transactions', title: 'Transactions', subtitle: 'View and manage all inventory transactions.' },
     { path: '/invoices/new', title: 'New Invoice', subtitle: 'Create a new sales invoice.' },
     { path: '/invoices/:id', title: 'Invoice Details', subtitle: 'View and manage this invoice.' },
     { path: '/invoices', title: 'Invoices', subtitle: 'Create, view and manage all sales invoices.' },

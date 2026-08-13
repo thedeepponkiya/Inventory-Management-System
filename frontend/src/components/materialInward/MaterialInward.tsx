@@ -14,7 +14,7 @@ import MaterialInwardForm from './MaterialInwardForm';
 import './MaterialInward.css';
 
 const MaterialInward = () => {
-    const { materialInwards, materialInwardsLoading, fetchMaterialInwards } = useContext(AppContext);
+    const { materialInwards, materialInwardsLoading, fetchMaterialInwards, users } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
@@ -42,7 +42,7 @@ const MaterialInward = () => {
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const columns = getMaterialInwardColumns(dateFormat, openEditDialog);
+    const columns = getMaterialInwardColumns(dateFormat, users, openEditDialog);
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<MaterialInwardType>({
         getId: (row) => row.id,
@@ -73,11 +73,11 @@ const MaterialInward = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} size="small" outlined />
+                        <Button className="filter-bar-add-btn" label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} size="small" outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchMaterialInwards} loading={materialInwardsLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchMaterialInwards} loading={materialInwardsLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 

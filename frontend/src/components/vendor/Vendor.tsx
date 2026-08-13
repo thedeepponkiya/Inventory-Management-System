@@ -112,11 +112,11 @@ const Vendor = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Vendor" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Vendor" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchVendors} loading={vendorsLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchVendors} loading={vendorsLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
@@ -133,7 +133,7 @@ const Vendor = () => {
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Vendor' : 'Add New Vendor'}
-                style={{ width: '480px' }}
+                style={{ width: '480px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />

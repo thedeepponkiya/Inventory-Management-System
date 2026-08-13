@@ -1,5 +1,5 @@
 import { authFetch } from './httpClient';
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+import { API_BASE_URL } from './apiConfig';
 
 export type SalesOrderStatus = 'Draft' | 'Confirmed' | 'Processing' | 'Partially Shipped' | 'Dispatched' | 'Cancelled';
 export type SalesOrderPaymentStatus = 'Unpaid' | 'Partial' | 'Paid';

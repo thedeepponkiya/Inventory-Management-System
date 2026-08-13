@@ -1,14 +1,15 @@
-import { useRef } from 'react';
+import { useContext, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Badge } from 'primereact/badge';
 import { Avatar } from 'primereact/avatar';
 import { Menu } from 'primereact/menu';
 import type { MenuItem } from 'primereact/menuitem';
 import { FaRegBell } from 'react-icons/fa6';
-import { HiChevronRight, HiOutlineSun, HiOutlineMoon, HiOutlineUser, HiOutlineArrowRightOnRectangle, HiOutlineCommandLine } from 'react-icons/hi2';
+import { HiBars3, HiChevronRight, HiOutlineSun, HiOutlineMoon, HiOutlineUser, HiOutlineArrowRightOnRectangle, HiOutlineCommandLine } from 'react-icons/hi2';
 import { getRouteMeta } from '../../../routers/routeMeta';
 import { useAuthContext } from '../../../context/AuthContextDefinition';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
+import { AppContext } from '../../../context/AppContextDefinition';
 import { resolveImageUrl } from '../../commonFunctions/commonFunction';
 import './Header.css';
 
@@ -17,6 +18,7 @@ const Header = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuthContext();
     const { theme, toggleTheme } = useThemeContext();
+    const { setIsMobileSidebarOpen } = useContext(AppContext);
     const meta = getRouteMeta(location.pathname);
     const menuRef = useRef<Menu>(null);
     const avatarInitial = (user?.userName?.charAt(0) || 'A').toUpperCase();
@@ -68,10 +70,33 @@ const Header = () => {
 
     return (
         <div className="app-header py-2 px-3 flex items-center justify-between">
-            <div className="app-header-title-block max-[900px]:pl-12 flex items-center gap-2">
-                <span className="app-header-brand">Inventory</span>
-                <HiChevronRight size={14} className="app-header-crumb-sep" />
-                <span className="app-header-crumb-page">{meta.title}</span>
+            <div className="app-header-title-group flex items-center">
+                {/* Mobile/tablet-only (see Header.css) - opens the same sidebar drawer that
+                    used to be triggered by a fixed-position floating button. Rendered as a
+                    normal flex child (not position:fixed) so it always vertically aligns with
+                    the title text next to it, regardless of the header's own height. */}
+                <button
+                    type="button"
+                    className="app-header-menu-btn"
+                    aria-label="Open navigation"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                >
+                    <HiBars3 size={26} />
+                </button>
+
+                <div className="app-header-title-block flex items-center gap-2">
+                    <span className="app-header-brand">Inventory</span>
+                    <HiChevronRight size={14} className="app-header-crumb-sep" />
+                    <span className="app-header-crumb-page">{meta.title}</span>
+                </div>
+
+                {/* Mobile-only (see Header.css) - replaces the breadcrumb above with a plain
+                    title, matching the app's mobile design. */}
+                <div className="app-header-mobile-title">
+                    <div className="app-header-mobile-text">
+                        <h1>{meta.title}</h1>
+                    </div>
+                </div>
             </div>
 
             <div className="app-header-actions">

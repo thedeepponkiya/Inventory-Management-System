@@ -59,7 +59,10 @@ async function createPurchaseOrder(req, res) {
       items,
       ...totals,
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - the
+      // frontend never actually sent this, which is why every record showed the literal
+      // 'Admin User' fallback regardless of who was actually logged in.
+      createdBy: req.user.userName,
     };
 
     const created = await PurchaseOrderModel.create(poNo, fields);

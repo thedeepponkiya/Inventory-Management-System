@@ -33,7 +33,7 @@ const SourceFormDialog = ({ visible, editing, onHide, onSave }: SourceFormDialog
             visible={visible}
             onHide={onHide}
             header={editing ? 'Edit Source' : 'Add New Source'}
-            style={{ width: '440px' }}
+            style={{ width: '440px', maxWidth: '95vw' }}
             footer={
                 <>
                     <Button label="Cancel" outlined onClick={onHide} />
