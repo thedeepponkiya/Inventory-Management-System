@@ -28,6 +28,33 @@
     transform-origin: left center;
 }
 
+/* Add/Edit dialog's own Status field (mirrors Locations.css's identical .location-status-*
+   pattern) - previously this dialog had no Status control at all, so on mobile (where the
+   table's own status-toggle column is hideOnMobile:true) there was no way to change a Raw
+   SKU's Active/Inactive status from any screen size other than the desktop table. */
+.raw-sku-status-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.raw-sku-status-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.raw-sku-status-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.raw-sku-status-desc {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
 /* Current Stock column body (getRawSkuColumns / getStockLevel in CommonUtilities.tsx) -
    progress bar (value centered on top) + tier badge, colored per row via inline style
    (colors come from data, not a fixed palette, so they can't be plain CSS classes). */
@@ -388,7 +415,7 @@
         height: 40px;
         border: 1px solid var(--border-subtle) !important;
         border-radius: 10px;
-        color: var(--text-tertiary) !important;
+        color: var(--accent-info-text) !important;
         background: var(--surface-card) !important;
     }
 

@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CustomerModel = require('../models/customer.model');
 
 async function getCustomers(req, res) {
@@ -5,7 +6,7 @@ async function getCustomers(req, res) {
     const customers = await CustomerModel.getAll();
     res.json({ status: true, message: 'Customers fetched successfully', data: customers });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createCustomer(req, res) {
     const created = await CustomerModel.create(customerName, email, phoneNumber, address, city, zipCode);
     res.status(201).json({ status: true, message: 'Customer created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -56,7 +57,7 @@ async function updateCustomer(req, res) {
     );
     res.json({ status: true, message: 'Customer updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -72,7 +73,7 @@ async function deleteCustomer(req, res) {
     await CustomerModel.remove(id);
     res.json({ status: true, message: 'Customer deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

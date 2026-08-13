@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmLeadModel = require('../models/crmLead.model');
 
 const VALID_STATUSES = ['Active', 'Archived'];
@@ -8,7 +9,7 @@ async function getLeads(req, res) {
     const leads = await CrmLeadModel.getAll();
     res.json({ status: true, message: 'Leads fetched successfully', data: leads });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -17,7 +18,7 @@ async function getNextLeadCode(req, res) {
     const leadCode = await CrmLeadModel.getNextLeadCode();
     res.json({ status: true, message: 'Next lead code fetched successfully', data: { leadCode } });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -58,7 +59,7 @@ async function createLead(req, res) {
     });
     res.status(201).json({ status: true, message: 'Lead created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -98,7 +99,7 @@ async function updateLead(req, res) {
     });
     res.json({ status: true, message: 'Lead updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -113,7 +114,7 @@ async function reorderLeads(req, res) {
     const leads = await CrmLeadModel.getAll();
     res.json({ status: true, message: 'Leads reordered successfully', data: leads });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -128,7 +129,7 @@ async function deleteLead(req, res) {
     await CrmLeadModel.remove(id);
     res.json({ status: true, message: 'Lead deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

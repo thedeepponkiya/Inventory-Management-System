@@ -7,6 +7,7 @@ import { Chart } from 'primereact/chart';
 import type { Chart as ChartJSInstance } from 'chart.js';
 import { HiOutlineArrowDownTray, HiOutlineCube, HiOutlineCalendarDays, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import { MdFilterAltOff } from 'react-icons/md';
+import { FaRegFilePdf } from 'react-icons/fa6';
 import DataTable, { type ColumnConfig } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
@@ -513,7 +514,7 @@ const Reports = () => {
                     />
                     <Button
                         label="Export PDF"
-                        icon={<HiOutlineArrowDownTray className="mr-2" />}
+                        icon={<FaRegFilePdf className="mr-2" />}
                         outlined
                         size="small"
                         disabled={activeExport.data.rows.length === 0}

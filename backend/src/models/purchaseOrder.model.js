@@ -23,8 +23,8 @@ async function getAll() {
   return result.rows;
 }
 
-async function findById(id) {
-  const result = await pool.query(`${SELECT_WITH_VENDOR} WHERE po.id = $1`, [id]);
+async function findById(id, db = pool) {
+  const result = await db.query(`${SELECT_WITH_VENDOR} WHERE po.id = $1`, [id]);
   return result.rows[0];
 }
 
@@ -73,8 +73,8 @@ async function create(poNo, fields) {
   return result.rows[0];
 }
 
-async function update(id, fields) {
-  const result = await pool.query(
+async function update(id, fields, db = pool) {
+  const result = await db.query(
     `UPDATE ${TABLE} SET
       "vendorId" = $1, "poDate" = $2, "expectedDeliveryDate" = $3, "shippingDate" = $4, "deliveryAddress" = $5, status = $6,
       "paymentStatus" = $7, "paidAmount" = $8,

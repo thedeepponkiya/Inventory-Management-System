@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmFollowupModel = require('../models/crmFollowup.model');
 
 const VALID_TYPES = ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'];
@@ -9,7 +10,7 @@ async function getFollowups(req, res) {
     const followups = await CrmFollowupModel.getAll(leadId);
     res.json({ status: true, message: 'Follow-ups fetched successfully', data: followups });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -34,7 +35,7 @@ async function createFollowup(req, res) {
     });
     res.status(201).json({ status: true, message: 'Follow-up created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -71,7 +72,7 @@ async function updateFollowup(req, res) {
     });
     res.json({ status: true, message: 'Follow-up updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -85,7 +86,7 @@ async function deleteFollowup(req, res) {
     await CrmFollowupModel.remove(id);
     res.json({ status: true, message: 'Follow-up deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

@@ -3,8 +3,8 @@ import { Column } from 'primereact/column';
 import { Dropdown } from 'primereact/dropdown';
 import type { DataTableFilterMeta } from 'primereact/datatable';
 import { DataTable as PrimeDataTable } from 'primereact/datatable';
-import type { ReactNode } from 'react';
-import { Children, isValidElement, useState } from 'react';
+import type { ReactNode, Ref } from 'react';
+import { Children, forwardRef, isValidElement, useImperativeHandle, useState } from 'react';
 import type { ColumnBodyType, DateBodyOptions, FieldTypeOptions, RowDataColumn } from '../../commonFunctions/CommonUtilities';
 import { getColumnBodyTemplate } from '../../commonFunctions/CommonUtilities';
 import emptyBoxIllustration from '../../../assets/empty-box.png';
@@ -92,11 +92,19 @@ interface AppDataTableProps<T> {
     height?: string;
     // Adds a checkbox column (select-all in the header, per-row below) - selection state is
     // controlled by the caller (see useBulkDelete.ts), same as every other piece of DataTable
-    // state that already lives outside this component (filters are the one exception, kept
-    // local since no page has ever needed to read/drive them from outside).
+    // state that already lives outside this component (column filters are the one exception,
+    // kept local - see DataTableHandle.clearFilters for how a caller can still reset them).
     selectable?: boolean;
     selection?: T[];
     onSelectionChange?: (rows: T[]) => void;
+}
+
+// Imperative escape hatch for the one piece of state DataTable keeps local (per-column
+// filters from the filter-menu popups) - FilterBar's "Clear filters" button lives in a
+// sibling component and only resets its own search/dropdown state, so pages wire this up
+// in their `onReset` to also clear column filters instead of leaving them stuck applied.
+export interface DataTableHandle {
+    clearFilters: () => void;
 }
 
 function buildDefaultFilters<T>(columns: ColumnConfig<T>[]): DataTableFilterMeta {
@@ -123,8 +131,12 @@ function renderDropdownFilter(placeholder: string, options: string[]) {
     );
 }
 
-function DataTable<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange }: AppDataTableProps<T>) {
+function DataTableInner<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange }: AppDataTableProps<T>, ref: Ref<DataTableHandle>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
+
+    useImperativeHandle(ref, () => ({
+        clearFilters: () => setFilters(buildDefaultFilters(columns)),
+    }));
 
     const emptyTitle = emptyMessage ?? 'No results found';
     const emptyDesc = emptyMessage ? emptyDescription : (emptyDescription ?? "We couldn't find any items matching your search.");
@@ -187,5 +199,11 @@ function DataTable<T extends object>({ value, columns, actionBodyTemplate, actio
         </PrimeDataTable>
     );
 }
+
+// forwardRef erases the component's own generic, so the wrapping cast restores `<T>` for
+// callers - the standard pattern for a generic component that also needs to expose a ref.
+const DataTable = forwardRef(DataTableInner) as <T extends object>(
+    props: AppDataTableProps<T> & { ref?: Ref<DataTableHandle> }
+) => ReturnType<typeof DataTableInner>;
 
 export default DataTable;

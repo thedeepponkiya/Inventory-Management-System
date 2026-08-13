@@ -58,11 +58,24 @@
 
 .bom-print-menu.p-menu .p-menuitem-link {
     padding: 0.4rem 0.75rem;
+    gap: 0.5rem;
 }
 
 .bom-print-menu.p-menu .p-menuitem-text,
 .bom-print-menu.p-menu .p-menuitem-icon {
     font-size: 13px;
+}
+
+.bom-print-menu.p-menu .p-menuitem-icon,
+.bom-print-menu.p-menu .p-menuitem-link svg {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    margin-right: 0;
+}
+
+.bom-download-icon {
+    color: var(--accent-danger-text);
 }
 
 .bom-item-qty-needed {
@@ -305,7 +318,7 @@
         height: 40px;
         border: 1px solid var(--border-subtle) !important;
         border-radius: 10px;
-        color: var(--text-tertiary) !important;
+        color: var(--accent-info-text) !important;
         background: var(--surface-card) !important;
     }
 

@@ -2,13 +2,13 @@ const pool = require('../config/db');
 
 const TABLE = 'ims_material_inward';
 
-async function getAll() {
-  const result = await pool.query(`SELECT * FROM ${TABLE} ORDER BY id ASC`);
+async function getAll(db = pool) {
+  const result = await db.query(`SELECT * FROM ${TABLE} ORDER BY id ASC`);
   return result.rows;
 }
 
-async function findById(id) {
-  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE id = $1`, [id]);
+async function findById(id, db = pool) {
+  const result = await db.query(`SELECT * FROM ${TABLE} WHERE id = $1`, [id]);
   return result.rows[0];
 }
 
@@ -31,8 +31,8 @@ async function countByPurchaseOrder(purchaseOrderId) {
   return Number(result.rows[0].count);
 }
 
-async function create(inwardNo, fields) {
-  const result = await pool.query(
+async function create(inwardNo, fields, db = pool) {
+  const result = await db.query(
     `INSERT INTO ${TABLE} (
       "inwardNo", "purchaseOrderId", "purchaseOrderNo", "vendorId", "vendorName", "receivedDate",
       "invoiceNo", "invoiceDate", "challanNo", "vehicleNo", "warehouseId", items,
@@ -68,8 +68,8 @@ async function create(inwardNo, fields) {
   return result.rows[0];
 }
 
-async function update(id, fields) {
-  const result = await pool.query(
+async function update(id, fields, db = pool) {
+  const result = await db.query(
     `UPDATE ${TABLE} SET
       "purchaseOrderId" = $1, "purchaseOrderNo" = $2, "vendorId" = $3, "vendorName" = $4, "receivedDate" = $5,
       "invoiceNo" = $6, "invoiceDate" = $7, "challanNo" = $8, "vehicleNo" = $9, "warehouseId" = $10, items = $11,
@@ -106,8 +106,8 @@ async function update(id, fields) {
   return result.rows[0];
 }
 
-async function remove(id) {
-  await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
+async function remove(id, db = pool) {
+  await db.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
 module.exports = { getAll, findById, getNextInwardNo, countByPurchaseOrder, create, update, remove };

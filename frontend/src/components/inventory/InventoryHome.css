@@ -191,6 +191,33 @@
     transform-origin: left center;
 }
 
+/* Add/Edit dialog's own Status field (mirrors Locations.css's .location-status-* pattern) -
+   previously this dialog had no Status control at all, so on mobile (where the table's own
+   status-toggle column is hideOnMobile:true) there was no way to change an item's
+   Active/Inactive status from any screen size other than the desktop table. */
+.inventory-home-status-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.inventory-home-status-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inventory-home-status-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.inventory-home-status-desc {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
 /* Always shows the upload prompt, regardless of whether images already exist - uploaded
    images render only in the thumbnail strip below, not inside this dropzone. */
 .inventory-home-image-dropzone {
@@ -567,7 +594,7 @@
         height: 40px;
         border: 1px solid var(--border-subtle) !important;
         border-radius: 10px;
-        color: var(--text-tertiary) !important;
+        color: var(--accent-info-text) !important;
         background: var(--surface-card) !important;
     }
 

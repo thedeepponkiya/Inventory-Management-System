@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
@@ -43,7 +44,7 @@ async function login(req, res) {
       },
     });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -67,7 +68,7 @@ async function logout(req, res) {
       data: null,
     });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

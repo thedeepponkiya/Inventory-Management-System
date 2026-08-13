@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmTagModel = require('../models/crmTag.model');
 
 async function getLeadTags(req, res) {
@@ -9,7 +10,7 @@ async function getLeadTags(req, res) {
     const tags = await CrmTagModel.getByLead(leadId);
     res.json({ status: true, message: 'Tags fetched successfully', data: tags });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -23,7 +24,7 @@ async function addLeadTag(req, res) {
     await CrmTagModel.attachToLead(leadId, tag.id);
     res.status(201).json({ status: true, message: 'Tag added successfully', data: tag });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -37,7 +38,7 @@ async function removeLeadTag(req, res) {
     await CrmTagModel.detachFromLead(leadId, tagId);
     res.json({ status: true, message: 'Tag removed successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

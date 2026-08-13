@@ -190,8 +190,15 @@ function renderUserAvatar<T>(rowData: T, field: keyof T, options: UserAvatarBody
     const photo = matchedUser?.profileImage ? resolveImageUrl(matchedUser.profileImage) : undefined;
     return (
         <span className="common-table-user-cell">
+            {/* label is always set (not cleared to undefined just because a photo exists) -
+                PrimeReact's Avatar already renders the image when present and falls back to
+                the label automatically once the <img> fires onError (imageFallback="default"
+                is its own default), but only if there's actually a label value to fall back
+                to. Passing undefined here whenever a photo URL exists left nothing to show
+                once a broken/stale photo URL failed to load - a blank circle instead of the
+                initial. */}
             <Avatar
-                label={photo ? undefined : name.charAt(0).toUpperCase()}
+                label={name.charAt(0).toUpperCase()}
                 image={photo}
                 shape="circle"
                 className="common-table-user-avatar bg-purple-500 text-white"

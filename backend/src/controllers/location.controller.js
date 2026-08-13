@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const LocationModel = require('../models/location.model');
 
 async function getLocations(req, res) {
@@ -5,7 +6,7 @@ async function getLocations(req, res) {
     const locations = await LocationModel.getAll();
     res.json({ status: true, message: 'Locations fetched successfully', data: locations });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createLocation(req, res) {
     const created = await LocationModel.create(location, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Location created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,7 +54,7 @@ async function updateLocation(req, res) {
     );
     res.json({ status: true, message: 'Location updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -69,7 +70,7 @@ async function deleteLocation(req, res) {
     await LocationModel.remove(id);
     res.json({ status: true, message: 'Location deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

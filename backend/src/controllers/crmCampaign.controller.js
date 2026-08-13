@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmCampaignModel = require('../models/crmCampaign.model');
 
 async function getCampaigns(req, res) {
@@ -5,7 +6,7 @@ async function getCampaigns(req, res) {
     const campaigns = await CrmCampaignModel.getAll();
     res.json({ status: true, message: 'Campaigns fetched successfully', data: campaigns });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -31,7 +32,7 @@ async function createCampaign(req, res) {
     });
     res.status(201).json({ status: true, message: 'Campaign created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -61,7 +62,7 @@ async function updateCampaign(req, res) {
     });
     res.json({ status: true, message: 'Campaign updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -76,7 +77,7 @@ async function deleteCampaign(req, res) {
     await CrmCampaignModel.remove(id);
     res.json({ status: true, message: 'Campaign deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

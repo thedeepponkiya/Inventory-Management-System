@@ -19,7 +19,7 @@ import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlineFunnel, HiOutlinePlus, HiOutlineSquares2X2, HiOutlineTableCells, HiOutlineTrash } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
-import DataTable, { type ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useLeadsQuery, useCreateLead, useUpdateLead, useReorderLeads, useDeleteLead, useAssignableUsersQuery } from '../hooks/useLeadsQuery';
@@ -83,6 +83,7 @@ function moveLeadForPreview(allLeads: CrmLead[], activeId: string, overId: Uniqu
 
 const CrmLeadsPage = () => {
     const toast = useRef<Toast>(null);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const { data: leads = [], isLoading } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
@@ -330,7 +331,10 @@ const CrmLeadsPage = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters(emptyFilters)}
+                onReset={() => {
+                    setFilters(emptyFilters);
+                    dataTableRef.current?.clearFilters();
+                }}
                 quickActions={crmQuickActions}
                 actions={(
                     <>
@@ -357,7 +361,7 @@ const CrmLeadsPage = () => {
             />
 
             {view === 'table' && (
-                <DataTable value={filteredLeads} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
+                <DataTable ref={dataTableRef} value={filteredLeads} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
             )}
 
             {view === 'kanban' && !isLoading && (

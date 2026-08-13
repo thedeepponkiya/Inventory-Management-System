@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmStageModel = require('../models/crmStage.model');
 
 async function getStages(req, res) {
@@ -5,7 +6,7 @@ async function getStages(req, res) {
     const stages = await CrmStageModel.getAll();
     res.json({ status: true, message: 'Stages fetched successfully', data: stages });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -31,7 +32,7 @@ async function createStage(req, res) {
     });
     res.status(201).json({ status: true, message: 'Stage created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -61,7 +62,7 @@ async function updateStage(req, res) {
     });
     res.json({ status: true, message: 'Stage updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -76,7 +77,7 @@ async function deleteStage(req, res) {
     await CrmStageModel.remove(id);
     res.json({ status: true, message: 'Stage deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

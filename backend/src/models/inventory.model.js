@@ -34,9 +34,13 @@ async function findBySkuIdForUpdate(skuId, client) {
   return result.rows[0];
 }
 
+// MAX-based (not COUNT-based) - see rawSku.model.js's getNextSkuCode for why COUNT(*)+1
+// silently collides with an already-used code whenever the sequence has any gap.
 async function getNextSkuId() {
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE}`);
-  const nextSeq = Number(result.rows[0].count) + 1;
+  const result = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("skuId" FROM 5) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "skuId" ~ '^SKU-[0-9]+$'`
+  );
+  const nextSeq = Number(result.rows[0].maxSeq) + 1;
   return `SKU-${String(nextSeq).padStart(4, '0')}`;
 }
 
@@ -75,7 +79,7 @@ async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
       images = $1, "productName" = $2, "categoryName" = $3, "productType" = $4, barcode = $5,
-      quantity = $6, unit = $7, "locationName" = $8, status = $9, "unitCost" = $10, "sellingCost" = $11, assembly = $12,
+      quantity = COALESCE($6, quantity), unit = $7, "locationName" = $8, status = $9, "unitCost" = $10, "sellingCost" = $11, assembly = $12,
       "minStock" = $13, "maxStock" = $14, "openingStock" = $15, "updatedAt" = now()
     WHERE id = $16
     RETURNING *`,

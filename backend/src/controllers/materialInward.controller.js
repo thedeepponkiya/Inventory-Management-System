@@ -1,3 +1,5 @@
+const { sendServerError } = require('../utils/errorResponse');
+const pool = require('../config/db');
 const MaterialInwardModel = require('../models/materialInward.model');
 const PurchaseOrderModel = require('../models/purchaseOrder.model');
 const RawSkuModel = require('../models/rawSku.model');
@@ -19,12 +21,49 @@ function computeInwardTotals(items, freightCharge, otherCharges) {
 // check and was never previously reflected anywhere (this whole function was missing before,
 // meaning Raw SKU currentStock never moved on receiving at all). `sign` is 1 to apply a set
 // of items' stock and -1 to reverse it (used by update/delete so edits/deletes never leave a
-// stale delta behind).
-async function applyStockForItems(items, sign) {
+// stale delta behind). Always runs against the transaction's own client, never the bare pool.
+async function applyStockForItems(items, sign, client) {
   for (const item of items) {
     const qty = Number(item.acceptedQty ?? item.receivedQty ?? 0);
     if (!item.skuCode || !qty) continue;
-    await RawSkuModel.adjustStockBySkuCode(item.skuCode, sign * qty);
+    await RawSkuModel.adjustStockBySkuCode(item.skuCode, sign * qty, client);
+  }
+}
+
+// Server-side backstop for the same cap the frontend's Add Material Inward form already
+// enforces (MaterialInwardForm.tsx) - without this, a direct API call could receive more
+// than a PO line was ever ordered, driving that line's pendingQty negative and inflating Raw
+// SKU stock beyond what was actually purchased. `excludeInwardId` is the record being edited
+// (so its own already-counted receipt isn't double-subtracted from its own new pending check).
+async function validateAgainstPendingQty(purchaseOrderId, items, client, excludeInwardId = null) {
+  if (!purchaseOrderId) return;
+  const po = await PurchaseOrderModel.findById(purchaseOrderId, client);
+  if (!po) return;
+
+  const allInwards = await MaterialInwardModel.getAll(client);
+  const alreadyReceivedBySkuId = new Map();
+  allInwards
+    .filter((mi) => mi.purchaseOrderId === purchaseOrderId && mi.id !== excludeInwardId)
+    .flatMap((mi) => mi.items)
+    .forEach((item) => {
+      alreadyReceivedBySkuId.set(item.skuId, (alreadyReceivedBySkuId.get(item.skuId) || 0) + Number(item.receivedQty || 0));
+    });
+
+  const overages = [];
+  for (const item of items) {
+    const poLine = po.items.find((line) => line.skuId === item.skuId);
+    if (!poLine) continue;
+    const alreadyReceived = alreadyReceivedBySkuId.get(item.skuId) || 0;
+    const pending = poLine.orderedQty - alreadyReceived;
+    const requested = Number(item.receivedQty || 0);
+    if (requested > pending) {
+      overages.push(`${item.itemName || item.skuId}: only ${pending} pending, but ${requested} requested`);
+    }
+  }
+  if (overages.length > 0) {
+    const err = new Error(`Received quantity exceeds pending quantity - ${overages.join('; ')}`);
+    err.statusCode = 400;
+    throw err;
   }
 }
 
@@ -45,13 +84,13 @@ async function generateInwardNo(purchaseOrderId, purchaseOrderNo) {
 // receivedQty/pendingQty/status must reflect reality after every inward write. This
 // recomputes from scratch (sums every live inward against the PO) rather than
 // accumulating deltas, so edits/deletes never risk double-counting.
-async function resyncPurchaseOrderTotals(purchaseOrderId) {
+async function resyncPurchaseOrderTotals(purchaseOrderId, client) {
   if (!purchaseOrderId) return;
 
-  const po = await PurchaseOrderModel.findById(purchaseOrderId);
+  const po = await PurchaseOrderModel.findById(purchaseOrderId, client);
   if (!po || po.status === 'Cancelled') return;
 
-  const allInwards = await MaterialInwardModel.getAll();
+  const allInwards = await MaterialInwardModel.getAll(client);
   const relevantInwards = allInwards.filter((mi) => mi.purchaseOrderId === purchaseOrderId);
   const relevantItems = relevantInwards.flatMap((mi) => mi.items);
 
@@ -100,7 +139,7 @@ async function resyncPurchaseOrderTotals(purchaseOrderId) {
     createdBy: po.createdBy,
     approvedBy: po.approvedBy,
     approvedAt: po.approvedAt,
-  });
+  }, client);
 }
 
 async function getMaterialInwards(req, res) {
@@ -108,16 +147,25 @@ async function getMaterialInwards(req, res) {
     const materialInwards = await MaterialInwardModel.getAll();
     res.json({ status: true, message: 'Material inwards fetched successfully', data: materialInwards });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
+// create/update/delete all run their record write + stock adjustment + PO resync as one
+// transaction now (previously three-plus separate autocommit pool queries) - a failure
+// partway through used to leave a Material Inward record persisted with only some of its
+// stock applied, or (on update) stock double-reversed/not-reversed at all, with the client
+// seeing a 500 as if nothing had happened. Matches the BEGIN/COMMIT/ROLLBACK/finally pattern
+// already used by bom.controller.js's completeBom/revertBomToProcess.
 async function createMaterialInward(req, res) {
+  const { vendorId, warehouseId, receivedDate } = req.body;
+  if (!vendorId || !warehouseId || !receivedDate) {
+    return res.status(400).json({ status: false, message: 'vendorId, warehouseId and receivedDate are required', data: null });
+  }
+
+  const client = await pool.connect();
   try {
-    const { vendorId, warehouseId, receivedDate } = req.body;
-    if (!vendorId || !warehouseId || !receivedDate) {
-      return res.status(400).json({ status: false, message: 'vendorId, warehouseId and receivedDate are required', data: null });
-    }
+    await client.query('BEGIN');
 
     const inwardNo = await generateInwardNo(req.body.purchaseOrderId || null, req.body.purchaseOrderNo || null);
     const items = req.body.items || [];
@@ -145,27 +193,39 @@ async function createMaterialInward(req, res) {
       receivedBy: req.user.userName,
     };
 
-    const created = await MaterialInwardModel.create(inwardNo, fields);
-    await applyStockForItems(created.items, 1);
-    await resyncPurchaseOrderTotals(created.purchaseOrderId);
+    await validateAgainstPendingQty(fields.purchaseOrderId, items, client);
+
+    const created = await MaterialInwardModel.create(inwardNo, fields, client);
+    await applyStockForItems(created.items, 1, client);
+    await resyncPurchaseOrderTotals(created.purchaseOrderId, client);
+
+    await client.query('COMMIT');
+
     try {
-      // Best-effort, matching resyncPurchaseOrderTotals's style: the Material Inward save
-      // must succeed regardless of whether invoice auto-generation works.
+      // Best-effort, deliberately OUTSIDE the transaction and after COMMIT: the Material
+      // Inward save must succeed regardless of whether invoice auto-generation works.
       await createInvoiceFromMaterialInward(created);
     } catch (invoiceErr) {
       console.error('Failed to auto-generate invoice for material inward', created.id, invoiceErr);
     }
     res.status(201).json({ status: true, message: 'Material inward created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    await client.query('ROLLBACK');
+    res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
+  } finally {
+    client.release();
   }
 }
 
 async function updateMaterialInward(req, res) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
-    const existing = await MaterialInwardModel.findById(id);
+    const existing = await MaterialInwardModel.findById(id, client);
     if (!existing) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'Material inward not found', data: null });
     }
 
@@ -193,36 +253,54 @@ async function updateMaterialInward(req, res) {
       receivedBy: body.receivedBy ?? existing.receivedBy,
     };
 
-    const updated = await MaterialInwardModel.update(id, fields);
+    // Exclude this record's own already-counted receipt from the pending-qty check, since
+    // it's being replaced by `items` here, not added on top of itself.
+    await validateAgainstPendingQty(fields.purchaseOrderId, items, client, existing.id);
+
+    const updated = await MaterialInwardModel.update(id, fields, client);
     // Reverse the old items' stock effect and re-apply the new items' effect, rather than
     // diffing - simplest thing that's correct even when SKUs/quantities/line count all
     // change between the old and new items array.
-    await applyStockForItems(existing.items, -1);
-    await applyStockForItems(updated.items, 1);
-    await resyncPurchaseOrderTotals(updated.purchaseOrderId);
+    await applyStockForItems(existing.items, -1, client);
+    await applyStockForItems(updated.items, 1, client);
+    await resyncPurchaseOrderTotals(updated.purchaseOrderId, client);
     if (existing.purchaseOrderId && existing.purchaseOrderId !== updated.purchaseOrderId) {
-      await resyncPurchaseOrderTotals(existing.purchaseOrderId);
+      await resyncPurchaseOrderTotals(existing.purchaseOrderId, client);
     }
+
+    await client.query('COMMIT');
     res.json({ status: true, message: 'Material inward updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    await client.query('ROLLBACK');
+    res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
+  } finally {
+    client.release();
   }
 }
 
 async function deleteMaterialInward(req, res) {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const { id } = req.params;
-    const existing = await MaterialInwardModel.findById(id);
+    const existing = await MaterialInwardModel.findById(id, client);
     if (!existing) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'Material inward not found', data: null });
     }
 
-    await MaterialInwardModel.remove(id);
-    await applyStockForItems(existing.items, -1);
-    await resyncPurchaseOrderTotals(existing.purchaseOrderId);
+    await MaterialInwardModel.remove(id, client);
+    await applyStockForItems(existing.items, -1, client);
+    await resyncPurchaseOrderTotals(existing.purchaseOrderId, client);
+
+    await client.query('COMMIT');
     res.json({ status: true, message: 'Material inward deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    await client.query('ROLLBACK');
+    sendServerError(res, err);
+  } finally {
+    client.release();
   }
 }
 

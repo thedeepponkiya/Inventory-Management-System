@@ -29,9 +29,17 @@ async function findById(id) {
   return result.rows[0];
 }
 
+// MAX-based (not COUNT-based): COUNT(*)+1 silently collides with an ALREADY-USED code
+// whenever the sequence has any gap (a deleted SKU) - the UNIQUE constraint on skuCode then
+// makes every create() fail with a raw Postgres error, and since the failed insert never
+// advances the count, every subsequent create fails identically until the gap is filled back
+// in. Taking the highest existing numeric suffix instead is immune to gaps - same fix already
+// applied to salesOrder.model.js/purchaseOrder.model.js/materialInward.model.js.
 async function getNextSkuCode() {
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE}`);
-  const nextSeq = Number(result.rows[0].count) + 1;
+  const result = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("skuCode" FROM 5) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "skuCode" ~ '^SKU-[0-9]+$'`
+  );
+  const nextSeq = Number(result.rows[0].maxSeq) + 1;
   return `SKU-${String(nextSeq).padStart(3, '0')}`;
 }
 
@@ -71,7 +79,7 @@ async function update(id, fields) {
     `UPDATE ${TABLE} SET
       "skuName" = $1, "categoryId" = $2, "productTypeId" = $3, "locationId" = $4, unit = $5, "inventoryEntryMode" = $6, "sourceType" = $7,
       "rawMaterialId" = $8, "minStock" = $9, "maxStock" = $10, "reorderLevel" = $11, "openingStock" = $12,
-      "currentStock" = $13, description = $14, status = $15, "createdBy" = $16, images = $17, "updatedAt" = now()
+      "currentStock" = COALESCE($13, "currentStock"), description = $14, status = $15, "createdBy" = $16, images = $17, "updatedAt" = now()
     WHERE id = $18
     RETURNING *`,
     [

@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const MetaIntegrationModel = require('../models/crmMetaIntegration.model');
 const metaApi = require('../services/metaApi.service');
 const metaCrypto = require('../utils/metaCrypto');
@@ -27,7 +28,7 @@ async function getStatus(req, res) {
     const connection = await MetaIntegrationModel.getConnection();
     res.json({ status: true, message: 'Meta integration status fetched successfully', data: toSafeConnection(connection) });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -71,7 +72,7 @@ async function disconnect(req, res) {
     await MetaIntegrationModel.disconnect();
     res.json({ status: true, message: 'Meta account disconnected successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -85,7 +86,7 @@ async function syncLeads(req, res) {
     await MetaIntegrationModel.updateLastLeadSync(connection.id);
     res.json({ status: true, message: `Synced ${summary.created} new lead(s)`, data: summary });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -99,7 +100,7 @@ async function syncCampaigns(req, res) {
     await MetaIntegrationModel.updateLastCampaignSync(connection.id);
     res.json({ status: true, message: `Synced ${summary.created + summary.updated} campaign(s)`, data: summary });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

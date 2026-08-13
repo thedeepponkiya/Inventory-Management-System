@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
-import { HiOutlineArrowDownTray } from 'react-icons/hi2';
+import { FaRegFilePdf } from 'react-icons/fa6';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
-import DataTable, { type ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { useLeadsQuery } from '../hooks/useLeadsQuery';
 import { useStagesQuery } from '../hooks/useStagesQuery';
@@ -26,6 +26,8 @@ const outcomeVariant: Record<CrmStage['outcome'], 'success' | 'danger' | 'info'>
 };
 
 const CrmReportsPage = () => {
+    const stageSummaryTableRef = useRef<DataTableHandle>(null);
+    const leadsTableRef = useRef<DataTableHandle>(null);
     const { data: leads = [], isLoading } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
@@ -126,11 +128,15 @@ const CrmReportsPage = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ dateRange: null, stageId: null, sourceId: null, campaignId: null, status: null })}
+                onReset={() => {
+                    setFilters({ dateRange: null, stageId: null, sourceId: null, campaignId: null, status: null });
+                    stageSummaryTableRef.current?.clearFilters();
+                    leadsTableRef.current?.clearFilters();
+                }}
                 actions={(
                     <Button
                         label="Export to PDF"
-                        icon={<HiOutlineArrowDownTray className="mr-2" />}
+                        icon={<FaRegFilePdf className="mr-2" />}
                         outlined
                         onClick={() => exportLeadsReportPdf(filteredLeads, filterSummary)}
                         disabled={filteredLeads.length === 0}
@@ -146,7 +152,7 @@ const CrmReportsPage = () => {
                 clip instead of each sizing to its own content. */}
             <div>
                 <h3 style={{ fontSize: '14px', margin: '16px 0 8px' }}>Summary by Stage</h3>
-                <DataTable value={stageSummary} columns={stageSummaryColumns} paginator={false} loading={isLoading} dataKey="stage.id" />
+                <DataTable ref={stageSummaryTableRef} value={stageSummary} columns={stageSummaryColumns} paginator={false} loading={isLoading} dataKey="stage.id" />
             </div>
 
             <div>

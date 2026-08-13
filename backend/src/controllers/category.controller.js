@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CategoryModel = require('../models/category.model');
 
 async function getCategories(req, res) {
@@ -5,7 +6,7 @@ async function getCategories(req, res) {
     const categories = await CategoryModel.getAll();
     res.json({ status: true, message: 'Categories fetched successfully', data: categories });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createCategory(req, res) {
     const created = await CategoryModel.create(category, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Category created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,7 +54,7 @@ async function updateCategory(req, res) {
     );
     res.json({ status: true, message: 'Category updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -69,7 +70,7 @@ async function deleteCategory(req, res) {
     await CategoryModel.remove(id);
     res.json({ status: true, message: 'Category deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

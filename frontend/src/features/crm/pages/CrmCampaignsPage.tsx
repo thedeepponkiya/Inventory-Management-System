@@ -4,7 +4,7 @@ import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
-import DataTable, { type ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useCampaignsQuery, useCreateCampaign, useUpdateCampaign, useDeleteCampaign } from '../hooks/useCampaignsQuery';
@@ -17,6 +17,7 @@ const formatDate = (value: string | null) => (value ? new Date(value).toLocaleDa
 
 const CrmCampaignsPage = () => {
     const toast = useRef<Toast>(null);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const { data: campaigns = [], isLoading } = useCampaignsQuery();
     const createCampaign = useCreateCampaign();
     const updateCampaign = useUpdateCampaign();
@@ -123,11 +124,14 @@ const CrmCampaignsPage = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: '' })}
+                onReset={() => {
+                    setFilters({ search: '' });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={<Button label="Add Campaign" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
                 quickActions={crmQuickActions}
             />
-            <DataTable value={filteredCampaigns} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
+            <DataTable ref={dataTableRef} value={filteredCampaigns} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
             <CampaignFormDialog visible={dialogVisible} editing={editing} onHide={() => setDialogVisible(false)} onSave={handleSave} />
         </div>
     );

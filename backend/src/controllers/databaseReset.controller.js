@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const { TABLES_TO_RESET, resetBusinessData } = require('../models/databaseReset.model');
 
@@ -25,7 +26,7 @@ async function resetDatabase(req, res) {
         res.json({ status: true, message: 'All business data has been reset', data: { tables: TABLES_TO_RESET } });
     } catch (err) {
         await client.query('ROLLBACK');
-        res.status(500).json({ status: false, message: err.message, data: null });
+        sendServerError(res, err);
     } finally {
         client.release();
     }

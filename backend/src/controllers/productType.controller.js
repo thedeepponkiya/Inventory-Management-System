@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const ProductTypeModel = require('../models/productType.model');
 
 async function getProductTypes(req, res) {
@@ -5,7 +6,7 @@ async function getProductTypes(req, res) {
     const productTypes = await ProductTypeModel.getAll();
     res.json({ status: true, message: 'Product types fetched successfully', data: productTypes });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createProductType(req, res) {
     const created = await ProductTypeModel.create(productType, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Product Type created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,7 +54,7 @@ async function updateProductType(req, res) {
     );
     res.json({ status: true, message: 'Product Type updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -69,7 +70,7 @@ async function deleteProductType(req, res) {
     await ProductTypeModel.remove(id);
     res.json({ status: true, message: 'Product Type deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const BomModel = require('../models/bom.model');
 const RawSkuModel = require('../models/rawSku.model');
@@ -14,7 +15,7 @@ async function getBoms(req, res) {
     const boms = await BomModel.getAll();
     res.json({ status: true, message: 'BOMs fetched successfully', data: boms });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -23,7 +24,7 @@ async function getNextBomCode(req, res) {
     const bomCode = await BomModel.generateOrderCode();
     res.json({ status: true, message: 'Order code generated successfully', data: { bomCode } });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -59,7 +60,7 @@ async function createBom(req, res) {
     const created = await BomModel.create(bomCode, fields);
     res.status(201).json({ status: true, message: 'BOM created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -72,6 +73,23 @@ async function updateBom(req, res) {
     }
 
     const body = req.body;
+    // Status can only change via the dedicated Complete/Revert endpoints (completeBom /
+    // revertBomToProcess), which also handle the real stock movement - a plain update that
+    // flips status directly would desync it from Inventory/Raw SKU stock, since nothing here
+    // touches stock. This was previously exploitable: complete (deducts raw stock, credits
+    // finished goods) -> plain update flipping status back to "Process" (no stock reversal)
+    // -> complete again, fabricating finished-goods stock indefinitely.
+    if (body.status && body.status !== existing.status) {
+      return res.status(400).json({ status: false, message: "Use the Complete/Revert actions to change a BOM's status, not a direct update", data: null });
+    }
+    // Once Completed, outputQty/items/productSku are the historical record of exactly what
+    // was produced and consumed - editing them after the fact would corrupt any future revert
+    // (revertBomToProcess recomputes quantities from these same fields), same reasoning as
+    // Purchase/Sales Order locking their items once no longer Draft.
+    if (existing.status === 'Completed' && (body.outputQty !== undefined || body.items !== undefined || body.productSku !== undefined)) {
+      return res.status(400).json({ status: false, message: 'Output quantity, components, and product cannot be edited once a BOM is Completed - revert to Process first', data: null });
+    }
+
     const fields = {
       productSku: body.productSku ?? existing.productSku,
       productName: body.productName ?? existing.productName,
@@ -79,7 +97,7 @@ async function updateBom(req, res) {
       version: body.version ?? existing.version,
       outputQty: body.outputQty ?? existing.outputQty,
       unit: body.unit ?? existing.unit,
-      status: body.status ?? existing.status,
+      status: existing.status,
       items: body.items ?? existing.items,
       createdBy: body.createdBy ?? existing.createdBy,
     };
@@ -87,7 +105,7 @@ async function updateBom(req, res) {
     const updated = await BomModel.update(id, fields);
     res.json({ status: true, message: 'BOM updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -159,7 +177,7 @@ async function completeBom(req, res) {
     res.json({ status: true, message: 'BOM marked as Completed successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -209,7 +227,7 @@ async function revertBomToProcess(req, res) {
     res.json({ status: true, message: 'BOM reverted to Process successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -247,7 +265,7 @@ async function deleteBom(req, res) {
     res.json({ status: true, message: 'BOM deleted successfully', data: null });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }

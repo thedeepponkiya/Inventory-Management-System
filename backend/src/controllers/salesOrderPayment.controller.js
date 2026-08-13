@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const SalesOrderModel = require('../models/salesOrder.model');
 const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
@@ -21,7 +22,7 @@ async function getPayments(req, res) {
     const payments = await SalesOrderPaymentModel.getBySoId(id);
     res.json({ status: true, message: 'Payments fetched successfully', data: payments });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -94,7 +95,7 @@ async function addPayment(req, res) {
     res.status(201).json({ status: true, message: 'Payment recorded successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -132,7 +133,7 @@ async function deletePayment(req, res) {
     res.json({ status: true, message: 'Payment deleted successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
