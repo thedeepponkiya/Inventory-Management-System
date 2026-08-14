@@ -5,7 +5,6 @@ import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
-import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
 import {
     HiOutlinePlus,
@@ -463,18 +462,6 @@ const InventoryHome = () => {
                                                 ) : props.placeholder}
                                                 placeholder="Select location"
                                             />
-                                        </div>
-                                    </div>
-                                    <div className="form-field">
-                                        <label>Status</label>
-                                        <div className="inventory-home-status-row">
-                                            <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
-                                            <div className="inventory-home-status-text">
-                                                <span className="inventory-home-status-title">{form.status === 'Active' ? 'Active' : 'Inactive'}</span>
-                                                <span className="inventory-home-status-desc">
-                                                    {form.status === 'Active' ? 'Item will be active and available for use.' : 'Item will be inactive and hidden.'}
-                                                </span>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
