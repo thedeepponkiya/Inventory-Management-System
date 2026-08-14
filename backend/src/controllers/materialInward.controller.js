@@ -201,14 +201,18 @@ async function createMaterialInward(req, res) {
 
     await client.query('COMMIT');
 
+    // Best-effort, deliberately OUTSIDE the transaction and after COMMIT: the Material
+    // Inward save must succeed regardless of whether invoice auto-generation works. The
+    // failure is still surfaced to the caller via `warning` (not just console.error'd) so it
+    // doesn't silently vanish - the frontend shows it alongside the success toast.
+    let invoiceWarning = null;
     try {
-      // Best-effort, deliberately OUTSIDE the transaction and after COMMIT: the Material
-      // Inward save must succeed regardless of whether invoice auto-generation works.
       await createInvoiceFromMaterialInward(created);
     } catch (invoiceErr) {
       console.error('Failed to auto-generate invoice for material inward', created.id, invoiceErr);
+      invoiceWarning = 'Material inward saved, but its Purchase Invoice could not be auto-generated. Please create it manually from the Invoices page.';
     }
-    res.status(201).json({ status: true, message: 'Material inward created successfully', data: created });
+    res.status(201).json({ status: true, message: 'Material inward created successfully', data: created, warning: invoiceWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });

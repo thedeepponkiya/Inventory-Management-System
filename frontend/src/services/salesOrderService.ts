@@ -103,6 +103,10 @@ interface ApiResponse<T> {
     status: boolean;
     message: string;
     data: T;
+    // Set when the dispatch itself succeeded but a best-effort side effect (the
+    // auto-generated Sales Invoice) failed - see salesOrder.controller.js's
+    // dispatchSalesOrder. Absent/null on every other endpoint.
+    warning?: string | null;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -111,6 +115,14 @@ async function parseResponse<T>(response: Response): Promise<T> {
         throw new Error(result.message ?? 'Request failed');
     }
     return result.data;
+}
+
+async function parseResponseWithWarning<T>(response: Response): Promise<{ data: T; warning: string | null }> {
+    const result: ApiResponse<T> = await response.json();
+    if (!response.ok || !result.status) {
+        throw new Error(result.message ?? 'Request failed');
+    }
+    return { data: result.data, warning: result.warning ?? null };
 }
 
 // Postgres NUMERIC columns come back from `pg` as strings - coerce right after the fetch,
@@ -174,13 +186,14 @@ export async function startProcessingSalesOrder(id: number): Promise<SalesOrder>
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
-export async function dispatchSalesOrder(id: number, items: DispatchShipment[]): Promise<SalesOrder> {
+export async function dispatchSalesOrder(id: number, items: DispatchShipment[]): Promise<{ data: SalesOrder; warning: string | null }> {
     const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
     });
-    return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
+    const result = await parseResponseWithWarning<SalesOrder>(response);
+    return { data: normalizeSalesOrder(result.data), warning: result.warning };
 }
 
 export async function revertDispatchSalesOrder(id: number): Promise<SalesOrder> {

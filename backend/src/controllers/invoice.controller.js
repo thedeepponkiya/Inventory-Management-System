@@ -1,7 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const InvoiceModel = require('../models/invoice.model');
 const LocationModel = require('../models/location.model');
-const { derivePaymentStatus } = require('../utils/orderTotals');
+const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
 function round2(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -63,6 +63,44 @@ async function createInvoiceFromMaterialInward(materialInward) {
     paymentStatus: 'Unpaid',
     remarks: null,
     createdBy: materialInward.receivedBy,
+  });
+}
+
+// Auto-generates a Sales invoice from the items just shipped in one dispatchSalesOrder call
+// (see salesOrder.controller.js) - mirrors createInvoiceFromMaterialInward's role on the
+// Purchase side: goods actually moving is what should trigger billing, not the order being
+// placed/confirmed. `shippedItems` carries each line's shipQty in its own `orderedQty` field
+// so computeOrderTotals (shared with Purchase/Sales Order/Material Inward) can total just the
+// quantity shipped in this dispatch, not the whole order - a partial shipment only invoices
+// for what actually went out, and a later dispatch of the remainder gets its own invoice.
+async function createInvoiceFromSalesOrder(salesOrder, shippedItems) {
+  const invoiceNo = await InvoiceModel.getNextInvoiceNo();
+  const totals = computeOrderTotals(shippedItems);
+
+  return InvoiceModel.create(invoiceNo, {
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    invoiceType: 'Sales',
+    referenceNo: salesOrder.soNo,
+    materialInwardNo: null,
+    customerSupplier: salesOrder.customerName,
+    location: salesOrder.deliveryAddress || null,
+    totalQty: totals.totalQty,
+    subTotal: totals.subTotal,
+    unitPrice: 0,
+    discountPercent: 0,
+    discountAmount: totals.discountAmount,
+    gstPercent: 0,
+    gstAmount: totals.gstAmount,
+    freightCharge: 0,
+    otherCharges: 0,
+    grandTotal: totals.grandTotal,
+    paidAmount: 0,
+    dueAmount: totals.grandTotal,
+    dueDate: null,
+    paymentTerms: null,
+    paymentStatus: 'Unpaid',
+    remarks: null,
+    createdBy: salesOrder.createdBy,
   });
 }
 
@@ -185,4 +223,4 @@ async function deleteInvoice(req, res) {
   }
 }
 
-module.exports = { createInvoiceFromMaterialInward, getInvoices, createInvoice, updateInvoice, deleteInvoice };
+module.exports = { createInvoiceFromMaterialInward, createInvoiceFromSalesOrder, getInvoices, createInvoice, updateInvoice, deleteInvoice };

@@ -3,6 +3,7 @@ const pool = require('../config/db');
 const SalesOrderModel = require('../models/salesOrder.model');
 const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
 const InventoryModel = require('../models/inventory.model');
+const { createInvoiceFromSalesOrder } = require('./invoice.controller');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
 // Dispatch (below) tracks ship quantity per line keyed by skuId, both in this controller's
@@ -264,7 +265,26 @@ async function dispatchSalesOrder(req, res) {
       status: allShipped ? 'Dispatched' : 'Partially Shipped',
     }, client);
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Items dispatched successfully', data: updated });
+
+    // Best-effort, deliberately OUTSIDE the transaction and after COMMIT - dispatch must
+    // succeed regardless of whether invoice auto-generation works, mirroring
+    // materialInward.controller.js's createInvoiceFromMaterialInward treatment. Only the
+    // quantity actually shipped in THIS call is invoiced (shipMap, not the full order), so a
+    // partial shipment doesn't get billed for what's still pending.
+    let invoiceWarning = null;
+    const shippedItems = existing.items
+      .filter((item) => (shipMap.get(item.skuId) || 0) > 0)
+      .map((item) => ({ ...item, orderedQty: shipMap.get(item.skuId) }));
+    if (shippedItems.length > 0) {
+      try {
+        await createInvoiceFromSalesOrder(updated, shippedItems);
+      } catch (invoiceErr) {
+        console.error('Failed to auto-generate invoice for sales order dispatch', updated.id, invoiceErr);
+        invoiceWarning = 'Items dispatched successfully, but the Sales Invoice could not be auto-generated. Please create it manually from the Invoices page.';
+      }
+    }
+
+    res.json({ status: true, message: 'Items dispatched successfully', data: updated, warning: invoiceWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);

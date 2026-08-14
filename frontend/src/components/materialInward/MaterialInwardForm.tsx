@@ -374,8 +374,9 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                 await updateMaterialInward(existingMi.id, payload);
                 showToast(toast, 'success', 'Updated', 'Material inward updated successfully');
             } else {
-                await createMaterialInward(payload);
+                const { warning } = await createMaterialInward(payload);
                 showToast(toast, 'success', 'Created', 'Material inward created successfully');
+                if (warning) showToast(toast, 'warn', 'Invoice not generated', warning, 6000);
             }
             fetchMaterialInwards();
             // Saving an inward against a PO also updates that PO's received/pending qty and

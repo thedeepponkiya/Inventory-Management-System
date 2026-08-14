@@ -188,7 +188,7 @@ const SalesOrderForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditRoute = Boolean(id);
-    const { inventories, customers, users, salesOrders, salesOrdersLoading, fetchSalesOrders, fetchInventories } = useContext(AppContext);
+    const { inventories, customers, users, salesOrders, salesOrdersLoading, fetchSalesOrders, fetchInventories, fetchInvoices } = useContext(AppContext);
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const { dateFormat } = useDateFormatContext();
 
@@ -620,10 +620,14 @@ const SalesOrderForm = () => {
             return;
         }
         try {
-            await dispatchSalesOrder(existingSo.id, shipments);
+            const { warning } = await dispatchSalesOrder(existingSo.id, shipments);
             showToast(toast, 'success', 'Dispatched', 'Items dispatched successfully');
+            if (warning) showToast(toast, 'warn', 'Invoice not generated', warning, 6000);
             fetchSalesOrders();
             fetchInventories();
+            // Dispatching also auto-generates a Sales Invoice server-side (see
+            // salesOrder.controller.js) - refetch so it shows up on /invoices immediately.
+            fetchInvoices();
             setDispatchDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
         } catch (err) {
             showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
