@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const PurchaseOrderModel = require('../models/purchaseOrder.model');
 const PurchaseOrderPaymentModel = require('../models/purchaseOrderPayment.model');
@@ -19,7 +20,7 @@ async function getPayments(req, res) {
     const payments = await PurchaseOrderPaymentModel.getByPoId(id);
     res.json({ status: true, message: 'Payments fetched successfully', data: payments });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -74,7 +75,11 @@ async function addPayment(req, res) {
         paymentDate: req.body.paymentDate,
         paymentMethod: req.body.paymentMethod || null,
         remarks: req.body.remarks || null,
-        recordedBy: req.body.recordedBy || 'Admin User',
+        // Whoever is actually recording this payment right now, from the authenticated
+        // session - not trusted from the request body. approvedBy stays request-driven: it's
+        // a free-text/autocomplete field on the form naming a DIFFERENT person (the approver),
+        // not necessarily whoever is logged in and recording the payment.
+        recordedBy: req.user.userName,
         paymentTerms: req.body.paymentTerms || null,
         approvedBy: req.body.approvedBy || null,
         approvedAt: req.body.approvedAt || null,
@@ -94,7 +99,7 @@ async function addPayment(req, res) {
     res.status(201).json({ status: true, message: 'Payment recorded successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -134,7 +139,7 @@ async function deletePayment(req, res) {
     res.json({ status: true, message: 'Payment deleted successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }

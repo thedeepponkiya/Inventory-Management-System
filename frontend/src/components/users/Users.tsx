@@ -23,7 +23,7 @@ import {
     HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createUser, updateUser, deleteUser, uploadUserImage, type User, type UserPayload } from '../../services/userService';
@@ -59,6 +59,7 @@ const Users = () => {
     const { users, usersLoading, fetchUsers } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, roleId: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState<UserFormState>(emptyForm);
@@ -175,7 +176,10 @@ const Users = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, roleId: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, roleId: DEFAULT_DATA_TYPE_VALUE.NULL, status: DEFAULT_DATA_TYPE_VALUE.NULL });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -188,15 +192,16 @@ const Users = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add User" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add User" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchUsers} loading={usersLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchUsers} loading={usersLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredUsers}
                 columns={columns}
                 loading={usersLoading}

@@ -7,7 +7,7 @@ import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createProductType, updateProductType, deleteProductType, type ProductType as ProductTypeModel, type ProductTypePayload } from '../../services/productTypeService';
@@ -29,6 +29,7 @@ const ProductType = () => {
     const { productTypes, productTypesLoading, fetchProductTypes } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState(emptyForm);
@@ -97,7 +98,10 @@ const ProductType = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -110,15 +114,16 @@ const ProductType = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Product Type" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Product Type" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchProductTypes} loading={productTypesLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchProductTypes} loading={productTypesLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredProductTypes}
                 columns={columns}
                 loading={productTypesLoading}
@@ -131,7 +136,7 @@ const ProductType = () => {
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingId ? 'Edit Product Type' : 'Add New Product Type'}
-                style={{ width: '520px' }}
+                style={{ width: '520px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />

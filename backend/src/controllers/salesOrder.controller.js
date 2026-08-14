@@ -1,7 +1,9 @@
+const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const SalesOrderModel = require('../models/salesOrder.model');
 const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
 const InventoryModel = require('../models/inventory.model');
+const { createInvoiceFromSalesOrder } = require('./invoice.controller');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
 // Dispatch (below) tracks ship quantity per line keyed by skuId, both in this controller's
@@ -24,7 +26,7 @@ async function getSalesOrders(req, res) {
     const salesOrders = await SalesOrderModel.getAll();
     res.json({ status: true, message: 'Sales orders fetched successfully', data: salesOrders });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -65,13 +67,15 @@ async function createSalesOrder(req, res) {
       items,
       ...totals,
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
     };
 
     const created = await SalesOrderModel.create(soNo, fields);
     res.status(201).json({ status: true, message: 'Sales order created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -122,7 +126,7 @@ async function updateSalesOrder(req, res) {
     const updated = await SalesOrderModel.update(id, fields);
     res.json({ status: true, message: 'Sales order updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -162,7 +166,7 @@ async function confirmSalesOrder(req, res) {
     const updated = await SalesOrderModel.update(id, { ...existing, status: 'Confirmed' });
     res.json({ status: true, message: 'Sales order confirmed successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -180,7 +184,7 @@ async function startProcessing(req, res) {
     const updated = await SalesOrderModel.update(id, { ...existing, status: 'Processing' });
     res.json({ status: true, message: 'Sales order moved to Processing', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -217,7 +221,13 @@ async function dispatchSalesOrder(req, res) {
       await client.query('ROLLBACK');
       return res.status(400).json({ status: false, message: 'Provide at least one item to ship', data: null });
     }
-    const shipMap = new Map(shipments.map((s) => [s.skuId, Number(s.shipQty) || 0]));
+    // Summed (not new Map(shipments.map(...)), which silently keeps only the LAST entry for
+    // a repeated skuId and drops the rest) - a client-supplied payload with two entries for
+    // the same skuId should combine them, not quietly lose one.
+    const shipMap = new Map();
+    for (const s of shipments) {
+      shipMap.set(s.skuId, (shipMap.get(s.skuId) || 0) + (Number(s.shipQty) || 0));
+    }
 
     // Validate everything before touching any stock, so a failure partway through never
     // leaves some lines shipped and others rejected.
@@ -255,10 +265,29 @@ async function dispatchSalesOrder(req, res) {
       status: allShipped ? 'Dispatched' : 'Partially Shipped',
     }, client);
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Items dispatched successfully', data: updated });
+
+    // Best-effort, deliberately OUTSIDE the transaction and after COMMIT - dispatch must
+    // succeed regardless of whether invoice auto-generation works, mirroring
+    // materialInward.controller.js's createInvoiceFromMaterialInward treatment. Only the
+    // quantity actually shipped in THIS call is invoiced (shipMap, not the full order), so a
+    // partial shipment doesn't get billed for what's still pending.
+    let invoiceWarning = null;
+    const shippedItems = existing.items
+      .filter((item) => (shipMap.get(item.skuId) || 0) > 0)
+      .map((item) => ({ ...item, orderedQty: shipMap.get(item.skuId) }));
+    if (shippedItems.length > 0) {
+      try {
+        await createInvoiceFromSalesOrder(updated, shippedItems);
+      } catch (invoiceErr) {
+        console.error('Failed to auto-generate invoice for sales order dispatch', updated.id, invoiceErr);
+        invoiceWarning = 'Items dispatched successfully, but the Sales Invoice could not be auto-generated. Please create it manually from the Invoices page.';
+      }
+    }
+
+    res.json({ status: true, message: 'Items dispatched successfully', data: updated, warning: invoiceWarning });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -298,7 +327,7 @@ async function revertDispatch(req, res) {
     res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   } finally {
     client.release();
   }
@@ -321,7 +350,7 @@ async function cancelSalesOrder(req, res) {
     const updated = await SalesOrderModel.update(id, { ...existing, status: 'Cancelled' });
     res.json({ status: true, message: 'Sales order cancelled successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -339,7 +368,7 @@ async function deleteSalesOrder(req, res) {
     await SalesOrderModel.remove(id);
     res.json({ status: true, message: 'Sales order deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

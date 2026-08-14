@@ -12,8 +12,43 @@
     border-bottom: 1px solid var(--border-default);
 }
 
+.app-header-title-group {
+    min-width: 0;
+}
+
 .app-header-title-block {
     min-width: 0;
+}
+
+/* Hidden on desktop - shown at the same breakpoint SideBarNavigation.css switches the sidebar
+   to an off-canvas drawer (900px), so a trigger is always available whenever the sidebar isn't
+   already on-screen. A normal flex child of .app-header (not position:fixed) so it vertically
+   centers against whatever's next to it automatically, instead of needing hand-tuned pixel
+   offsets that break every time the header's own content height changes. */
+.app-header-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    margin-right: 10px;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+}
+
+.app-header-menu-btn:hover {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+}
+
+@media (max-width: 900px) {
+    .app-header-menu-btn {
+        display: flex;
+    }
 }
 
 .app-header-back-btn {
@@ -119,10 +154,34 @@
     overflow: hidden;
 }
 
+.app-header-mobile-title {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.app-header-mobile-text {
+    min-width: 0;
+}
+
+.app-header-mobile-text h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 @media (max-width: 700px) {
-    .app-header-brand,
-    .app-header-crumb-sep {
+    .app-header-title-block {
         display: none;
+    }
+
+    .app-header-mobile-title {
+        display: flex;
     }
 }
 

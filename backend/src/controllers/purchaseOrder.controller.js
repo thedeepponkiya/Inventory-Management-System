@@ -1,5 +1,7 @@
+const { sendServerError } = require('../utils/errorResponse');
 const PurchaseOrderModel = require('../models/purchaseOrder.model');
 const PurchaseOrderPaymentModel = require('../models/purchaseOrderPayment.model');
+const MaterialInwardModel = require('../models/materialInward.model');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
 const VALID_STATUSES = ['Draft', 'Sent', 'Received', 'Cancelled'];
@@ -22,7 +24,7 @@ async function getPurchaseOrders(req, res) {
     const purchaseOrders = await PurchaseOrderModel.getAll();
     res.json({ status: true, message: 'Purchase orders fetched successfully', data: purchaseOrders });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -59,13 +61,16 @@ async function createPurchaseOrder(req, res) {
       items,
       ...totals,
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - the
+      // frontend never actually sent this, which is why every record showed the literal
+      // 'Admin User' fallback regardless of who was actually logged in.
+      createdBy: req.user.userName,
     };
 
     const created = await PurchaseOrderModel.create(poNo, fields);
     res.status(201).json({ status: true, message: 'Purchase order created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -120,7 +125,7 @@ async function updatePurchaseOrder(req, res) {
     const updated = await PurchaseOrderModel.update(id, fields);
     res.json({ status: true, message: 'Purchase order updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -131,11 +136,20 @@ async function deletePurchaseOrder(req, res) {
     if (!existing) {
       return res.status(404).json({ status: false, message: 'Purchase order not found', data: null });
     }
+    // ims_material_inward."purchaseOrderId" references this table with no ON DELETE clause
+    // (default RESTRICT), so deleting a PO that already has receipts against it would
+    // otherwise throw a raw, unhandled Postgres FK-violation straight back to the client -
+    // this gives a clean, actionable message instead, same reasoning as deleteSalesOrder's
+    // status guard.
+    const inwardCount = await MaterialInwardModel.countByPurchaseOrder(id);
+    if (inwardCount > 0) {
+      return res.status(400).json({ status: false, message: 'This purchase order has Material Inward records against it and cannot be deleted - delete those first', data: null });
+    }
 
     await PurchaseOrderModel.remove(id);
     res.json({ status: true, message: 'Purchase order deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

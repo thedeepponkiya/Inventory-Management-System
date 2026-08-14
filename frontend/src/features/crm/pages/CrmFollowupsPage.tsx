@@ -3,7 +3,7 @@ import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlineTrash } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
-import DataTable, { type ColumnConfig } from '../../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useFollowupsQuery, useUpdateFollowup, useDeleteFollowup } from '../hooks/useFollowupsQuery';
@@ -22,6 +22,7 @@ interface FollowupRow extends CrmFollowup {
 
 const CrmFollowupsPage = () => {
     const toast = useRef<Toast>(null);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const { data: followups = [], isLoading } = useFollowupsQuery();
     const { data: leads = [] } = useLeadsQuery();
     const updateFollowup = useUpdateFollowup();
@@ -132,10 +133,13 @@ const CrmFollowupsPage = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: '', status: null })}
+                onReset={() => {
+                    setFilters({ search: '', status: null });
+                    dataTableRef.current?.clearFilters();
+                }}
                 quickActions={crmQuickActions}
             />
-            <DataTable value={filteredRows} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
+            <DataTable ref={dataTableRef} value={filteredRows} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
             <LeadDetailDrawer
                 visible={!!drawerLead}
                 lead={drawerLead ? (leads.find((l) => l.id === drawerLead.id) ?? drawerLead) : null}

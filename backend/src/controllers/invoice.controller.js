@@ -1,5 +1,35 @@
+const { sendServerError } = require('../utils/errorResponse');
 const InvoiceModel = require('../models/invoice.model');
 const LocationModel = require('../models/location.model');
+const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
+
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+// Unlike Purchase/Sales Order, an Invoice has no items array of its own to recompute a total
+// from - its subTotal/discountAmount/gstAmount/freightCharge/otherCharges are trusted as
+// entered (same as before), but grandTotal/dueAmount/paymentStatus are now always DERIVED
+// from those instead of separately trusted from the request body, closing the gap where a
+// client could previously save e.g. paidAmount = grandTotal while paymentStatus stayed
+// 'Unpaid', or set paidAmount above grandTotal for a negative dueAmount with nothing to catch
+// it - matching the same "recompute, don't trust the client" treatment orderTotals.js already
+// gives Purchase/Sales Order/Material Inward.
+function deriveInvoiceFinancials({ subTotal, discountAmount, gstAmount, freightCharge, otherCharges, paidAmount }) {
+  const grandTotal = round2((Number(subTotal) || 0) - (Number(discountAmount) || 0) + (Number(gstAmount) || 0) + (Number(freightCharge) || 0) + (Number(otherCharges) || 0));
+  const paid = round2(paidAmount);
+  if (paid > grandTotal) {
+    const err = new Error(`Paid amount (${paid}) cannot exceed the invoice's grand total (${grandTotal})`);
+    err.statusCode = 400;
+    throw err;
+  }
+  return {
+    grandTotal,
+    paidAmount: paid,
+    dueAmount: round2(grandTotal - paid),
+    paymentStatus: derivePaymentStatus(paid, grandTotal),
+  };
+}
 
 // Auto-generates a Purchase invoice from a just-created Material Inward (create-only - see
 // materialInward.controller.js's createMaterialInward). After this the invoice is its own
@@ -36,12 +66,50 @@ async function createInvoiceFromMaterialInward(materialInward) {
   });
 }
 
+// Auto-generates a Sales invoice from the items just shipped in one dispatchSalesOrder call
+// (see salesOrder.controller.js) - mirrors createInvoiceFromMaterialInward's role on the
+// Purchase side: goods actually moving is what should trigger billing, not the order being
+// placed/confirmed. `shippedItems` carries each line's shipQty in its own `orderedQty` field
+// so computeOrderTotals (shared with Purchase/Sales Order/Material Inward) can total just the
+// quantity shipped in this dispatch, not the whole order - a partial shipment only invoices
+// for what actually went out, and a later dispatch of the remainder gets its own invoice.
+async function createInvoiceFromSalesOrder(salesOrder, shippedItems) {
+  const invoiceNo = await InvoiceModel.getNextInvoiceNo();
+  const totals = computeOrderTotals(shippedItems);
+
+  return InvoiceModel.create(invoiceNo, {
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    invoiceType: 'Sales',
+    referenceNo: salesOrder.soNo,
+    materialInwardNo: null,
+    customerSupplier: salesOrder.customerName,
+    location: salesOrder.deliveryAddress || null,
+    totalQty: totals.totalQty,
+    subTotal: totals.subTotal,
+    unitPrice: 0,
+    discountPercent: 0,
+    discountAmount: totals.discountAmount,
+    gstPercent: 0,
+    gstAmount: totals.gstAmount,
+    freightCharge: 0,
+    otherCharges: 0,
+    grandTotal: totals.grandTotal,
+    paidAmount: 0,
+    dueAmount: totals.grandTotal,
+    dueDate: null,
+    paymentTerms: null,
+    paymentStatus: 'Unpaid',
+    remarks: null,
+    createdBy: salesOrder.createdBy,
+  });
+}
+
 async function getInvoices(req, res) {
   try {
     const invoices = await InvoiceModel.getAll();
     res.json({ status: true, message: 'Invoices fetched successfully', data: invoices });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,6 +121,14 @@ async function createInvoice(req, res) {
     }
 
     const invoiceNo = await InvoiceModel.getNextInvoiceNo();
+    const financials = deriveInvoiceFinancials({
+      subTotal: req.body.subTotal || 0,
+      discountAmount: req.body.discountAmount || 0,
+      gstAmount: req.body.gstAmount || 0,
+      freightCharge: req.body.freightCharge || 0,
+      otherCharges: req.body.otherCharges || 0,
+      paidAmount: req.body.paidAmount || 0,
+    });
     const fields = {
       invoiceDate,
       invoiceType: req.body.invoiceType || 'Purchase',
@@ -69,20 +145,19 @@ async function createInvoice(req, res) {
       gstAmount: req.body.gstAmount || 0,
       freightCharge: req.body.freightCharge || 0,
       otherCharges: req.body.otherCharges || 0,
-      grandTotal: req.body.grandTotal || 0,
-      paidAmount: req.body.paidAmount || 0,
-      dueAmount: req.body.dueAmount || 0,
+      ...financials,
       dueDate: req.body.dueDate || null,
       paymentTerms: req.body.paymentTerms || null,
-      paymentStatus: req.body.paymentStatus || 'Unpaid',
       remarks: req.body.remarks || null,
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
     };
 
     const created = await InvoiceModel.create(invoiceNo, fields);
     res.status(201).json({ status: true, message: 'Invoice created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
   }
 }
 
@@ -95,6 +170,14 @@ async function updateInvoice(req, res) {
     }
 
     const body = req.body;
+    const financials = deriveInvoiceFinancials({
+      subTotal: body.subTotal ?? existing.subTotal,
+      discountAmount: body.discountAmount ?? existing.discountAmount,
+      gstAmount: body.gstAmount ?? existing.gstAmount,
+      freightCharge: body.freightCharge ?? existing.freightCharge,
+      otherCharges: body.otherCharges ?? existing.otherCharges,
+      paidAmount: body.paidAmount ?? existing.paidAmount,
+    });
     const fields = {
       invoiceDate: body.invoiceDate ?? existing.invoiceDate,
       invoiceType: body.invoiceType ?? existing.invoiceType,
@@ -111,12 +194,9 @@ async function updateInvoice(req, res) {
       gstAmount: body.gstAmount ?? existing.gstAmount,
       freightCharge: body.freightCharge ?? existing.freightCharge,
       otherCharges: body.otherCharges ?? existing.otherCharges,
-      grandTotal: body.grandTotal ?? existing.grandTotal,
-      paidAmount: body.paidAmount ?? existing.paidAmount,
-      dueAmount: body.dueAmount ?? existing.dueAmount,
+      ...financials,
       dueDate: body.dueDate ?? existing.dueDate,
       paymentTerms: body.paymentTerms ?? existing.paymentTerms,
-      paymentStatus: body.paymentStatus ?? existing.paymentStatus,
       remarks: body.remarks ?? existing.remarks,
       createdBy: body.createdBy ?? existing.createdBy,
     };
@@ -124,7 +204,7 @@ async function updateInvoice(req, res) {
     const updated = await InvoiceModel.update(id, fields);
     res.json({ status: true, message: 'Invoice updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
   }
 }
 
@@ -139,8 +219,8 @@ async function deleteInvoice(req, res) {
     await InvoiceModel.remove(id);
     res.json({ status: true, message: 'Invoice deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
-module.exports = { createInvoiceFromMaterialInward, getInvoices, createInvoice, updateInvoice, deleteInvoice };
+module.exports = { createInvoiceFromMaterialInward, createInvoiceFromSalesOrder, getInvoices, createInvoice, updateInvoice, deleteInvoice };

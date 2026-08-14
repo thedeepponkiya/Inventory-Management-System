@@ -2,9 +2,10 @@ import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlinePlus, HiOutlineArrowDownTray, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
+import { FaRegFilePdf } from 'react-icons/fa6';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
@@ -18,11 +19,12 @@ import './SalesOrder.css';
 
 const SalesOrder = () => {
     const navigate = useNavigate();
-    const { salesOrders, salesOrdersLoading, fetchSalesOrders } = useContext(AppContext);
+    const { salesOrders, salesOrdersLoading, fetchSalesOrders, users } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
 
     const filterFields: FilterField[] = [
@@ -36,11 +38,11 @@ const SalesOrder = () => {
         });
     }, [salesOrders, filters]);
 
-    const columns = getSalesOrderColumns(dateFormat, (so) => navigate(`/sales-order/${so.id}`));
+    const columns = getSalesOrderColumns(dateFormat, users, (so) => navigate(`/sales-order/${so.id}`));
 
     const actionTemplate = getActionBodyTemplate<SalesOrderType>({
         icons: [{
-            icon: HiOutlineArrowDownTray,
+            icon: FaRegFilePdf,
             title: 'Export PDF',
             onClick: (so) => exportSalesOrderPdf(so, companyLogo, { companyName, address }),
         }],
@@ -62,7 +64,10 @@ const SalesOrder = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -75,15 +80,16 @@ const SalesOrder = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add Sales Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/sales-order/new')} outlined />
+                        <Button className="filter-bar-add-btn" label="Add Sales Order" icon={<HiOutlinePlus className="mr-2" />} onClick={() => navigate('/sales-order/new')} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchSalesOrders} loading={salesOrdersLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchSalesOrders} loading={salesOrdersLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredSalesOrders}
                 columns={columns}
                 loading={salesOrdersLoading}

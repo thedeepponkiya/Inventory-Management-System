@@ -21,6 +21,10 @@ import { useAuthContext } from './AuthContextDefinition';
 const AppContextProvider = (props: any) => {
     const { isAuthenticated } = useAuthContext();
     const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    // Mobile off-canvas sidebar drawer open/closed - lifted up here (rather than local state in
+    // SideBarNavigation.tsx) so Header.tsx's hamburger button can open the same drawer from a
+    // sibling component.
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [locations, setLocations] = React.useState<Location[]>([]);
     const [locationsLoading, setLocationsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [categories, setCategories] = React.useState<Category[]>([]);
@@ -191,6 +195,8 @@ const AppContextProvider = (props: any) => {
                 value={{
                     setIsSidePanelOpen,
                     isSidePanelOpen,
+                    isMobileSidebarOpen,
+                    setIsMobileSidebarOpen,
                     locations,
                     locationsLoading,
                     fetchLocations,

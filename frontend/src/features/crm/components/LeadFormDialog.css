@@ -159,3 +159,10 @@
     gap: 10px;
     width: 100%;
 }
+
+@media (max-width: 560px) {
+    .lead-form-row,
+    .lead-form-row--triple {
+        grid-template-columns: 1fr;
+    }
+}

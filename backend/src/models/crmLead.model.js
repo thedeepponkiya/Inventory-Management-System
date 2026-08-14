@@ -121,15 +121,27 @@ async function remove(id) {
 // and a cross-stage move in one call, since either way the target stage ends up with a fully
 // known final order. The stage the lead left doesn't need renumbering - a gap in its
 // sortOrder sequence doesn't affect sorting, it's just no longer contiguous.
+// Runs as one transaction (previously a Promise.all of independent autocommit UPDATEs) - if
+// one query in the batch failed (e.g. a stale/deleted lead id in the payload), the ones that
+// had already completed were never rolled back, leaving leads with an inconsistent
+// sortOrder/stageId mix reflecting neither the old nor the fully-intended new order.
 async function reorderStage(stageId, orderedLeadIds) {
-  await Promise.all(
-    orderedLeadIds.map((id, index) =>
-      pool.query(
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const [index, id] of orderedLeadIds.entries()) {
+      await client.query(
         `UPDATE ${TABLE} SET "stageId" = $1, "sortOrder" = $2, "updatedAt" = now() WHERE id = $3`,
         [stageId, index, id]
-      )
-    )
-  );
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = { getAll, findById, findByMetaLeadId, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };

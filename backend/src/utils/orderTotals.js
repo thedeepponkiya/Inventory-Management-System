@@ -36,15 +36,26 @@ function computeOrderTotals(items) {
     gstAmount += lineGst;
   }
 
-  const grandTotal = subTotal - discountAmount + gstAmount;
+  // Round each stored component FIRST, then combine those already-rounded values into
+  // grandTotal - not the other way around. Rounding subTotal/discountAmount/gstAmount
+  // independently for storage while computing grandTotal from the raw unrounded sums (the
+  // previous behavior) meant round2(subTotal) - round2(discount) + round2(gst) could differ
+  // from the stored grandTotal by a cent whenever a line's percentage produced a repeating
+  // decimal - so a PDF/invoice summing the displayed component fields wouldn't always foot
+  // exactly to the displayed grand total. Rounding first guarantees the three stored fields
+  // always sum to exactly the stored grandTotal.
+  const roundedSubTotal = round2(subTotal);
+  const roundedDiscountAmount = round2(discountAmount);
+  const roundedGstAmount = round2(gstAmount);
+  const grandTotal = round2(roundedSubTotal - roundedDiscountAmount + roundedGstAmount);
 
   return {
     totalItems: (items || []).length,
     totalQty,
-    subTotal: round2(subTotal),
-    discountAmount: round2(discountAmount),
-    gstAmount: round2(gstAmount),
-    grandTotal: round2(grandTotal),
+    subTotal: roundedSubTotal,
+    discountAmount: roundedDiscountAmount,
+    gstAmount: roundedGstAmount,
+    grandTotal,
   };
 }
 

@@ -28,11 +28,20 @@ const crmCampaignRoutes = require('./routes/crmCampaign.routes');
 const crmTagRoutes = require('./routes/crmTag.routes');
 const crmMetaIntegrationRoutes = require('./routes/crmMetaIntegration.routes');
 const developerAdminSettingsRoutes = require('./routes/developerAdminSettings.routes');
+const databaseResetRoutes = require('./routes/databaseReset.routes');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// OpenLiteSpeed exposes this API under /backend/
+app.use((req, res, next) => {
+  if (req.url === '/backend' || req.url.startsWith('/backend/')) {
+    req.url = req.url.substring('/backend'.length) || '/';
+  }
+  next();
+});
 
 // Serves uploaded product images (backend/uploads/products) - the DB only ever stores this
 // relative path (e.g. /uploads/products/xxx.jpg), never the file itself.
@@ -73,5 +82,6 @@ app.use('/api/v1/crm/campaigns', crmCampaignRoutes);
 app.use('/api/v1/crm/tags', crmTagRoutes);
 app.use('/api/v1/crm/meta', crmMetaIntegrationRoutes);
 app.use('/api/v1/developer-admin-settings', developerAdminSettingsRoutes);
+app.use('/api/v1/developer-admin/database-reset', databaseResetRoutes);
 
 module.exports = app;

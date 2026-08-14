@@ -496,7 +496,7 @@ const PurchaseOrderForm = () => {
     // function call during render (even though getActionBodyTemplate only ever invokes it
     // later, from inside a real onClick). Assigning the render function directly here, so
     // the ref is only ever touched from within an actual onClick handler, sidesteps that.
-    const paymentColumns = getPurchaseOrderPaymentColumns(dateFormat);
+    const paymentColumns = getPurchaseOrderPaymentColumns(dateFormat, users);
     const paymentActionTemplate = (payment: PurchaseOrderPayment) => (
         <div className="data-table-actions">
             <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDeletePayment(payment)} />
@@ -765,7 +765,7 @@ const PurchaseOrderForm = () => {
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={editingItemRowId ? 'Edit Item' : 'Add Item'}
-                style={{ width: '540px' }}
+                style={{ width: '540px', maxWidth: '95vw' }}
                 className="po-item-dialog"
                 footer={
                     <>
@@ -901,7 +901,7 @@ const PurchaseOrderForm = () => {
                 visible={paymentDialogVisible}
                 onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header="Add Payment"
-                style={{ width: '480px' }}
+                style={{ width: '480px', maxWidth: '95vw' }}
                 className="po-item-dialog"
                 footer={
                     <>

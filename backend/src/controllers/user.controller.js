@@ -1,22 +1,42 @@
+const { sendServerError } = require('../utils/errorResponse');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
 
 const SALT_ROUNDS = 10;
+
+// Mirrors frontend/src/common/commonFunctions/CommonUtilities.tsx's ROLE_OPTIONS - the only
+// roles the Users page's own dropdown ever offers. 'Super Admin' is deliberately NOT in this
+// list (it's only ever assigned directly in the DB, for the one hidden account - see
+// backend/src/db/schema.sql / the session notes on the hidden Super Admin account), so a
+// direct API call setting roleId: 'Super Admin' would otherwise let ANY authenticated user
+// grant themselves (or anyone) full elevated status - this app has no other RBAC, isHidden is
+// the one gate that exists, so only an already-isHidden caller may assign a role outside this
+// whitelist.
+const VALID_ROLES = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Accounts User'];
+
+function isRoleAssignmentAllowed(req, roleId) {
+  if (!roleId) return true;
+  if (VALID_ROLES.includes(roleId)) return true;
+  return Boolean(req.user?.isHidden);
+}
 
 async function getUsers(req, res) {
   try {
     const users = await UserModel.getAll();
     res.json({ status: true, message: 'Users fetched successfully', data: users });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
 async function createUser(req, res) {
   try {
-    const { fullName, email, phone, password, roleId, departmentId, profileImage, status, createdBy } = req.body;
+    const { fullName, email, phone, password, roleId, departmentId, profileImage, status } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ status: false, message: 'fullName, email and password are required', data: null });
+    }
+    if (!isRoleAssignmentAllowed(req, roleId)) {
+      return res.status(403).json({ status: false, message: `roleId must be one of: ${VALID_ROLES.join(', ')}`, data: null });
     }
 
     const duplicate = await UserModel.findByEmail(email);
@@ -37,11 +57,13 @@ async function createUser(req, res) {
       departmentId,
       profileImage,
       status: status || 'Active',
-      createdBy: createdBy || 'Admin User',
+      // Whoever (the admin) is actually creating this account, from the authenticated
+      // session - not trusted from the request body.
+      createdBy: req.user.userName,
     });
     res.status(201).json({ status: true, message: 'User created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,6 +75,9 @@ async function updateUser(req, res) {
     const existing = await UserModel.findById(id);
     if (!existing) {
       return res.status(404).json({ status: false, message: 'User not found', data: null });
+    }
+    if (!isRoleAssignmentAllowed(req, roleId)) {
+      return res.status(403).json({ status: false, message: `roleId must be one of: ${VALID_ROLES.join(', ')}`, data: null });
     }
 
     if (email) {
@@ -81,7 +106,7 @@ async function updateUser(req, res) {
 
     res.json({ status: true, message: 'User updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -92,10 +117,20 @@ async function deleteUser(req, res) {
     if (!existing) {
       return res.status(404).json({ status: false, message: 'User not found', data: null });
     }
+    // Two lockout guards, since this app has no other way to recover from either: deleting
+    // your own account mid-session, or a regular user deleting the one hidden Super Admin
+    // account (only that account itself, i.e. already isHidden, may delete it).
+    if (String(existing.id) === String(req.user?.id)) {
+      return res.status(400).json({ status: false, message: 'You cannot delete your own account', data: null });
+    }
+    // findById's SAFE_SELECT deliberately omits isHidden, so it's looked up separately here.
+    if ((await UserModel.isUserHidden(id)) && !req.user?.isHidden) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete this account', data: null });
+    }
     await UserModel.remove(id);
     res.json({ status: true, message: 'User deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

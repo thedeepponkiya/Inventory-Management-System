@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const CrmNoteModel = require('../models/crmNote.model');
 
 async function getNotes(req, res) {
@@ -9,7 +10,7 @@ async function getNotes(req, res) {
     const notes = await CrmNoteModel.getByLead(leadId);
     res.json({ status: true, message: 'Notes fetched successfully', data: notes });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -22,7 +23,7 @@ async function createNote(req, res) {
     const created = await CrmNoteModel.create({ leadId, body, createdBy: null });
     res.status(201).json({ status: true, message: 'Note added successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -36,7 +37,7 @@ async function deleteNote(req, res) {
     await CrmNoteModel.remove(id);
     res.json({ status: true, message: 'Note deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

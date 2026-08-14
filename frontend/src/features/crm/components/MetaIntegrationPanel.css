@@ -77,3 +77,9 @@
     gap: 10px;
     flex-wrap: wrap;
 }
+
+@media (max-width: 560px) {
+    .meta-integration-row {
+        grid-template-columns: 1fr;
+    }
+}

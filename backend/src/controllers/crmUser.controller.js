@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const UserModel = require('../models/user.model');
 
 // Deliberately minimal read-only list for CRM's Assigned-To dropdown only (Module 2).
@@ -8,7 +9,7 @@ async function getAssignableUsers(req, res) {
     const users = await UserModel.getAllBasic();
     res.json({ status: true, message: 'Users fetched successfully', data: users });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

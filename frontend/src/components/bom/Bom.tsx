@@ -12,15 +12,15 @@ import {
     HiOutlinePlus,
     HiOutlineCheckCircle,
     HiOutlinePrinter,
-    HiOutlineArrowDownTray,
     HiOutlineTrash,
     HiOutlineArrowUturnLeft,
     HiOutlineExclamationTriangle,
     HiOutlineCheckBadge,
     HiOutlineArrowPath,
 } from 'react-icons/hi2';
+import { FaRegFilePdf } from 'react-icons/fa6';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
@@ -74,6 +74,7 @@ const Bom = () => {
     const { companyName, address } = useCompanySettingsContext();
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState<BomForm>(emptyForm);
@@ -234,7 +235,7 @@ const Bom = () => {
 
     const menuItems = [
         { label: 'Print', icon: 'pi pi-print', command: () => menuBom && printBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
-        { label: 'Download', icon: 'pi pi-download', command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
+        { label: 'Download', icon: <FaRegFilePdf className="bom-download-icon" />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
     ];
 
     const columns = getBomColumns(dateFormat, openEditDialog);
@@ -294,7 +295,10 @@ const Bom = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -307,15 +311,16 @@ const Bom = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add BOM" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add BOM" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchBoms} loading={bomsLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchBoms} loading={bomsLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredBoms}
                 columns={columns}
                 loading={bomsLoading}
@@ -439,7 +444,7 @@ const Bom = () => {
                     <>
                         <Button label="Close" outlined onClick={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)} />
                         <Button label="Print" icon={<HiOutlinePrinter className="mr-2" />} outlined onClick={() => recipeBom && printBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
-                        <Button label="Download" icon={<HiOutlineArrowDownTray className="mr-2" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
+                        <Button label="Download" icon={<FaRegFilePdf className="mr-2 bom-download-icon" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
                     </>
                 }
             >

@@ -51,7 +51,6 @@ const sidebarMenuItems: VisibilityItem[] = [
     { label: 'Unit', path: '/unit' },
     { label: 'Vendor', path: '/vendor' },
     { label: 'Customer', path: '/customer' },
-    { label: 'Transactions', path: '/transactions' },
     { label: 'Invoices', path: '/invoices' },
     { label: 'Reports', path: '/reports' },
     { label: 'Users', path: '/users' },

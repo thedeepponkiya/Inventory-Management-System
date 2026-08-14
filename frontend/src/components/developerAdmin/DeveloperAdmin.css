@@ -121,3 +121,29 @@
     font-size: 13px;
     color: var(--text-subtle);
 }
+
+@media (max-width: 800px) {
+    .app-content > .developer-admin-page {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .developer-admin-menu {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .developer-admin-menu-item {
+        flex-shrink: 0;
+    }
+
+    .developer-admin-toolbar {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .developer-admin-content {
+        padding: 20px;
+    }
+}

@@ -108,9 +108,57 @@
     min-width: 160px;
 }
 
-.filter-bar-clear-btn.p-button.p-button-outlined {
-    border: none;
+/* Boxed square look for the "clear filters" and "refresh" icon buttons, matching the
+   reference design - shared here (not per-page) so every page using FilterBar gets the
+   same look on desktop, not just the mobile-only version each page already had. */
+.filter-bar-clear-btn.p-button,
+.filter-bar-refresh-btn.p-button {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 10px;
+    color: var(--accent-info-text) !important;
+    background: var(--surface-card) !important;
 }
-.filter-bar-clear-btn.p-button.p-button-outlined:not(:disabled):hover {
-    border: none;
+
+.filter-bar-clear-btn.p-button:not(:disabled):hover,
+.filter-bar-refresh-btn.p-button:not(:disabled):hover {
+    background: var(--accent-info-bg) !important;
+    color: var(--accent-info-text) !important;
+}
+
+@media (max-width: 700px) {
+    .filter-bar {
+        padding: 10px 12px;
+    }
+
+    .filter-bar-quick-actions {
+        width: 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 4px;
+        padding-bottom: 2px;
+    }
+
+    .filter-bar-quick-action {
+        flex-direction: column;
+        flex-shrink: 0;
+        gap: 4px;
+        min-width: 64px;
+        padding: 8px 6px 6px;
+        text-align: center;
+        border-radius: 10px;
+        border-bottom: 2px solid transparent;
+    }
+
+    .filter-bar-quick-action--active {
+        background: var(--accent-info-bg);
+        border: 1px solid transparent;
+        border-bottom: 2px solid #2563eb;
+    }
+
+    .filter-bar-search {
+        width: 100%;
+    }
 }

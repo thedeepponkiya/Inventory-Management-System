@@ -60,6 +60,15 @@ async function findById(id) {
   return result.rows[0];
 }
 
+// SAFE_SELECT deliberately omits isHidden (it's only meant to drive list-visibility
+// filtering, not be echoed back in normal API responses) - this is a narrow, dedicated lookup
+// for user.controller.js's deleteUser guard, which needs to know specifically whether the
+// target account is the hidden Super Admin before allowing deletion.
+async function isUserHidden(id) {
+  const result = await pool.query(`SELECT "isHidden" FROM ${TABLE} WHERE id = $1`, [id]);
+  return Boolean(result.rows[0]?.isHidden);
+}
+
 async function getNextUserCode() {
   const result = await pool.query(
     `SELECT COALESCE(MAX(CAST(SUBSTRING("userCode" FROM 5) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "userCode" ~ '^USR-[0-9]+$'`
@@ -104,6 +113,7 @@ module.exports = {
   getAllBasic,
   getAll,
   findById,
+  isUserHidden,
   getNextUserCode,
   create,
   update,

@@ -6,10 +6,11 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
+import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
 import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
@@ -60,6 +61,7 @@ const RawSku = () => {
     const { rawSkus, rawSkusLoading, fetchRawSkus, categories, productTypes, units, locations } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [form, setForm] = useState<RawSkuForm>(emptyForm);
@@ -236,7 +238,10 @@ const RawSku = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -249,15 +254,16 @@ const RawSku = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                        <Button className="filter-bar-add-btn" label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchRawSkus} loading={rawSkusLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchRawSkus} loading={rawSkusLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredSkus}
                 columns={columns}
                 loading={rawSkusLoading}
@@ -370,6 +376,18 @@ const RawSku = () => {
                         <div className="form-field">
                             <label>Description (Optional)</label>
                             <InputTextarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Enter description" />
+                        </div>
+                        <div className="form-field">
+                            <label>Status</label>
+                            <div className="raw-sku-status-row">
+                                <InputSwitch checked={form.status === 'Active'} onChange={(e) => setForm({ ...form, status: e.value ? 'Active' : 'Inactive' })} />
+                                <div className="raw-sku-status-text">
+                                    <span className="raw-sku-status-title">{form.status === 'Active' ? 'Active' : 'Inactive'}</span>
+                                    <span className="raw-sku-status-desc">
+                                        {form.status === 'Active' ? 'SKU will be active and available for use.' : 'SKU will be inactive and hidden.'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

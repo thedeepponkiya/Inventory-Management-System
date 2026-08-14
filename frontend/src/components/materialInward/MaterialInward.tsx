@@ -3,7 +3,7 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
-import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { deleteMaterialInward, type MaterialInward as MaterialInwardType } from '../../services/materialInwardService';
@@ -14,9 +14,10 @@ import MaterialInwardForm from './MaterialInwardForm';
 import './MaterialInward.css';
 
 const MaterialInward = () => {
-    const { materialInwards, materialInwardsLoading, fetchMaterialInwards } = useContext(AppContext);
+    const { materialInwards, materialInwardsLoading, fetchMaterialInwards, users } = useContext(AppContext);
     const { dateFormat } = useDateFormatContext();
     const toast = useRef<Toast>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [dialogVisible, setDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -42,7 +43,7 @@ const MaterialInward = () => {
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const columns = getMaterialInwardColumns(dateFormat, openEditDialog);
+    const columns = getMaterialInwardColumns(dateFormat, users, openEditDialog);
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<MaterialInwardType>({
         getId: (row) => row.id,
@@ -60,7 +61,10 @@ const MaterialInward = () => {
                 fields={filterFields}
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
-                onReset={() => setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING })}
+                onReset={() => {
+                    setFilters({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
+                    dataTableRef.current?.clearFilters();
+                }}
                 actions={
                     <>
                         {selectedRows.length > 0 && (
@@ -73,15 +77,16 @@ const MaterialInward = () => {
                                 outlined
                             />
                         )}
-                        <Button label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} size="small" outlined />
+                        <Button className="filter-bar-add-btn" label="Create" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} size="small" outlined />
                     </>
                 }
                 trailingActions={
-                    <Button icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchMaterialInwards} loading={materialInwardsLoading} aria-label="Refresh" title="Refresh" />
+                    <Button className="filter-bar-refresh-btn" icon={<HiOutlineArrowPath />} outlined size="small" onClick={fetchMaterialInwards} loading={materialInwardsLoading} aria-label="Refresh" title="Refresh" />
                 }
             />
 
             <DataTable
+                ref={dataTableRef}
                 value={filteredMaterialInwards}
                 columns={columns}
                 loading={materialInwardsLoading}

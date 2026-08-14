@@ -7,11 +7,21 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    /* A flex item's default min-width is "auto" (its content's min-content size), which lets
+       a wide table force this whole element wider than whatever container it's sitting in
+       (e.g. a narrower flex-column card on the Dashboard) instead of staying put and letting
+       .p-datatable-wrapper's own overflow-x:auto scroll the excess internally. */
+    min-width: 0;
 }
 
 .app-data-table .p-datatable-wrapper {
     flex: 1 1 auto;
     min-height: 0;
+    /* Same min-width:auto flexbox gap as .app-data-table.p-datatable above, one level deeper -
+       this wrapper is itself a flex item in that same column-direction flex context, so it
+       also needs min-width:0 to actually shrink to the card's width instead of growing to fit
+       the <table>'s full intrinsic width and overflowing its own parent. */
+    min-width: 0;
 }
 
 .app-data-table .p-datatable-thead > tr > th {
@@ -185,12 +195,13 @@
     padding: 0;
 }
 
-/* The emptymessage <td> spans colSpan = total column count, so its rendered width is the
-   sum of every column's width - often much wider than the visible scroll viewport (hence
-   the horizontal scrollbar on wide tables). Centering with width:100% would center against
-   that full underlying width, landing off-screen unless the user scrolls all the way over.
-   position: sticky + left: 50% + translateX(-50%) instead centers against the scroll
-   container's VISIBLE viewport, regardless of how wide the table's real content is. */
+/* The emptymessage <td> spans colSpan = total column count, so its rendered width is the sum
+   of every column's width - potentially wider than the visible viewport on a wide/scrollable
+   table (hence the horizontal scrollbar). Base rule here just centers with margin:auto, which
+   is correct for a non-scrollable table (paginator={false} - see DataTable.tsx's `scrollable`
+   prop, wired straight to `paginator`; e.g. the Product Assembly / PO/SO/Material Inward line-
+   item grids) - those never render PrimeReact's own .p-datatable-wrapper scroll container, so
+   there's no wide underlying content to center against in the first place. */
 .app-data-table-empty {
     display: flex;
     flex-direction: column;
@@ -200,11 +211,23 @@
     padding: 48px 24px;
     height: 100%;
     min-height: 320px;
+    width: max-content;
+    max-width: 90vw;
+    margin: 0 auto;
+}
+
+/* Scrollable tables (paginator={true}, the normal case for every page-level list) DO render
+   .p-datatable-wrapper with its own overflow-x scroll - there, centering with margin:auto
+   would center against the full underlying (often much wider) table content, landing off-
+   screen unless the user scrolls all the way over. position: sticky + left: 50% +
+   translateX(-50%) instead centers against the scroll container's VISIBLE viewport, regardless
+   of how wide the table's real content is. Higher specificity than the base rule above, so it
+   only kicks in when that wrapper is actually present. */
+.p-datatable-wrapper .app-data-table-empty {
     position: sticky;
     left: 50%;
     transform: translateX(-50%);
-    width: max-content;
-    max-width: 90vw;
+    margin: 0;
 }
 
 .app-data-table-empty-illustration {
@@ -227,4 +250,13 @@
     margin: 0;
     max-width: 320px;
     line-height: 1.5;
+}
+
+/* Column-level opt-out (ColumnConfig.hideOnMobile) - the table still works via horizontal
+   scroll on mobile/tablet regardless, this just curates which columns a page has explicitly
+   decided aren't worth showing by default below the tablet width. */
+@media (max-width: 900px) {
+    .app-data-table-col-hide-mobile {
+        display: none;
+    }
 }

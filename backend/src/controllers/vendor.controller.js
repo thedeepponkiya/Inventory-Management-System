@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const VendorModel = require('../models/vendor.model');
 
 async function getVendors(req, res) {
@@ -5,7 +6,7 @@ async function getVendors(req, res) {
     const vendors = await VendorModel.getAll();
     res.json({ status: true, message: 'Vendors fetched successfully', data: vendors });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createVendor(req, res) {
     const created = await VendorModel.create(vendorName, email, phoneNumber, address, city, zipCode);
     res.status(201).json({ status: true, message: 'Vendor created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -56,7 +57,7 @@ async function updateVendor(req, res) {
     );
     res.json({ status: true, message: 'Vendor updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -72,7 +73,7 @@ async function deleteVendor(req, res) {
     await VendorModel.remove(id);
     res.json({ status: true, message: 'Vendor deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

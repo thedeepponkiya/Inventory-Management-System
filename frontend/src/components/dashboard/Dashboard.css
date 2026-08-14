@@ -52,6 +52,139 @@
     overflow: hidden;
 }
 
+/* The fixed height + overflow:hidden above exists only to keep .dashboard-main-col and
+   .dashboard-side-col's cards row-height-matched in the desktop 2-column grid (see the
+   comment above) - .dashboard-grid already collapses to a single column at this same 1100px
+   breakpoint, so there's no side-by-side row to match anymore and the constraint just clips
+   content instead (e.g. the header wrapping onto 2 lines - see the 700px block below - ate
+   into the fixed budget and pushed the paginator/last row outside the clipped box). */
+@media (max-width: 1100px) {
+    .dashboard-main-col > .dashboard-card,
+    .dashboard-side-col > .dashboard-card {
+        height: auto;
+        overflow: visible;
+    }
+}
+
+/* Recent Sales Orders: swaps its DataTable for a plain stacked list (same markup/classes as
+   LowStockAlerts' own list view - see .dashboard-low-stock-item etc. below) below 700px,
+   rather than trying to make a wide multi-column PrimeReact table fit a narrow card. Both are
+   always rendered; only one is ever visible at a given width. */
+.dashboard-recent-orders-list {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .dashboard-recent-orders-table {
+        display: none;
+    }
+
+    .dashboard-recent-orders-list {
+        display: flex;
+        flex-direction: column;
+        /* ~5 rows (each ~76px: 52px icon + 24px padding) before scrolling internally. */
+        max-height: 380px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+}
+
+.dashboard-recent-order-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+}
+
+.dashboard-recent-order-item:first-child {
+    padding-top: 0;
+}
+
+.dashboard-recent-order-item:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.dashboard-recent-order-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 12px;
+}
+
+.dashboard-recent-order-icon--neutral {
+    background: var(--surface-subtle-2);
+    color: var(--text-muted);
+}
+
+.dashboard-recent-order-icon--success {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.dashboard-recent-order-icon--info {
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.dashboard-recent-order-icon--warning {
+    background: var(--accent-warning-bg);
+    color: var(--accent-warning-text);
+}
+
+.dashboard-recent-order-icon--purple {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
+}
+
+.dashboard-recent-order-icon--danger {
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
+}
+
+.dashboard-recent-order-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.dashboard-recent-order-no {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dashboard-recent-order-customer {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.dashboard-recent-order-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    margin-top: 4px;
+}
+
+.dashboard-recent-order-meta {
+    flex-shrink: 0;
+    text-align: right;
+}
+
+.dashboard-recent-order-total {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
 .dashboard-card {
     background: var(--surface-card);
     border-radius: 16px;
@@ -92,6 +225,9 @@
 }
 
 .dashboard-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     font-size: 13px;
     font-weight: 600;
     color: #2563eb;
@@ -151,6 +287,46 @@
     color: var(--text-subtle);
     font-size: 14px;
     pointer-events: none;
+}
+
+/* Every dashboard card's header (title + search/link actions) was a single non-wrapping flex
+   row with the search box pinned to a fixed 200px - on a narrow phone that left no room for
+   the title, cutting off both the title and the search placeholder text (see e.g. Recent
+   Sales Orders). Stacks the header and lets the search box size to whatever's actually
+   available instead of a fixed width. Scoped to only headers that actually have a
+   .dashboard-card-header-actions row (Recent Sales Orders, MaterialInwardAnalytics,
+   OrdersTrend) - a header with just a title + plain "View all" link (Low Stock Alerts) has
+   nothing to stack for and was left with "View all" oddly left-aligned on its own line. */
+@media (max-width: 700px) {
+    .dashboard-card-header:has(.dashboard-card-header-actions) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .dashboard-card-header-actions {
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .dashboard-card-header-actions .dashboard-search {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    .dashboard-card .app-data-table .p-paginator {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding: 10px 8px;
+    }
+
+    .dashboard-card .app-data-table .p-paginator .p-paginator-current {
+        order: 3;
+        width: 100%;
+        text-align: center;
+        margin-left: 0;
+    }
 }
 
 .dashboard-chart-type-toggle {
@@ -227,7 +403,41 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dashboard-low-stock-item:first-child {
+    padding-top: 0;
+}
+
+.dashboard-low-stock-item:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.dashboard-low-stock-thumb {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    object-fit: cover;
+    padding: 4px;
+}
+
+.dashboard-low-stock-thumb--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-subtle-2);
+    color: var(--text-subtle);
+}
+
+.dashboard-low-stock-info {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .dashboard-low-stock-name {
@@ -242,6 +452,7 @@
 }
 
 .dashboard-low-stock-meta {
+    flex-shrink: 0;
     text-align: right;
     min-width: 110px;
 }

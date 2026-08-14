@@ -12,3 +12,26 @@
     gap: 10px;
     margin-bottom: 12px;
 }
+
+.dashboard-low-stock-view--hidden {
+    display: none;
+}
+
+/* Table view doesn't fit a narrow mobile card any better here than it did on the Dashboard's
+   Recent Sales Orders card - hides the toggle button so it can't be selected, and forces the
+   list view regardless of whatever `viewMode` state was already set (e.g. from resizing down
+   out of desktop's Table view) via !important, since the inline dashboard-low-stock-view--
+   hidden class this overrides is applied conditionally in JS and has equal specificity. */
+@media (max-width: 700px) {
+    .dashboard-low-stock-table-toggle {
+        display: none;
+    }
+
+    .dashboard-low-stock-table-view {
+        display: none !important;
+    }
+
+    .dashboard-low-stock-list {
+        display: flex !important;
+    }
+}

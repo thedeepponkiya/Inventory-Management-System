@@ -1,5 +1,5 @@
 import { authFetch } from './httpClient';
-const API_BASE_URL = 'http://localhost:5000/api/v1';
+import { API_BASE_URL } from './apiConfig';
 
 export interface MaterialInwardItem {
     skuId: string;
@@ -79,6 +79,10 @@ interface ApiResponse<T> {
     status: boolean;
     message: string;
     data: T;
+    // Set when the primary save succeeded but a best-effort side effect (e.g. the
+    // auto-generated Purchase Invoice) failed - see materialInward.controller.js's
+    // createMaterialInward. Absent/null on every other endpoint.
+    warning?: string | null;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -87,6 +91,14 @@ async function parseResponse<T>(response: Response): Promise<T> {
         throw new Error(result.message ?? 'Request failed');
     }
     return result.data;
+}
+
+async function parseResponseWithWarning<T>(response: Response): Promise<{ data: T; warning: string | null }> {
+    const result: ApiResponse<T> = await response.json();
+    if (!response.ok || !result.status) {
+        throw new Error(result.message ?? 'Request failed');
+    }
+    return { data: result.data, warning: result.warning ?? null };
 }
 
 // Postgres NUMERIC columns come back from `pg` as strings (same issue already fixed
@@ -111,13 +123,14 @@ export async function getMaterialInwards(): Promise<MaterialInward[]> {
     return data.map(normalizeMaterialInward);
 }
 
-export async function createMaterialInward(payload: MaterialInwardPayload): Promise<MaterialInward> {
+export async function createMaterialInward(payload: MaterialInwardPayload): Promise<{ data: MaterialInward; warning: string | null }> {
     const response = await authFetch(`${API_BASE_URL}/material-inwards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
     });
-    return normalizeMaterialInward(await parseResponse<MaterialInward>(response));
+    const result = await parseResponseWithWarning<MaterialInward>(response);
+    return { data: normalizeMaterialInward(result.data), warning: result.warning };
 }
 
 export async function updateMaterialInward(id: number, payload: Partial<MaterialInwardPayload>): Promise<MaterialInward> {

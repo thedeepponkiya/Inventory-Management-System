@@ -1,9 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../../../services/apiConfig';
 
-// Hardcoded base URL, matching every existing services/*.ts file in this app (no .env/
-// import.meta.env usage exists anywhere in this frontend today).
 const crmAxiosClient = axios.create({
-    baseURL: 'http://localhost:5000/api/v1/crm',
+    baseURL: `${API_BASE_URL}/crm`,
     headers: { 'Content-Type': 'application/json' },
 });
 

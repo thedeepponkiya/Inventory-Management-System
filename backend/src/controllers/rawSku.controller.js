@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const RawSkuModel = require('../models/rawSku.model');
 const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
 
@@ -6,7 +7,7 @@ async function getRawSkus(req, res) {
     const rawSkus = await RawSkuModel.getAll();
     res.json({ status: true, message: 'Raw SKUs fetched successfully', data: rawSkus });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -15,7 +16,7 @@ async function getNextSkuCode(req, res) {
     const skuCode = await RawSkuModel.getNextSkuCode();
     res.json({ status: true, message: 'Next SKU code fetched successfully', data: { skuCode } });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -45,14 +46,16 @@ async function createRawSku(req, res) {
       currentStock: req.body.currentStock ?? openingStock,
       description: req.body.description || null,
       status: req.body.status || 'Active',
-      createdBy: req.body.createdBy || 'Admin User',
+      // Derived from the authenticated session, not trusted from the request body - see
+      // purchaseOrder.controller.js's identical fix for why.
+      createdBy: req.user.userName,
       images: req.body.images || [],
     };
 
     const created = await RawSkuModel.create(skuCode, fields);
     res.status(201).json({ status: true, message: 'Raw SKU created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -78,7 +81,13 @@ async function updateRawSku(req, res) {
       maxStock: body.maxStock ?? existing.maxStock,
       reorderLevel: body.reorderLevel ?? existing.reorderLevel,
       openingStock: body.openingStock ?? existing.openingStock,
-      currentStock: body.currentStock ?? existing.currentStock,
+      // null (not existing.currentStock) when the client didn't send a value - the model's
+      // UPDATE COALESCEs this against the LIVE column value at write time instead of the
+      // value read here moments earlier, so an unrelated field edit (e.g. just minStock) run
+      // concurrently with a BOM completion/dispatch/material inward touching this same SKU's
+      // stock can no longer silently overwrite that other transaction's stock change with a
+      // stale snapshot.
+      currentStock: body.currentStock ?? null,
       description: body.description ?? existing.description,
       status: body.status ?? existing.status,
       createdBy: body.createdBy ?? existing.createdBy,
@@ -89,7 +98,7 @@ async function updateRawSku(req, res) {
     deleteRemovedImages(existing.images, fields.images);
     res.json({ status: true, message: 'Raw SKU updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -105,7 +114,7 @@ async function deleteRawSku(req, res) {
     deleteAllImages(existing.images);
     res.json({ status: true, message: 'Raw SKU deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

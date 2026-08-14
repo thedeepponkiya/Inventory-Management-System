@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const UnitModel = require('../models/unit.model');
 
 async function getUnits(req, res) {
@@ -5,7 +6,7 @@ async function getUnits(req, res) {
     const units = await UnitModel.getAll();
     res.json({ status: true, message: 'Units fetched successfully', data: units });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -24,7 +25,7 @@ async function createUnit(req, res) {
     const created = await UnitModel.create(unit, status || 'Active', req.body.description || null);
     res.status(201).json({ status: true, message: 'Unit created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -53,7 +54,7 @@ async function updateUnit(req, res) {
     );
     res.json({ status: true, message: 'Unit updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -69,7 +70,7 @@ async function deleteUnit(req, res) {
     await UnitModel.remove(id);
     res.json({ status: true, message: 'Unit deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

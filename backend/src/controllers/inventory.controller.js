@@ -1,3 +1,4 @@
+const { sendServerError } = require('../utils/errorResponse');
 const InventoryModel = require('../models/inventory.model');
 const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
 
@@ -6,7 +7,7 @@ async function getInventories(req, res) {
     const inventories = await InventoryModel.getAll();
     res.json({ status: true, message: 'Inventory items fetched successfully', data: inventories });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -15,7 +16,7 @@ async function getNextSkuId(req, res) {
     const skuId = await InventoryModel.getNextSkuId();
     res.json({ status: true, message: 'Next SKU ID fetched successfully', data: { skuId } });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -49,7 +50,7 @@ async function createInventory(req, res) {
     const created = await InventoryModel.create(skuId, fields);
     res.status(201).json({ status: true, message: 'Inventory item created successfully', data: created });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -68,7 +69,12 @@ async function updateInventory(req, res) {
       categoryName: body.categoryName ?? existing.categoryName,
       productType: body.productType ?? existing.productType,
       barcode: body.barcode ?? existing.barcode,
-      quantity: body.quantity ?? existing.quantity,
+      // null (not existing.quantity) when the client didn't send a value - the model's UPDATE
+      // COALESCEs this against the LIVE column value at write time instead of the value read
+      // here moments earlier, so an unrelated field edit run concurrently with a BOM
+      // completion/dispatch touching this same item's stock can't silently overwrite it with
+      // a stale snapshot. Same fix as rawSku.controller.js's updateRawSku.
+      quantity: body.quantity ?? null,
       unit: body.unit ?? existing.unit,
       locationName: body.locationName ?? existing.locationName,
       status: body.status ?? existing.status,
@@ -84,7 +90,7 @@ async function updateInventory(req, res) {
     deleteRemovedImages(existing.images, fields.images);
     res.json({ status: true, message: 'Inventory item updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 
@@ -100,7 +106,7 @@ async function deleteInventory(req, res) {
     deleteAllImages(existing.images);
     res.json({ status: true, message: 'Inventory item deleted successfully', data: null });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message, data: null });
+    sendServerError(res, err);
   }
 }
 

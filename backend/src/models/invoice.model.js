@@ -12,10 +12,15 @@ async function findById(id) {
   return result.rows[0];
 }
 
+// MAX-based (not COUNT-based) - see rawSku.model.js's getNextSkuCode for why COUNT(*)+1
+// silently collides with an already-used number whenever the sequence has any gap.
 async function getNextInvoiceNo() {
   const year = new Date().getFullYear();
-  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE} WHERE "invoiceNo" LIKE $1`, [`INV-${year}-%`]);
-  const nextSeq = Number(result.rows[0].count) + 1;
+  const result = await pool.query(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("invoiceNo" FROM 10) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "invoiceNo" ~ $1`,
+    [`^INV-${year}-[0-9]+$`]
+  );
+  const nextSeq = Number(result.rows[0].maxSeq) + 1;
   return `INV-${year}-${String(nextSeq).padStart(6, '0')}`;
 }
 
