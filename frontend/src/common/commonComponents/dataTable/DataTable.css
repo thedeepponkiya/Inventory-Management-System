@@ -152,7 +152,7 @@
 }
 
 .app-data-table .p-paginator .p-paginator-page.p-highlight {
-    background: #2563eb !important;
+    background: var(--accent-primary) !important;
     color: #ffffff !important;
     border-radius: 6px;
 }

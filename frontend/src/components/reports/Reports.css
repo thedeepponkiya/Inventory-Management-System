@@ -49,8 +49,8 @@
 
 .reports-tabbar-tab--active {
     background: transparent;
-    color: #2563eb;
-    border: 1px solid #2563eb;
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
 }
 
 .reports-tabbar-actions {

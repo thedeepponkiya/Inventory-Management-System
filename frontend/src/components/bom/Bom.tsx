@@ -235,7 +235,7 @@ const Bom = () => {
 
     const menuItems = [
         { label: 'Print', icon: 'pi pi-print', command: () => menuBom && printBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
-        { label: 'Download', icon: <FaRegFilePdf className="bom-download-icon" />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
+        { label: 'Download', icon: <FaRegFilePdf />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
     ];
 
     const columns = getBomColumns(dateFormat, openEditDialog);
@@ -444,7 +444,7 @@ const Bom = () => {
                     <>
                         <Button label="Close" outlined onClick={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)} />
                         <Button label="Print" icon={<HiOutlinePrinter className="mr-2" />} outlined onClick={() => recipeBom && printBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
-                        <Button label="Download" icon={<FaRegFilePdf className="mr-2 bom-download-icon" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
+                        <Button label="Download" icon={<FaRegFilePdf className="mr-2" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
                     </>
                 }
             >

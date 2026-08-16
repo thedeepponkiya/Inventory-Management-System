@@ -44,13 +44,13 @@
 }
 
 .developer-admin-menu-item--active {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
     font-weight: 600;
 }
 
 .developer-admin-menu-item--active:hover {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
 }
 

@@ -74,16 +74,14 @@
     margin-right: 0;
 }
 
-.bom-download-icon {
-    color: var(--accent-danger-text);
-}
-
 .bom-item-qty-needed {
     font-weight: 600;
-    /* Hardcoded (not var(--primary-color)) - PrimeReact's own theme stylesheet loads after
-       themeOverrides.css and wins the :root custom-property tie, so the var resolves to
-       PrimeReact's default blue-500 instead of this app's actual #2563eb brand blue. */
-    color: #2563eb;
+    /* var(--accent-primary), not var(--primary-color) - PrimeReact's own theme stylesheet
+       loads after themeOverrides.css and wins the :root custom-property tie on --primary-*,
+       so that var would resolve to PrimeReact's default blue-500 instead of the app's actual
+       brand accent. --accent-primary is this app's own token (defined in index.css), which
+       PrimeReact's stylesheet has no knowledge of and can't clobber. */
+    color: var(--accent-primary);
 }
 
 .bom-item-qty-needed--insufficient {
@@ -193,7 +191,7 @@
 
 .bom-recipe-qty-needed {
     font-weight: 700;
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 
 @media (max-width: 640px) {
@@ -266,9 +264,9 @@
     }
 
     .bom-page .filter-bar-quick-action--active {
-        border: 1px solid #2563eb;
+        border: 1px solid var(--accent-primary);
         background: var(--accent-info-bg);
-        color: #2563eb;
+        color: var(--accent-primary);
     }
 
     .bom-page .filter-bar-controls {
@@ -323,14 +321,14 @@
     }
 
     .bom-page .filter-bar-add-btn.p-button.p-button-outlined {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
         color: #ffffff;
     }
 
     .bom-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+        background: var(--accent-primary-hover);
+        border-color: var(--accent-primary-hover);
         color: #ffffff;
     }
 

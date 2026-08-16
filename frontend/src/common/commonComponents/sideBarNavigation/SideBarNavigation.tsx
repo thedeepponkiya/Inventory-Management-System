@@ -1,6 +1,8 @@
 import { useContext, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AppContext } from '../../../context/AppContextDefinition';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
+import { isModuleAllowed } from '../../../services/rolePermissionsService';
 import {
     HiOutlineTruck, // Material Inward nav item hidden below
     HiOutlineArchiveBox,
@@ -23,6 +25,7 @@ import {
     HiOutlineChartPie,
     HiOutlineChevronRight,
     HiOutlineChevronDown,
+    HiOutlineChevronDoubleLeft,
 } from 'react-icons/hi2';
 import { BsBoxSeam } from 'react-icons/bs';
 import inventoryLogo from '../../../assets/inventoryLogo.png';
@@ -94,11 +97,15 @@ const crmMenu = {
 };
 
 const SidePanel = () => {
-    const { isSidePanelOpen, setIsSidePanelOpen, isMobileSidebarOpen, setIsMobileSidebarOpen, hiddenSidebarItems } = useContext(AppContext);
+    const { isSidePanelOpen, setIsSidePanelOpen, isMobileSidebarOpen, setIsMobileSidebarOpen, hiddenSidebarItems, rolePermissions } = useContext(AppContext);
+    const { user } = useAuthContext();
     // Admin-controlled (VisibilitySettingsDialog) - covers crmMenu.items too, since every
     // path across navGroups/dashboardItem/crmMenu is globally unique.
     const hiddenPaths: string[] = hiddenSidebarItems ?? [];
-    const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path));
+    // Role-based restriction (rolePermissionsService.ts) - a separate, per-role mechanism on
+    // top of the admin's global hiddenPaths above; an item needs to pass both checks to show.
+    const isAllowedForRole = (path: string) => isModuleAllowed(path, user?.roleId ?? null, user?.isHidden ?? false, rolePermissions ?? {});
+    const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path) && isAllowedForRole(item.path));
     const expanded = isSidePanelOpen;
     // Lifted to AppContext (not local state) so Header.tsx's hamburger button - a proper
     // flex child of the header row, so it always vertically aligns with the title text
@@ -146,10 +153,28 @@ const SidePanel = () => {
                 >
                     <img src={inventoryLogo} alt="Inventory System logo" className="sidebar-logo-icon" width={44} height={43} />
                     <img src={inventoryWordmark} alt="Inventory System" className="sidebar-logo-title" />
+                    {/* Only shown expanded - there's no room for it in the 56px collapsed rail,
+                        and clicking the logo icon itself still re-expands the sidebar from
+                        there. A separate <button> (not the whole .sidebar-logo div) so it gets
+                        its own click target instead of just relying on the div wrapper's. */}
+                    {expanded && (
+                        <button
+                            type="button"
+                            className="sidebar-collapse-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpanded();
+                            }}
+                            aria-label="Collapse sidebar"
+                            title="Collapse sidebar"
+                        >
+                            <HiOutlineChevronDoubleLeft size={16} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="sidebar-items">
-                    {!hiddenPaths.includes(dashboardItem.path) && (
+                    {!hiddenPaths.includes(dashboardItem.path) && isAllowedForRole(dashboardItem.path) && (
                         <NavLink
                             to={dashboardItem.path}
                             end
@@ -163,7 +188,7 @@ const SidePanel = () => {
                     )}
 
                     {navGroups.map((group) => {
-                        const visibleItems = group.items.filter((item) => !hiddenPaths.includes(item.path));
+                        const visibleItems = group.items.filter((item) => !hiddenPaths.includes(item.path) && isAllowedForRole(item.path));
                         // Skip the whole group (divider + label included) once every item in
                         // it has been hidden - otherwise an empty heading with nothing under
                         // it would still show.

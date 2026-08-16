@@ -588,9 +588,9 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>,
     },
-    { field: 'categoryName', header: 'Category', fieldType: 'text', hideOnMobile: true },
-    { field: 'productType', header: 'Product Type', fieldType: 'text', hideOnMobile: true },
-    { field: 'barcode', header: 'Barcode', fieldType: 'text', hideOnMobile: true },
+    { field: 'categoryName', header: 'Category', fieldType: 'text' },
+    { field: 'productType', header: 'Product Type', fieldType: 'text' },
+    { field: 'barcode', header: 'Barcode', fieldType: 'text' },
     {
         field: 'quantity',
         header: 'Current Stock',
@@ -602,10 +602,9 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         // Same design as Finished SKU's Current Stock column (renderStockCell) - lowThreshold
         // here is Min Stock, since Inventory items don't have a separate Reorder Level.
         body: (row) => renderStockCell(row.quantity, row.minStock, row.maxStock, 'inventory-home-stock'),
-        hideOnMobile: true,
     },
-    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
-    { field: 'locationName', header: 'Location', fieldType: 'text', hideOnMobile: true },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    { field: 'locationName', header: 'Location', fieldType: 'text' },
     {
         field: 'status',
         header: 'Status',
@@ -621,12 +620,11 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
             )
             : undefined,
         fieldType: 'status',
-        hideOnMobile: true,
     },
-    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency', hideOnMobile: true },
-    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency', hideOnMobile: true },
-    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
-    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
+    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency' },
+    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency' },
+    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
 ];
 
 export interface AssemblyRow extends AssemblyLine {

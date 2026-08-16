@@ -60,7 +60,7 @@
 }
 
 .sidebar-logo:focus-visible {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
 
@@ -75,6 +75,30 @@
 
 .side-panel--expanded .sidebar-logo-title {
     display: block;
+}
+
+.sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    /* Row is align-items:flex-start (see .sidebar-logo's own comment on why) - align-self
+       overrides just this one child back to vertically centered against the icon/wordmark,
+       instead of pinned to the row's top edge like it was inheriting by default. */
+    align-self: center;
+    margin-left: auto;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.sidebar-collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
 }
 
 .sidebar-items {
@@ -192,12 +216,12 @@
 }
 
 .sidebar-item--active {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
 }
 
 .sidebar-item--active:hover {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
 }
 

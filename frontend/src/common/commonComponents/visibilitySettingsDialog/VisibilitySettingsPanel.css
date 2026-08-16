@@ -398,13 +398,13 @@
 }
 
 .visibility-settings-save {
-    background: #2563eb;
-    border: 1px solid #2563eb;
+    background: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
     color: #ffffff;
 }
 
 .visibility-settings-save:hover {
-    background: #1d4ed8;
+    background: var(--accent-primary-hover);
 }
 
 .visibility-settings-save:disabled {

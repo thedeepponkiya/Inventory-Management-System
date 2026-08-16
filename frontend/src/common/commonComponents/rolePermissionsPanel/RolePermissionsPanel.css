@@ -1,0 +1,163 @@
+.role-permissions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ---- Header ---- */
+.role-permissions-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.role-permissions-header-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.role-permissions-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.role-permissions-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.role-permissions-header-text h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.role-permissions-header-text p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-subtle);
+}
+
+/* ---- Info banner ---- */
+.role-permissions-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    border: 1px solid var(--accent-info-border);
+}
+
+.role-permissions-banner-icon {
+    color: var(--accent-info-text);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.role-permissions-banner strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-info-text);
+    margin-bottom: 3px;
+}
+
+.role-permissions-banner p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* ---- Role select ---- */
+.role-permissions-role-select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+}
+
+.role-permissions-role-select label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.role-permissions-role-dropdown {
+    width: 100%;
+}
+
+.role-permissions-role-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---- Module table ---- */
+.role-permissions-table {
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.role-permissions-table-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--surface-subtle);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+
+.role-permissions-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.role-permissions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--surface-card);
+}
+
+.role-permissions-row + .role-permissions-row {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.role-permissions-row-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.role-permissions-row-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+

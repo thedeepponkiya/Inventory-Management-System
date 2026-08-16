@@ -7,6 +7,20 @@
   chrome in both themes), as is Login.css (rendered before the theme toggle is reachable).
 */
 :root {
+    /* Runtime-mutable brand accent - AccentColorContext sets --accent-primary directly on
+       <html> via style.setProperty(), overriding the #2563eb fallback below. Every other
+       "brand blue" surface in the app (buttons, active nav/tab states, focus rings, checkbox/
+       radio fills, dropdown highlights etc.) derives from this single value via color-mix()
+       so picking a new accent recolors the whole app without touching every file again. */
+    --accent-primary: #2563eb;
+    --accent-primary-hover: color-mix(in srgb, var(--accent-primary) 82%, black);
+    --accent-primary-active: color-mix(in srgb, var(--accent-primary) 68%, black);
+    --accent-primary-deep: color-mix(in srgb, var(--accent-primary) 55%, black);
+    --accent-primary-ring: color-mix(in srgb, var(--accent-primary) 45%, white);
+    --accent-primary-tint-50: color-mix(in srgb, var(--accent-primary) 6%, white);
+    --accent-primary-tint-100: color-mix(in srgb, var(--accent-primary) 15%, white);
+    --accent-primary-tint-200: color-mix(in srgb, var(--accent-primary) 28%, white);
+
     --surface-page: #f9fafc;
     --surface-card: #ffffff;
     --surface-subtle: #f8fafc;
@@ -31,9 +45,12 @@
     --accent-danger-text: #dc2626;
     --accent-warning-bg: #fef3c7;
     --accent-warning-text: #d97706;
-    --accent-info-bg: #dbeafe;
-    --accent-info-text: #2563eb;
-    --accent-info-border: #bfdbfe;
+    /* Doubles as this app's general "soft brand tint" token (icon badges, hover fills,
+       active-chip backgrounds) well beyond literal info-alert usage, so it tracks the
+       accent too - see the comment above --accent-primary. */
+    --accent-info-bg: var(--accent-primary-tint-100);
+    --accent-info-text: var(--accent-primary);
+    --accent-info-border: var(--accent-primary-tint-200);
     --accent-purple-bg: #ede9fe;
     --accent-purple-text: #6d28d9;
 }
@@ -63,9 +80,9 @@
     --accent-danger-text: #f87171;
     --accent-warning-bg: rgba(217, 119, 6, 0.2);
     --accent-warning-text: #fbbf24;
-    --accent-info-bg: rgba(37, 99, 235, 0.22);
-    --accent-info-text: #60a5fa;
-    --accent-info-border: rgba(96, 165, 250, 0.4);
+    --accent-info-bg: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+    --accent-info-text: color-mix(in srgb, var(--accent-primary) 65%, white);
+    --accent-info-border: color-mix(in srgb, var(--accent-primary) 40%, transparent);
     --accent-purple-bg: rgba(109, 40, 217, 0.22);
     --accent-purple-text: #c4b5fd;
 }

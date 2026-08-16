@@ -1,32 +1,36 @@
 /*
   The bundled PrimeReact "lara-light-blue" theme is built on the Tailwind blue
   scale where the resting/primary shade is blue-500 (#3b82f6) and blue-600
-  (#2563eb) is only used for hover states. The whole app's brand color is
-  #2563eb, so every rule below shifts that theme's blue scale one step darker
-  (500->600, 600->700, 700->800, 200->300, 50->100) using the theme's own
-  selectors, keeping hover/focus/highlight relationships intact while making
-  #2563eb the resting color everywhere instead of just a hover accent.
+  (the app's brand blue) is only used for hover states, so every rule below
+  shifts that theme's blue scale one step darker (500->600, 600->700,
+  700->800, 200->300, 50->100) using the theme's own selectors, keeping
+  hover/focus/highlight relationships intact while making the brand color the
+  resting color everywhere instead of just a hover accent.
+
+  Every shade below derives from --accent-primary (defined in index.css and
+  set at runtime by AccentColorContext) via color-mix(), so switching the
+  accent color in Settings recolors every PrimeReact component in one place.
 */
 
 :root {
-    --primary-color: #2563eb;
+    --primary-color: var(--accent-primary);
     --primary-color-text: #ffffff;
-    --primary-50: #eff6ff;
-    --primary-100: #dbeafe;
-    --primary-200: #bfdbfe;
-    --primary-300: #93c5fd;
-    --primary-400: #60a5fa;
-    --primary-500: #2563eb;
-    --primary-600: #1d4ed8;
-    --primary-700: #1e40af;
-    --primary-800: #1e3a8a;
-    --primary-900: #172554;
+    --primary-50: var(--accent-primary-tint-50);
+    --primary-100: var(--accent-primary-tint-100);
+    --primary-200: var(--accent-primary-tint-200);
+    --primary-300: var(--accent-primary-ring);
+    --primary-400: color-mix(in srgb, var(--accent-primary) 70%, white);
+    --primary-500: var(--accent-primary);
+    --primary-600: var(--accent-primary-hover);
+    --primary-700: var(--accent-primary-active);
+    --primary-800: var(--accent-primary-deep);
+    --primary-900: color-mix(in srgb, var(--accent-primary) 40%, black);
 }
 
 /* Buttons (also covers SplitButton / FileUpload's choose button, which reuse .p-button) */
 .p-button {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
     padding: 0.4rem 0.6rem;
     font-size: 12px;
 }
@@ -39,40 +43,40 @@
     height: 1.2rem;
 }
 .p-button:not(:disabled):hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: var(--accent-primary-hover);
+    border-color: var(--accent-primary-hover);
 }
 .p-button:not(:disabled):active {
-    background: #1e40af;
-    border-color: #1e40af;
+    background: var(--accent-primary-active);
+    border-color: var(--accent-primary-active);
 }
 .p-button.p-button-outlined {
     background: transparent;
-    color: #2563eb;
-    border-color: #2563eb;
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 .p-button.p-button-outlined:not(:disabled):hover {
-    background: rgba(37, 99, 235, 0.04);
-    color: #2563eb;
-    border-color: #2563eb;
+    background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 .p-button.p-button-outlined:not(:disabled):active {
-    background: rgba(37, 99, 235, 0.16);
-    color: #2563eb;
-    border-color: #2563eb;
+    background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 .p-button.p-button-text {
     background: transparent;
-    color: #2563eb;
+    color: var(--accent-primary);
     border-color: transparent;
 }
 .p-button.p-button-text:not(:disabled):hover {
-    background: rgba(37, 99, 235, 0.04);
-    color: #2563eb;
+    background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+    color: var(--accent-primary);
 }
 .p-button.p-button-text:not(:disabled):active {
-    background: rgba(37, 99, 235, 0.16);
-    color: #2563eb;
+    background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+    color: var(--accent-primary);
 }
 
 /* No button anywhere shows a box-shadow (PrimeReact's default theme adds a focus-ring glow
@@ -108,12 +112,12 @@
    red is reserved for standalone danger actions like the Cancel Order button itself, not
    this confirm step. */
 .p-button.p-confirm-dialog-accept.p-button-danger {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 .p-button.p-confirm-dialog-accept.p-button-danger:not(:disabled):hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: var(--accent-primary-hover);
+    border-color: var(--accent-primary-hover);
 }
 
 .p-confirm-dialog-message {
@@ -126,20 +130,20 @@
     padding: 0.5rem 0.75rem;
 }
 .p-inputtext:enabled:hover {
-    border-color: #2563eb;
+    border-color: var(--accent-primary);
 }
 .p-inputtext:enabled:focus {
-    box-shadow: 0 0 0 0.2rem #93c5fd;
-    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem var(--accent-primary-ring);
+    border-color: var(--accent-primary);
 }
 
 /* Dropdown */
 .p-dropdown:not(.p-disabled):hover {
-    border-color: #2563eb;
+    border-color: var(--accent-primary);
 }
 .p-dropdown:not(.p-disabled).p-focus {
-    box-shadow: 0 0 0 0.2rem #93c5fd;
-    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem var(--accent-primary-ring);
+    border-color: var(--accent-primary);
 }
 .p-dropdown .p-dropdown-label {
     font-size: 13px;
@@ -153,17 +157,17 @@
     padding: 0.45rem 0.75rem;
 }
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
-    color: #1e40af;
-    background: #dbeafe;
+    color: var(--accent-primary-active);
+    background: var(--accent-primary-tint-100);
 }
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight.p-focus {
-    background: rgba(37, 99, 235, 0.24);
+    background: color-mix(in srgb, var(--accent-primary) 24%, transparent);
 }
 
 /* MultiSelect */
 .p-multiselect:not(.p-disabled).p-focus {
-    box-shadow: 0 0 0 0.2rem #93c5fd;
-    border-color: #2563eb;
+    box-shadow: 0 0 0 0.2rem var(--accent-primary-ring);
+    border-color: var(--accent-primary);
 }
 .p-multiselect .p-multiselect-label {
     font-size: 13px;
@@ -174,56 +178,56 @@
     padding: 0.45rem 0.75rem;
 }
 .p-multiselect-panel .p-multiselect-item.p-highlight {
-    color: #1e40af;
-    background: #dbeafe;
+    color: var(--accent-primary-active);
+    background: var(--accent-primary-tint-100);
 }
 
 /* Toggle switch */
 .p-inputswitch.p-highlight .p-inputswitch-slider {
-    background: #2563eb;
+    background: var(--accent-primary);
 }
 
 /* Checkbox / RadioButton */
 .p-checkbox.p-highlight .p-checkbox-box,
 .p-radiobutton.p-highlight .p-radiobutton-box {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 
 /* TabView (Kit Master detail) */
 .p-tabview .p-tabview-nav li .p-tabview-nav-link:not(.p-disabled):focus-visible {
-    box-shadow: inset 0 0 0 0.2rem #93c5fd;
+    box-shadow: inset 0 0 0 0.2rem var(--accent-primary-ring);
 }
 .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
 }
 
 /* DataTable paginator active page */
 .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
-    background: #dbeafe;
-    border-color: #dbeafe;
-    color: #1e40af;
+    background: var(--accent-primary-tint-100);
+    border-color: var(--accent-primary-tint-100);
+    color: var(--accent-primary-active);
 }
 
 /* Info message / banner */
 .p-message.p-message-info {
-    border-color: #2563eb;
-    color: #1e40af;
+    border-color: var(--accent-primary);
+    color: var(--accent-primary-active);
 }
 .p-message.p-message-info .p-message-icon,
 .p-message.p-message-info .p-message-close {
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 
 /* SelectButton (Settings theme toggle) */
 .p-selectbutton .p-button.p-highlight {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
 }
 .p-selectbutton .p-button.p-highlight:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: var(--accent-primary-hover);
+    border-color: var(--accent-primary-hover);
 }
 
 /* Dialog header / content spacing */
@@ -243,9 +247,9 @@
 /* Calendar month/year nav hover + selected date */
 .p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-year:enabled:hover,
 .p-datepicker .p-datepicker-header .p-datepicker-title .p-datepicker-month:enabled:hover {
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 .p-datepicker table td > span.p-highlight {
-    color: #1e40af;
-    background: #dbeafe;
+    color: var(--accent-primary-active);
+    background: var(--accent-primary-tint-100);
 }

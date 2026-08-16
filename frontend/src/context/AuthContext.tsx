@@ -69,6 +69,7 @@ const AuthContextProvider = ({ children }: { children: ReactNode }) => {
                 email: result.data.email,
                 profileImage: result.data.profileImage ?? DEFAULT_DATA_TYPE_VALUE.NULL,
                 isHidden: result.data.isHidden ?? DEFAULT_DATA_TYPE_VALUE.FALSE,
+                roleId: result.data.roleId ?? DEFAULT_DATA_TYPE_VALUE.NULL,
             };
             setToken(result.data.token);
             setUser(authUser);

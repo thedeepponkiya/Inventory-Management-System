@@ -112,13 +112,13 @@
 }
 
 .app-header-icon-btn--primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
     color: #ffffff;
 }
 
 .app-header-icon-btn--primary:hover {
-    background: #1d4ed8;
+    background: var(--accent-primary-hover);
     color: #ffffff;
 }
 

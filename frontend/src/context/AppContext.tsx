@@ -15,6 +15,7 @@ import { getInventoryItems, type InventoryItem } from '../services/inventoryServ
 import { getBoms, type Bom } from '../services/bomService';
 import { getUsers, type User } from '../services/userService';
 import { getUiVisibility, type UiVisibilityConfig } from '../services/uiVisibilityService';
+import { getRolePermissions, type RolePermissionsConfig } from '../services/rolePermissionsService';
 import { AppContext } from './AppContextDefinition';
 import { useAuthContext } from './AuthContextDefinition';
 
@@ -55,6 +56,8 @@ const AppContextProvider = (props: any) => {
     const [usersLoading, setUsersLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
     const [uiVisibility, setUiVisibility] = React.useState<UiVisibilityConfig | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [uiVisibilityLoading, setUiVisibilityLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    const [rolePermissions, setRolePermissions] = React.useState<RolePermissionsConfig>({});
+    const [rolePermissionsLoading, setRolePermissionsLoading] = React.useState(DEFAULT_DATA_TYPE_VALUE.TRUE);
 
     const fetchLocations = React.useCallback(() => {
         getLocations()
@@ -164,6 +167,15 @@ const AppContextProvider = (props: any) => {
             .finally(() => setUiVisibilityLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
     }, []);
 
+    // Exposed separately (same reasoning as fetchUiVisibility above) so
+    // VisibilitySettingsPanel's role-permissions editor can refetch right after saving.
+    const fetchRolePermissions = React.useCallback(() => {
+        getRolePermissions()
+            .then((data) => setRolePermissions(data))
+            .catch(() => setRolePermissions({}))
+            .finally(() => setRolePermissionsLoading(DEFAULT_DATA_TYPE_VALUE.FALSE));
+    }, []);
+
     // Every fetch here needs a valid session token (see backend/src/middleware/auth.middleware.js),
     // so firing them before login just silently 401s and never retries - this effect used to
     // run once unconditionally on mount, which for a not-yet-logged-in user meant the whole
@@ -187,7 +199,8 @@ const AppContextProvider = (props: any) => {
         fetchBoms();
         fetchUsers();
         fetchUiVisibility();
-    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers, fetchUiVisibility]);
+        fetchRolePermissions();
+    }, [isAuthenticated, fetchLocations, fetchCategories, fetchProductTypes, fetchUnits, fetchVendors, fetchCustomers, fetchPurchaseOrders, fetchSalesOrders, fetchMaterialInwards, fetchInvoices, fetchRawSkus, fetchInventories, fetchBoms, fetchUsers, fetchUiVisibility, fetchRolePermissions]);
 
     return (
         <>
@@ -243,6 +256,9 @@ const AppContextProvider = (props: any) => {
                     hiddenSidebarItems: uiVisibility?.hiddenSidebarItems ?? [],
                     uiVisibilityLoading,
                     fetchUiVisibility,
+                    rolePermissions,
+                    rolePermissionsLoading,
+                    fetchRolePermissions,
                 }}>
                 {props.children}
             </AppContext.Provider >

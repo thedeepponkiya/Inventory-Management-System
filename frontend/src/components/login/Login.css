@@ -1,43 +1,115 @@
 .login-page {
-    min-height: 100vh;
+    height: 100vh;
     width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef1f6;
-    padding: 32px;
-    box-sizing: border-box;
-}
-
-.login-card {
-    width: 100%;
-    max-width: 1100px;
-    min-height: 640px;
     display: flex;
     align-items: stretch;
+    overflow: hidden;
 }
 
-/* -------- Left: form side -------- */
+/* -------- Left: form panel -------- */
 
-.login-form-side {
-    flex: 1 1 50%;
+.login-form-panel {
+    /* Narrower than the illustration side (was an even 50/50 split) - the form itself doesn't
+       need much width, so giving the illustration more room lets its content sit bigger. */
+    flex: 1 1 40%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 48px 56px;
-    box-sizing: border-box;
     background: #ffffff;
-    border-radius: 0 24px 24px 0;
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+    padding: 40px 56px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.login-brand-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Without flex-shrink:0, the flex row above can shrink these images' rendered WIDTH to fit
+   while their CSS height stays fixed - that's what was squashing the wordmark's aspect ratio. */
+.login-brand-header img {
+    flex-shrink: 0;
+}
+
+.login-brand-wordmark {
+    height: 65px;
+    width: auto;
 }
 
 .login-form-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     width: 100%;
     max-width: 380px;
+    margin: 0 auto;
+}
+
+/* ---- Left-side entrance animation ---- */
+
+@keyframes loginFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Each direct child of the form wrapper (title, subtitle, error banner if present, the form
+   itself, divider, register line) fades/slides in as its own block, staggered by nth-child -
+   the form's own inputs aren't animated individually to avoid compounding opacity with their
+   already-animating parent (a child's rendered opacity multiplies with its parent's mid-fade
+   opacity, which would make it flicker instead of settling cleanly). */
+.login-brand-header,
+.login-form-wrapper > * {
+    opacity: 0;
+    animation: loginFadeInUp 0.55s ease-out forwards;
+}
+
+.login-brand-header {
+    animation-delay: 0.05s;
+}
+
+.login-form-wrapper > *:nth-child(1) { animation-delay: 0.15s; }
+.login-form-wrapper > *:nth-child(2) { animation-delay: 0.22s; }
+.login-form-wrapper > *:nth-child(3) { animation-delay: 0.29s; }
+.login-form-wrapper > *:nth-child(4) { animation-delay: 0.36s; }
+.login-form-wrapper > *:nth-child(5) { animation-delay: 0.43s; }
+.login-form-wrapper > *:nth-child(6) { animation-delay: 0.5s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .login-brand-header,
+    .login-form-wrapper > *,
+    .login-illustration-text,
+    .login-laptop-stat-card,
+    .login-laptop-chart-card,
+    .login-laptop-activity-card,
+    .login-laptop-bar,
+    .login-laptop-sparkline polyline,
+    .login-laptop-sparkline circle,
+    .login-activity-icon,
+    .login-activity-row,
+    .login-badge--low-stock,
+    .login-cube3d,
+    .login-carton {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        stroke-dashoffset: 0 !important;
+    }
+
+    .login-typing-cursor {
+        display: none;
+    }
 }
 
 .login-title {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
     color: #111827;
     margin: 0 0 6px;
@@ -46,7 +118,7 @@
 .login-subtitle {
     font-size: 14px;
     color: #6b7280;
-    margin: 0 0 24px;
+    margin: 0 0 28px;
 }
 
 .login-error {
@@ -59,46 +131,58 @@
     margin: 0 0 16px;
 }
 
-.login-google-btn.p-button {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    color: #374151;
-    border-radius: 10px;
-    padding: 11px;
-    font-weight: 500;
-    font-size: 14px;
-}
-
-.login-google-btn.p-button:not(:disabled):hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-
-.login-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: #9ca3af;
-    font-size: 13px;
-    margin: 22px 0;
-}
-
-.login-divider::before,
-.login-divider::after {
-    content: '';
-    flex: 1;
-    border-top: 1px solid #e5e7eb;
-}
-
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
+}
+
+.login-form .form-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.login-form .p-icon-field {
+    width: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.login-input,
+.login-password-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px 11px 40px !important;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    font-size: 14px;
+}
+
+.login-form .p-input-icon {
+    position: absolute;
+    color: #9ca3af;
+    left: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.login-password-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.login-password-left-icon {
+    position: absolute;
+    left: 14px;
+    color: #9ca3af;
+    z-index: 1;
+    pointer-events: none;
 }
 
 .login-password-field {
@@ -110,11 +194,6 @@
 .login-password-field .p-icon-field {
     flex: 1 1 auto;
     width: 100%;
-}
-
-.login-password-input {
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .login-password-field .p-input-icon {
@@ -129,22 +208,12 @@
 .login-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 4px;
-}
-
-.login-remember {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: #374151;
-    cursor: pointer;
+    justify-content: flex-end;
 }
 
 .login-link {
     color: #2563eb;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     text-decoration: none;
 }
@@ -156,180 +225,839 @@
 .login-submit-btn.p-button {
     width: 100%;
     border-radius: 10px;
-    padding: 12px;
+    padding: 13px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
     margin-top: 4px;
+}
+
+.login-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 28px 0 20px;
 }
 
 .login-register {
     text-align: center;
     font-size: 14px;
     color: #6b7280;
-    margin: 22px 0 0;
+    margin: 0;
 }
 
-.login-footer {
-    text-align: center;
-    font-size: 12px;
-    color: #9ca3af;
-    margin: 32px 0 0;
-}
+/* -------- Right: illustration panel -------- */
 
-/* -------- Right: brand side -------- */
-
-.login-brand-side {
-    flex: 1 1 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    border-radius: 24px 0 0 24px;
-    padding: 40px;
-    box-sizing: border-box;
+.login-illustration-panel {
+    flex: 1 1 60%;
+    position: relative;
     display: flex;
     flex-direction: column;
-    color: #ffffff;
-    box-shadow: 0 20px 45px rgba(37, 99, 235, 0.25);
-}
-
-.login-brand-header {
-    display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 48px;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    box-sizing: border-box;
+    background: linear-gradient(160deg, #eef2ff 0%, #e0e7ff 55%, #dbeafe 100%);
+    overflow: hidden;
 }
 
-.login-brand-headline {
-    font-size: 30px;
+.login-illustration-text {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    text-align: left;
+    /* Reuses the same fade/slide-in keyframe as the stat/chart/activity cards below, for one
+       consistent entrance feel across the whole illustration. */
+    opacity: 0;
+    animation: loginCardIn 0.6s ease-out 0.1s forwards;
+}
+
+.login-illustration-title {
+    font-size: 26px;
     font-weight: 700;
-    line-height: 1.28;
-    max-width: 380px;
-    margin: 0 0 16px;
+    line-height: 1.25;
+    color: #1e293b;
+    margin: 0 0 10px;
 }
 
-.login-brand-subtext {
+.login-illustration-title-highlight {
+    color: #2563eb;
+}
+
+.login-illustration-subtitle {
     font-size: 14px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.85);
-    max-width: 380px;
-    margin: 0 0 32px;
+    color: #475569;
+    margin: 0;
 }
 
-.login-preview-card {
-    margin-top: auto;
+.login-typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    background: currentColor;
+    vertical-align: text-bottom;
+    animation: loginCursorBlink 0.8s step-end infinite;
+}
+
+@keyframes loginCursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.login-dot-grid {
+    position: absolute;
+    width: 110px;
+    height: 78px;
+    background-image: radial-gradient(circle, rgba(37, 99, 235, 0.28) 1.6px, transparent 1.6px);
+    background-size: 18px 18px;
+}
+
+.login-dot-grid--tl {
+    top: 48px;
+    left: 48px;
+}
+
+.login-dot-grid--br {
+    bottom: 48px;
+    right: 48px;
+}
+
+.login-glow-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 460px;
+    height: 460px;
+    border-radius: 50%;
+    background: rgba(199, 210, 254, 0.55);
+    filter: blur(6px);
+}
+
+.login-scene {
+    position: relative;
+    z-index: 1;
+    /* Wider, much shorter than before - the laptop itself is landscape now (two columns
+       instead of one tall vertical stack), so the whole scene follows suit. */
+    width: 780px;
+    height: 750px;
+    max-width: 92%;
+    /* Scales the whole scene down (never up past 1) to fit shorter viewports' 100vh panel
+       height, so .login-illustration-panel's overflow:hidden never crops the top/bottom.
+       The 220px reserves room for .login-illustration-text (title + subtitle) above the scene
+       plus the panel's own gap/padding, not just the scene's own margin like before. */
+    transform: scale(min(1, calc((100vh - 220px) / 750px)));
+    transform-origin: center center;
+}
+
+/* ---- Laptop mockup ---- */
+
+.login-laptop {
+    position: absolute;
+    /* Was 90px - the Low Stock card/cube badge above (bottom edge ~88px) were almost touching
+       the screen's top edge with barely any gap. */
+    top: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    /* Wider (was 460px) now that the main content is two side-by-side columns instead of one
+       long vertical stack - reads as a landscape laptop screen instead of a tall portrait
+       tablet. */
+    width: 680px;
+    z-index: 2;
+}
+
+.login-laptop-screen {
     background: #ffffff;
+    border: 9px solid #1e293b;
     border-radius: 16px;
-    padding: 20px;
+    box-shadow: 0 35px 60px -15px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+}
+
+.login-laptop-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eef1f6;
+    font-weight: 700;
+    font-size: 12.5px;
     color: #111827;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
 }
 
-.login-preview-topbar {
+.login-laptop-body {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
 }
 
-.login-preview-title {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.login-preview-topbar-icons {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #9ca3af;
-}
-
-.login-preview-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.login-preview-kpi {
-    background: #f8fafc;
-    border-radius: 10px;
-    padding: 10px;
+.login-laptop-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 10px;
+    padding: 14px 9px;
+    background: #f8fafc;
+    border-right: 1px solid #eef1f6;
 }
 
-.login-preview-kpi-value {
-    font-size: 15px;
+.login-laptop-sidebar-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+}
+
+.login-laptop-sidebar-icon--active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.login-laptop-main {
+    flex: 1;
+    padding: 14px;
+    display: flex;
+    gap: 14px;
+    min-width: 0;
+}
+
+.login-laptop-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.login-laptop-stats-row {
+    display: flex;
+    gap: 10px;
+}
+
+.login-laptop-stat-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+.login-laptop-stat-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: #dbeafe;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.login-laptop-stat-text {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.login-laptop-stat-label {
+    font-size: 10px;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.login-laptop-stat-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 16px;
     font-weight: 700;
     color: #111827;
 }
 
-.login-preview-kpi-label {
-    font-size: 10px;
-    color: #9ca3af;
+.login-laptop-stat-warn {
+    color: #f59e0b;
 }
 
-.login-preview-charts {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 12px;
+.login-laptop-line {
+    height: 5px;
+    border-radius: 3px;
+    background: #dbeafe;
 }
 
-.login-preview-chart-card {
+.login-laptop-line--tiny {
+    width: 60%;
+}
+
+.login-laptop-chart-card {
+    /* flex:none (not flex:1) - .login-laptop-main has no fixed height for multiple cards to
+       share anymore now that Stock Report and Recent Activity stack below Stock Overview, so
+       each card just sizes to its own content instead of stretching to fill space that no
+       longer exists. */
+    flex: none;
     background: #f8fafc;
     border-radius: 10px;
     padding: 12px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-sizing: border-box;
 }
 
-.login-preview-chart-title {
+.login-laptop-chart-title {
     font-size: 11px;
     color: #6b7280;
     font-weight: 600;
 }
 
-.login-preview-bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    height: 56px;
+.login-laptop-sparkline {
+    width: 100%;
+    height: 90px;
 }
 
-.login-preview-bar {
+.login-laptop-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 62px;
+}
+
+.login-laptop-bars--tall {
+    height: 100px;
+}
+
+.login-laptop-bar {
     flex: 1;
     background: linear-gradient(180deg, #60a5fa, #2563eb);
     border-radius: 3px;
 }
 
-.login-preview-donut-card {
-    align-items: center;
-    justify-content: center;
+/* ---- Recent Activity list ---- */
+
+.login-laptop-activity-card {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.login-preview-donut {
-    width: 56px;
-    height: 56px;
+/* ---- Screen-content entrance animations ---- */
+
+@keyframes loginCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-laptop-stat-card,
+.login-laptop-chart-card,
+.login-laptop-activity-card {
+    opacity: 0;
+    animation: loginCardIn 0.5s ease-out forwards;
+}
+
+/* Stat cards get a second, continuous animation layered on top of the one-time entrance above -
+   when two animations share a property (transform, here), the later one in the list takes over
+   once it actually starts, so this plays entrance -> brief hold -> gentle float, not a jump.
+   The float's own delay is timed to start right as the entrance finishes. */
+@keyframes loginCardFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+.login-laptop-stat-card {
+    animation: loginCardIn 0.5s ease-out forwards, loginCardFloat 3.4s ease-in-out infinite;
+}
+
+.login-laptop-stats-row .login-laptop-stat-card:nth-child(1) { animation-delay: 0.15s, 0.65s; }
+.login-laptop-stats-row .login-laptop-stat-card:nth-child(2) { animation-delay: 0.22s, 0.72s; }
+.login-laptop-col:nth-child(1) .login-laptop-chart-card { animation-delay: 0.3s; }
+.login-laptop-col:nth-child(2) .login-laptop-chart-card { animation-delay: 0.3s; }
+.login-laptop-activity-card { animation-delay: 0.55s; }
+
+/* Bars grow up, hold, then shrink back and repeat forever (transform, not height, so it never
+   fights the target height already set inline per-bar) - runs continuously the whole time the
+   page is open, not just once on load. The 35%/75% hold plateau is what makes each cycle read
+   as "grow -> pause -> shrink" instead of an abrupt bounce. */
+@keyframes loginBarGrow {
+    0% { transform: scaleY(0); }
+    35% { transform: scaleY(1); }
+    75% { transform: scaleY(1); }
+    100% { transform: scaleY(0); }
+}
+
+.login-laptop-bar {
+    transform-origin: bottom;
+    animation: loginBarGrow 3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.login-laptop-bar:nth-child(1) { animation-delay: 0s; }
+.login-laptop-bar:nth-child(2) { animation-delay: 0.15s; }
+.login-laptop-bar:nth-child(3) { animation-delay: 0.3s; }
+.login-laptop-bar:nth-child(4) { animation-delay: 0.45s; }
+.login-laptop-bar:nth-child(5) { animation-delay: 0.6s; }
+.login-laptop-bar:nth-child(6) { animation-delay: 0.75s; }
+
+/* Stock Overview line draws in, holds, draws back out and repeats - dots use the same 4s cycle
+   (matching duration) so each one appears/disappears roughly as the line passes through it,
+   staggered across the cycle instead of all at once. 260 is comfortably longer than the actual
+   polyline length so the stroke is fully hidden at dashoffset 260 and fully shown at 0. */
+@keyframes loginLineDraw {
+    0% { stroke-dashoffset: 260; }
+    40% { stroke-dashoffset: 0; }
+    80% { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 260; }
+}
+
+@keyframes loginDotIn {
+    0% { opacity: 0; transform: scale(0); }
+    12% { opacity: 1; transform: scale(1); }
+    85% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0); }
+}
+
+.login-laptop-sparkline polyline {
+    stroke-dasharray: 260;
+    animation: loginLineDraw 4s ease-in-out infinite;
+}
+
+.login-laptop-sparkline circle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: loginDotIn 4s ease-in-out infinite;
+}
+
+.login-laptop-sparkline circle:nth-of-type(1) { animation-delay: 0s; }
+.login-laptop-sparkline circle:nth-of-type(2) { animation-delay: 0.2s; }
+.login-laptop-sparkline circle:nth-of-type(3) { animation-delay: 0.4s; }
+.login-laptop-sparkline circle:nth-of-type(4) { animation-delay: 0.6s; }
+.login-laptop-sparkline circle:nth-of-type(5) { animation-delay: 0.8s; }
+.login-laptop-sparkline circle:nth-of-type(6) { animation-delay: 1s; }
+.login-laptop-sparkline circle:nth-of-type(7) { animation-delay: 1.2s; }
+.login-laptop-sparkline circle:nth-of-type(8) { animation-delay: 1.4s; }
+
+/* Icons pulse continuously (transform/scale only, no opacity, so it can't compound with
+   .login-laptop-activity-card's own one-time opacity fade into a flicker). */
+@keyframes loginIconPop {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
+}
+
+.login-activity-icon {
+    animation: loginIconPop 2.2s ease-in-out infinite;
+}
+
+.login-activity-row:nth-child(1) .login-activity-icon { animation-delay: 0s; }
+.login-activity-row:nth-child(2) .login-activity-icon { animation-delay: 0.3s; }
+.login-activity-row:nth-child(3) .login-activity-icon { animation-delay: 0.6s; }
+.login-activity-row:nth-child(4) .login-activity-icon { animation-delay: 0.9s; }
+
+.login-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.login-activity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* Padding + matching negative margin - gives the continuous highlight sweep below some
+       room to show behind the icon/text without changing the row's visual footprint/spacing. */
+    padding: 4px 6px;
+    margin: -4px -6px;
+    border-radius: 6px;
+    animation: loginActivityGlow 2.4s ease-in-out infinite;
+}
+
+@keyframes loginActivityGlow {
+    0%, 100% { background: transparent; transform: translateX(0); }
+    50% { background: rgba(37, 99, 235, 0.14); transform: translateX(3px); }
+}
+
+.login-activity-row:nth-child(1) { animation-delay: 0s; }
+.login-activity-row:nth-child(2) { animation-delay: 0.4s; }
+.login-activity-row:nth-child(3) { animation-delay: 0.8s; }
+.login-activity-row:nth-child(4) { animation-delay: 1.2s; }
+
+.login-activity-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.login-activity-icon--blue {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.login-activity-icon--green {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.login-activity-icon--orange {
+    background: #ffedd5;
+    color: #ea580c;
+}
+
+.login-activity-icon--purple {
+    background: #ede9fe;
+    color: #7c3aed;
+}
+
+.login-activity-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.login-activity-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.login-activity-subtitle {
+    font-size: 10.5px;
+    color: #6b7280;
+}
+
+.login-activity-time {
+    font-size: 10px;
+    color: #9ca3af;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ---- Floating badge cards ---- */
+
+.login-badge {
+    position: absolute;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.22);
+    z-index: 3;
+}
+
+.login-badge--cube {
+    top: 20px;
+    left: 10px;
+    width: 68px;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+}
+
+.login-badge--pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 10px 10px;
+}
+
+.login-badge-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: #2563eb;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.login-badge-icon--dark {
+    background: #1e293b;
+}
+
+.login-badge-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.login-badge-text strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.login-badge-text span {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* Pulsing "alert ring" - only Low Stock gets this (not Orders, which stays static), reading as
+   the one card actually flagging something that needs attention. Layers a second, expanding/
+   fading ring shadow on top of the shared .login-badge card shadow rather than replacing it. */
+@keyframes loginLowStockPulse {
+    0%, 100% { box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.22), 0 0 0 0 rgba(37, 99, 235, 0.45); }
+    50% { box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.22), 0 0 0 9px rgba(37, 99, 235, 0); }
+}
+
+.login-badge--low-stock {
+    top: 34px;
+    left: 220px;
+    animation: loginLowStockPulse 2.2s ease-in-out infinite;
+}
+
+/* Orders card now sits low, beside the boxes - Stock Report moved from its own floating card
+   into the laptop screen itself (see .login-laptop-activity-card), so this is the only
+   floating card left besides Low Stock/the cube badge up top. */
+.login-badge--orders {
+    right: 4px;
+    bottom: 150px;
+}
+
+.login-badge--card {
+    padding: 12px 14px;
+}
+
+/* ---- Dashed connector (cube badge -> Low Stock card) ---- */
+
+.login-connector {
+    position: absolute;
+    border-top: 2px dashed rgba(37, 99, 235, 0.35);
+    z-index: 1;
+}
+
+.login-connector--cube-lowstock {
+    top: 54px;
+    left: 78px;
+    width: 142px;
+}
+
+/* ---- Box/pallet accent ---- */
+
+.login-boxes {
+    position: absolute;
+    left: 50%;
+    bottom: -16px;
+    transform: translateX(-42%);
+    width: 320px;
+    height: 160px;
+    z-index: 2;
+}
+
+.login-cube-cluster {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 150px;
+    height: 140px;
+}
+
+/* ---- Genuine 3D boxes (real CSS 3D transforms, not a 2D skew approximation) ----
+   .login-box3d-inner holds 3 face divs in a shared preserve-3d space; each face is built with
+   the standard cube-face recipe (rotate to the face's orientation, then translateZ by half the
+   box's own size to push it out to that face of the cube) and the whole inner is rotated once
+   to the isometric-ish viewing angle that was used for every login-cube3d--N / login-carton--N
+   below (front face toward the viewer, right face catching the shadow side, top face lit).
+   No `perspective` is set on purpose - true isometric is an orthographic projection (no
+   foreshortening), which is exactly what dropping perspective gives here. */
+.login-box3d-inner {
+    /* Root cause of the previous washed-out/flat render: a bare <span> is display:inline by
+       default, and CSS transforms (plus width/height) have no effect on non-replaced inline
+       boxes - so the rotation and the preserve-3d space it should have established were both
+       being silently ignored. display:block makes it a real box the transform can act on. */
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateX(-30deg) rotateY(-45deg);
+}
+
+.login-box3d-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+}
+
+.login-box3d-face--front {
+    transform: translateZ(var(--box3d-depth));
+}
+
+.login-box3d-face--right {
+    transform: rotateY(90deg) translateZ(var(--box3d-depth));
+}
+
+.login-box3d-face--top {
+    transform: rotateX(90deg) translateZ(var(--box3d-depth));
+}
+
+/* Continuous gentle float, applied to the outer 2D-positioned wrapper (not
+   .login-box3d-inner, which owns the static isometric rotation) so the two never fight -
+   the box keeps its cube orientation while this just bobs the whole thing up and down. */
+@keyframes loginBoxFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.login-cube3d {
+    position: absolute;
+    box-shadow: 0 14px 24px rgba(37, 99, 235, 0.32);
+    animation: loginBoxFloat 3s ease-in-out infinite;
+}
+
+.login-cube3d--1 {
+    width: 66px;
+    height: 66px;
+    left: 8px;
+    bottom: 0;
+    --box3d-depth: 33px;
+    animation-delay: 0s;
+}
+
+.login-cube3d--2 {
+    width: 66px;
+    height: 66px;
+    left: 78px;
+    bottom: 0;
+    --box3d-depth: 33px;
+    animation-delay: 0.4s;
+}
+
+.login-cube3d--3 {
+    width: 66px;
+    height: 66px;
+    left: 43px;
+    bottom: 60px;
+    --box3d-depth: 33px;
+    animation-delay: 0.8s;
+}
+
+.login-carton-cluster {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 160px;
+    height: 130px;
+}
+
+.login-carton {
+    position: absolute;
+    box-shadow: 0 12px 22px rgba(180, 120, 20, 0.28);
+    animation: loginBoxFloat 3s ease-in-out infinite;
+}
+
+.login-carton--1 {
+    width: 80px;
+    height: 80px;
+    left: 0;
+    bottom: 0;
+    --box3d-depth: 40px;
+    animation-delay: 0.2s;
+}
+
+.login-carton--2 {
+    width: 62px;
+    height: 62px;
+    right: 0;
+    bottom: 18px;
+    --box3d-depth: 31px;
+    animation-delay: 0.6s;
+}
+
+.login-pallet-glow {
+    position: absolute;
+    left: 12%;
+    right: 4%;
+    bottom: -8px;
+    height: 8px;
     border-radius: 50%;
-    background: conic-gradient(#2563eb 0% 45%, #93c5fd 45% 75%, #dbeafe 75% 100%);
-    margin-top: 4px;
+    background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+    filter: blur(3px);
+    opacity: 0.7;
+}
+
+/* ---- Potted plant accent ---- */
+
+.login-plant {
+    position: absolute;
+    left: 10px;
+    bottom: 30px;
+    width: 90px;
+    height: 130px;
+    z-index: 2;
+}
+
+.login-plant-pot {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 56px;
+    height: 42px;
+    background: linear-gradient(180deg, #ffffff, #e2e8f0);
+    border-radius: 6px 6px 14px 14px;
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+}
+
+.login-plant-leaf {
+    position: absolute;
+    bottom: 38px;
+    left: 50%;
+    width: 16px;
+    height: 60px;
+    background: linear-gradient(180deg, #4ade80, #16a34a);
+    border-radius: 50% 4px 50% 4px;
+    transform-origin: bottom center;
+}
+
+.login-plant-leaf--1 {
+    transform: translateX(-50%) rotate(-28deg);
+}
+
+.login-plant-leaf--2 {
+    height: 68px;
+    transform: translateX(-50%) rotate(-9deg);
+}
+
+.login-plant-leaf--3 {
+    height: 68px;
+    transform: translateX(-50%) rotate(10deg);
+}
+
+.login-plant-leaf--4 {
+    transform: translateX(-50%) rotate(28deg);
 }
 
 @media (max-width: 900px) {
-    .login-card {
-        flex-direction: column;
-        max-width: 480px;
+    .login-page {
+        height: auto;
+        min-height: 100vh;
     }
 
-    .login-brand-side {
+    .login-illustration-panel {
         display: none;
     }
 
-    .login-form-side {
-        padding: 40px 28px;
-        border-radius: 24px;
+    .login-form-panel {
+        padding: 32px 24px;
     }
 }

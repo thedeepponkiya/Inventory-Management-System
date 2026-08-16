@@ -21,7 +21,7 @@
 }
 
 .page-header-breadcrumb-item a:hover {
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 
 .page-header-breadcrumb-sep {
