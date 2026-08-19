@@ -5,9 +5,10 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlineFolder } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createCategory, updateCategory, deleteCategory, type Category as CategoryType, type CategoryPayload } from '../../services/categoryService';
@@ -135,7 +136,7 @@ const Category = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit Category' : 'Add New Category'}
+                header={<DialogHeader icon={HiOutlineFolder} title={editingId ? 'Edit Category' : 'Add New Category'} />}
                 style={{ width: '520px', maxWidth: '95vw' }}
                 footer={
                     <>

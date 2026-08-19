@@ -7,7 +7,8 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
-import { HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineMegaphone } from 'react-icons/hi2';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { useSourcesQuery } from '../hooks/useSourcesQuery';
 import type { CrmCampaign, CrmCampaignPayload } from '../types/campaign.types';
 
@@ -46,7 +47,7 @@ const CampaignFormDialog = ({ visible, editing, onHide, onSave }: CampaignFormDi
         <Dialog
             visible={visible}
             onHide={onHide}
-            header={editing ? 'Edit Campaign' : 'Add New Campaign'}
+            header={<DialogHeader icon={HiOutlineMegaphone} title={editing ? 'Edit Campaign' : 'Add New Campaign'} />}
             style={{ width: '480px', maxWidth: '95vw' }}
             footer={
                 <>

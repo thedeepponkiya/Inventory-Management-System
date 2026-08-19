@@ -4,13 +4,14 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputNumber } from 'primereact/inputnumber';
-import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark, HiOutlineArchiveBox } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
@@ -169,6 +170,7 @@ const RawSku = () => {
         }
 
         const payload: RawSkuPayload = {
+            skuCode: editingId ? undefined : previewSkuCode,
             images: form.images,
             skuName: form.skuName,
             categoryId: form.categoryId,
@@ -275,7 +277,7 @@ const RawSku = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit SKU' : 'Add New SKU'}
+                header={<DialogHeader icon={HiOutlineArchiveBox} title={editingId ? 'Edit SKU' : 'Add New SKU'} />}
                 style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
                     <>
@@ -292,7 +294,12 @@ const RawSku = () => {
                         <div className="raw-sku-dialog-grid">
                             <div className="form-field">
                                 <label>SKU Code</label>
-                                <InputText value={editingId ? editingSkuCode : (previewSkuCode || 'Generating...')} disabled />
+                                <InputText
+                                    value={editingId ? editingSkuCode : previewSkuCode}
+                                    onChange={(e) => setPreviewSkuCode(e.target.value)}
+                                    placeholder="Generating..."
+                                    disabled={!!editingId}
+                                />
                             </div>
                             <div className="form-field">
                                 <label>SKU Name *</label>
@@ -300,7 +307,8 @@ const RawSku = () => {
                             </div>
                             <div className="form-field">
                                 <label>Category</label>
-                                <Dropdown
+                                <QuickAddDropdown
+                                    quickAddType="category"
                                     value={form.categoryId}
                                     onChange={(e) => setForm({ ...form, categoryId: e.value })}
                                     options={(categories as Category[]).map((c) => ({ label: c.category, value: c.id }))}
@@ -310,7 +318,8 @@ const RawSku = () => {
                             </div>
                             <div className="form-field">
                                 <label>Product Type</label>
-                                <Dropdown
+                                <QuickAddDropdown
+                                    quickAddType="productType"
                                     value={form.productTypeId}
                                     onChange={(e) => setForm({ ...form, productTypeId: e.value })}
                                     options={(productTypes as ProductType[]).map((t) => ({ label: t.productType, value: t.id }))}
@@ -320,16 +329,16 @@ const RawSku = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
+                                <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                             <div className="form-field">
                                 <label>Location</label>
-                                <Dropdown
+                                <QuickAddDropdown
+                                    quickAddType="location"
                                     value={form.locationId}
                                     onChange={(e) => setForm({ ...form, locationId: e.value })}
                                     options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.id }))}
                                     placeholder="Select location"
-                                    filter
                                     showClear
                                 />
                             </div>

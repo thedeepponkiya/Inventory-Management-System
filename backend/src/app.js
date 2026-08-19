@@ -29,6 +29,7 @@ const crmTagRoutes = require('./routes/crmTag.routes');
 const crmMetaIntegrationRoutes = require('./routes/crmMetaIntegration.routes');
 const developerAdminSettingsRoutes = require('./routes/developerAdminSettings.routes');
 const databaseResetRoutes = require('./routes/databaseReset.routes');
+const databaseUpdateRoutes = require('./routes/databaseUpdate.routes');
 
 const app = express();
 
@@ -83,5 +84,6 @@ app.use('/api/v1/crm/tags', crmTagRoutes);
 app.use('/api/v1/crm/meta', crmMetaIntegrationRoutes);
 app.use('/api/v1/developer-admin-settings', developerAdminSettingsRoutes);
 app.use('/api/v1/developer-admin/database-reset', databaseResetRoutes);
+app.use('/api/v1/developer-admin/database-update', databaseUpdateRoutes);
 
 module.exports = app;

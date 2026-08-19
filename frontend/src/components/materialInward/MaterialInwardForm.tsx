@@ -8,8 +8,10 @@ import { Calendar } from 'primereact/calendar';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineTruck, HiOutlineShoppingBag } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
@@ -401,7 +403,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             visible
             onHide={onHide}
             className="mi-form-dialog"
-            header={isEditRoute ? `Edit ${currentInwardNo}` : 'New Material Inward'}
+            header={<DialogHeader icon={HiOutlineTruck} title={isEditRoute ? `Edit ${currentInwardNo}` : 'New Material Inward'} />}
             style={{ width: '960px', maxWidth: '96vw' }}
             footer={
                 <>
@@ -432,7 +434,8 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                         </div>
                         <div className="form-field">
                             <label>Vendor *</label>
-                            <Dropdown
+                            <QuickAddDropdown
+                                quickAddType="vendor"
                                 value={vendorId}
                                 onChange={(e) => setVendorId(e.value)}
                                 options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
@@ -442,7 +445,8 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                         </div>
                         <div className="form-field">
                             <label>Warehouse *</label>
-                            <Dropdown
+                            <QuickAddDropdown
+                                quickAddType="location"
                                 value={warehouseId}
                                 onChange={(e) => setWarehouseId(e.value)}
                                 options={(locations as LocationType[]).map((loc) => ({ label: loc.location, value: loc.id }))}
@@ -506,7 +510,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             <Dialog
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header="Edit Item"
+                header={<DialogHeader icon={HiOutlineShoppingBag} title="Edit Item" />}
                 style={{ width: '480px', maxWidth: '95vw' }}
                 footer={
                     <>

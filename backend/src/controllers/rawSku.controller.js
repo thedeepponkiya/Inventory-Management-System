@@ -27,7 +27,18 @@ async function createRawSku(req, res) {
       return res.status(400).json({ status: false, message: 'skuName is required', data: null });
     }
 
-    const skuCode = await RawSkuModel.getNextSkuCode();
+    // Honors a user-typed SKU Code (editable at create time) if provided and not already
+    // taken - re-checked here rather than trusted from the previewed value shown in the form,
+    // since another SKU could have claimed it in the meantime. Falls back to auto-generating
+    // one, same as before, when the field was left blank.
+    let skuCode = req.body.skuCode ? String(req.body.skuCode).trim() : '';
+    if (skuCode) {
+      if (await RawSkuModel.findByCode(skuCode)) {
+        return res.status(400).json({ status: false, message: `SKU Code "${skuCode}" is already in use - choose a different one`, data: null });
+      }
+    } else {
+      skuCode = await RawSkuModel.getNextSkuCode();
+    }
     const openingStock = req.body.openingStock || 0;
     const fields = {
       skuName,

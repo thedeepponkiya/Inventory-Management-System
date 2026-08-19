@@ -21,9 +21,11 @@ import {
     HiOutlineEnvelope,
     HiOutlineTrash,
     HiOutlineArrowPath,
+    HiOutlineUsers,
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createUser, updateUser, deleteUser, uploadUserImage, type User, type UserPayload } from '../../services/userService';
@@ -213,7 +215,7 @@ const Users = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit User' : 'Add New User'}
+                header={<DialogHeader icon={HiOutlineUsers} title={editingId ? 'Edit User' : 'Add New User'} />}
                 className="user-form-dialog"
                 style={{ width: '900px', maxWidth: '95vw' }}
                 footer={

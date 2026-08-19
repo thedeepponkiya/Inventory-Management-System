@@ -20,6 +20,9 @@ export interface Bom {
     unit: string;
     status: 'Process' | 'Completed';
     items: BomItem[];
+    // How much of outputQty has been reverted so far via partial reverses (revertBomToProcess) -
+    // 0 while still fully produced/unreverted, resets to 0 once fully reverted back to Process.
+    reversedQty: number;
     createdBy: string | null;
     createdAt: string;
     updatedAt: string;
@@ -61,6 +64,7 @@ function normalizeBom(bom: Bom): Bom {
     return {
         ...bom,
         outputQty: Number(bom.outputQty),
+        reversedQty: Number(bom.reversedQty ?? 0),
         items: bom.items.map((item) => ({
             ...item,
             requiredQty: Number(item.requiredQty),
@@ -113,9 +117,15 @@ export async function completeBom(id: number): Promise<Bom> {
     return normalizeBom(await parseResponse<Bom>(response));
 }
 
-// Reverses completeBom: moves Completed back to Process, restores the deducted raw
-// material, and removes the added Inventory quantity.
-export async function revertBomToProcess(id: number): Promise<Bom> {
-    const response = await authFetch(`${API_BASE_URL}/boms/${id}/revert`, { method: 'PUT' });
+// Reverses completeBom, partially or fully: restores qty's worth of the deducted raw
+// material and removes qty from the added Inventory quantity. Can be called more than once
+// on the same Completed BOM - the backend accumulates reversedQty across calls and only
+// flips the BOM back to Process once the full outputQty has been reversed.
+export async function revertBomToProcess(id: number, qty: number): Promise<Bom> {
+    const response = await authFetch(`${API_BASE_URL}/boms/${id}/revert`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qty }),
+    });
     return normalizeBom(await parseResponse<Bom>(response));
 }

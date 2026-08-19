@@ -7,60 +7,12 @@
     padding: 0;
 }
 
-.settings-dialog .p-dialog-header {
-    align-items: flex-start;
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.settings-dialog .p-dialog-header-icons {
-    margin-top: 2px;
-}
-
-.settings-dialog .p-dialog-header-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    border: 1px solid var(--border-default);
-    background: var(--surface-card);
-    color: var(--text-tertiary);
-}
-
-.settings-dialog .p-dialog-header-icon:hover {
-    background: var(--surface-subtle);
-    color: var(--text-primary);
-}
-
 .settings-dialog .p-dialog-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     padding: 14px 20px;
     border-top: 1px solid var(--border-subtle);
-}
-
-.settings-dialog-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.settings-dialog-header-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    flex-shrink: 0;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-    color: var(--accent-primary);
-}
-
-.settings-dialog-header-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-primary);
 }
 
 .settings-dialog-body {

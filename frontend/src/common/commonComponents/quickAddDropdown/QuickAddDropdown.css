@@ -1,0 +1,95 @@
+.quick-add-dropdown-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.quick-add-dropdown-filter-row .p-dropdown-filter-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.quick-add-dropdown-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1px solid var(--accent-primary);
+    background: var(--accent-primary);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.quick-add-dropdown-btn:hover {
+    background: var(--accent-primary-hover);
+    border-color: var(--accent-primary-hover);
+}
+
+/* The embedded master-data page's own FilterBar - navigating away via its quick-action nav
+   links doesn't make sense inside this modal, so that row is hidden entirely. The "Add" button
+   (inside FilterBar's `actions` slot, rendered before Search in the normal full-page layout)
+   is moved to sit after Search instead, via flex `order` on FilterBar's own already-flex
+   `.filter-bar-controls` row - no changes needed to FilterBar.tsx or any of the 6 pages
+   themselves for either of these, everything here is purely a scoped CSS override. */
+.quick-add-embedded-page .filter-bar-quick-actions {
+    display: none;
+}
+
+/* .filter-bar uses justify-content: space-between to keep quick-actions on the left and
+   controls on the right - with quick-actions hidden above, .filter-bar-controls becomes the
+   only flex child and space-between has nothing left to justify against, so it falls back to
+   sitting at the start (left). Pushing it with its own margin instead keeps it pinned right. */
+.quick-add-embedded-page .filter-bar-controls {
+    margin-left: auto;
+}
+
+.quick-add-embedded-page .filter-bar-search {
+    order: 1;
+}
+
+.quick-add-embedded-page .filter-bar-add-btn {
+    order: 2;
+}
+
+.quick-add-embedded-page .filter-bar-clear-btn {
+    order: 3;
+}
+
+.quick-add-embedded-page .filter-bar-refresh-btn {
+    order: 4;
+}
+
+/* By default PrimeReact's own base dialog styles (.p-dialog-content { overflow-y: auto;
+   flex-grow: 1; }) make the WHOLE dialog body one scrollable blob once .p-dialog hits its
+   max-height - so FilterBar + DataTable + the paginator all scroll away together, and the
+   paginator disappears off the bottom instead of staying pinned (see the screenshot this was
+   reported with). Overriding that to hidden/flex-column here, then re-establishing the same
+   "flex:1 1 auto; min-height:0" chain that routers.css's ".app-content > div" gives these
+   pages in their normal full-page context (they have no such ancestor inside this Dialog),
+   lets DataTable's own scrollHeight="flex" behavior take over instead - only its internal
+   .p-datatable-wrapper scrolls, with the header row and paginator both staying fixed. */
+.quick-add-manage-dialog .p-dialog-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.quick-add-embedded-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.quick-add-embedded-page > div {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}

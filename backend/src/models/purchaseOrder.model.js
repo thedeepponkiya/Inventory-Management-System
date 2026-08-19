@@ -111,4 +111,11 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, getNextPoNo, create, update, remove };
+// Existence check used by createPurchaseOrder to validate a user-typed poNo (the field is
+// editable at create time) isn't already taken.
+async function findByPoNo(poNo) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "poNo" = $1`, [poNo]);
+  return result.rows[0];
+}
+
+module.exports = { getAll, findById, findByPoNo, getNextPoNo, create, update, remove };

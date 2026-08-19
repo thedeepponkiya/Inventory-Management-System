@@ -27,7 +27,18 @@ async function createInventory(req, res) {
       return res.status(400).json({ status: false, message: 'productName is required', data: null });
     }
 
-    const skuId = await InventoryModel.getNextSkuId();
+    // Honors a user-typed SKU ID (the "SKU ID" field is now editable at create time) if
+    // provided and not already taken - re-checked here (not just trusted from the previewed
+    // value shown in the form) since another item could have claimed it in the meantime.
+    // Falls back to auto-generating one, same as before, when the field was left blank.
+    let skuId = req.body.skuId ? String(req.body.skuId).trim() : '';
+    if (skuId) {
+      if (await InventoryModel.findBySkuId(skuId)) {
+        return res.status(400).json({ status: false, message: `SKU ID "${skuId}" is already in use - choose a different one`, data: null });
+      }
+    } else {
+      skuId = await InventoryModel.getNextSkuId();
+    }
     const fields = {
       images: req.body.images || [],
       productName,

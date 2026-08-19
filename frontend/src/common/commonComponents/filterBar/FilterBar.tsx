@@ -100,6 +100,7 @@ const FilterBar = ({ fields, values, onChange, onReset, actions, trailingActions
                                 placeholder={field.placeholder ?? 'Select'}
                                 className="filter-bar-dropdown"
                                 showClear
+                                filter
                             />
                         )}
                         {field.type === 'dateRange' && (

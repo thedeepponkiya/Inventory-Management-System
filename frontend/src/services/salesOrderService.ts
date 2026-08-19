@@ -37,6 +37,28 @@ export interface SalesOrderPayment {
     approvedAt: string | null;
 }
 
+// One line within a single dispatch event - only the SKU/quantity actually shipped in that
+// call, not the SO's full item list (see SalesOrderDispatch below).
+export interface SalesOrderDispatchLineItem {
+    skuId: string;
+    skuCode: string;
+    itemName: string;
+    unit: string;
+    shipQty: number;
+}
+
+// One row per Dispatch History entry (see salesOrder.controller.js's dispatchSalesOrder) -
+// read-only/append-only, unlike SalesOrderPayment there's no add/delete endpoint for this from
+// the frontend; a row is created automatically as a side effect of every dispatch call.
+export interface SalesOrderDispatch {
+    id: number;
+    soId: number;
+    dispatchDate: string;
+    items: SalesOrderDispatchLineItem[];
+    dispatchedBy: string | null;
+    createdAt: string;
+}
+
 export interface SalesOrderPaymentPayload {
     amount: number;
     paymentDate: string;
@@ -52,7 +74,7 @@ export interface SalesOrder {
     id: number;
     soNo: string;
     customerName: string;
-    customerCode: string | null;
+    customerGstNo: string | null;
     orderDate: string;
     deliveryDate: string | null;
     deliveryAddress: string | null;
@@ -62,6 +84,7 @@ export interface SalesOrder {
     purchaseOrderRef: string | null;
     items: SalesOrderItem[];
     payments: SalesOrderPayment[];
+    dispatches: SalesOrderDispatch[];
     totalItems: number;
     totalQty: number;
     subTotal: number;
@@ -75,8 +98,12 @@ export interface SalesOrder {
 }
 
 export interface SalesOrderPayload {
+    // Only meaningful on create - a user-typed SO No. (the field is editable at create time,
+    // left blank to auto-generate). Ignored by the update endpoint, which never lets soNo
+    // change after creation.
+    soNo?: string;
     customerName: string;
-    customerCode: string | null;
+    customerGstNo: string | null;
     orderDate: string;
     deliveryDate: string | null;
     deliveryAddress: string | null;
@@ -137,6 +164,10 @@ function normalizeSalesOrder(so: SalesOrder): SalesOrder {
         grandTotal: Number(so.grandTotal),
         paidAmount: Number(so.paidAmount),
         payments: (so.payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })),
+        dispatches: (so.dispatches ?? []).map((dispatch) => ({
+            ...dispatch,
+            items: dispatch.items.map((item) => ({ ...item, shipQty: Number(item.shipQty) })),
+        })),
         items: so.items.map((item) => ({
             ...item,
             orderedQty: Number(item.orderedQty),

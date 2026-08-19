@@ -1,6 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 import {
     HiOutlineSquares2X2,
     HiOutlineKey,
@@ -21,11 +22,13 @@ import {
     HiOutlineEyeSlash,
     HiOutlineCheckCircle,
     HiOutlineUserGroup,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import { useAuthContext } from '../../context/AuthContextDefinition';
 import { AppContext } from '../../context/AppContextDefinition';
 import VisibilitySettingsPanel, { type VisibilitySettingsPanelHandle } from '../../common/commonComponents/visibilitySettingsDialog/VisibilitySettingsPanel';
 import DatabaseResetPanel from '../../common/commonComponents/databaseResetPanel/DatabaseResetPanel';
+import DatabaseUpdatePanel from '../../common/commonComponents/databaseUpdatePanel/DatabaseUpdatePanel';
 import RolePermissionsPanel from '../../common/commonComponents/rolePermissionsPanel/RolePermissionsPanel';
 import './DeveloperAdmin.css';
 
@@ -116,7 +119,32 @@ const DeveloperAdmin = () => {
                     </div>
                 ) : activeSection === 'database-settings' ? (
                     <div className="developer-admin-content developer-admin-content--panel">
-                        <DatabaseResetPanel />
+                        <Accordion multiple activeIndex={[0]} className="developer-admin-accordion">
+                            <AccordionTab
+                                header={
+                                    <span className="developer-admin-accordion-header">
+                                        <span className="developer-admin-accordion-header-icon developer-admin-accordion-header-icon--info">
+                                            <HiOutlineArrowPath size={16} />
+                                        </span>
+                                        <span>Database Update</span>
+                                    </span>
+                                }
+                            >
+                                <DatabaseUpdatePanel />
+                            </AccordionTab>
+                            <AccordionTab
+                                header={
+                                    <span className="developer-admin-accordion-header">
+                                        <span className="developer-admin-accordion-header-icon developer-admin-accordion-header-icon--danger">
+                                            <HiOutlineExclamationTriangle size={16} />
+                                        </span>
+                                        <span>Database Reset</span>
+                                    </span>
+                                }
+                            >
+                                <DatabaseResetPanel />
+                            </AccordionTab>
+                        </Accordion>
                     </div>
                 ) : (
                     <div className="developer-admin-content">

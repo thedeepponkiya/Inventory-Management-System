@@ -32,6 +32,8 @@ import {
 } from 'react-icons/hi2';
 import DataTable from '../../common/commonComponents/dataTable/DataTable';
 import StatusBadge, { type StatusVariant } from '../../common/commonComponents/statusBadge/StatusBadge';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
@@ -430,6 +432,7 @@ const PurchaseOrderForm = () => {
             });
 
         const payload: PurchaseOrderPayload = {
+            poNo: isEditRoute ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : (currentPoNo.trim() || DEFAULT_DATA_TYPE_VALUE.UNDEFINED),
             vendorId,
             poDate: toIso(poDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
             expectedDeliveryDate: toIso(expectedDeliveryDate),
@@ -541,19 +544,25 @@ const PurchaseOrderForm = () => {
                                         <div className="form-field">
                                             <label>PO No.</label>
                                             <div className="po-input-icon-wrapper">
-                                                <InputText className="po-input po-input--icon-right" value={isEditRoute ? `#${currentPoNo}` : DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING} placeholder="#PO-XXXXXX" disabled />
-                                                <HiOutlineLockClosed size={14} className="po-input-icon-right" />
+                                                <InputText
+                                                    className="po-input po-input--icon-right"
+                                                    value={isEditRoute ? `#${currentPoNo}` : currentPoNo}
+                                                    onChange={(e) => setCurrentPoNo(e.target.value)}
+                                                    placeholder="#PO-XXXXXX (auto if left blank)"
+                                                    disabled={isEditRoute}
+                                                />
+                                                {isEditRoute && <HiOutlineLockClosed size={14} className="po-input-icon-right" />}
                                             </div>
                                         </div>
                                         <div className="form-field">
                                             <label>Vendor <span className="po-item-required">*</span></label>
-                                            <Dropdown
+                                            <QuickAddDropdown
+                                                quickAddType="vendor"
                                                 value={vendorId}
                                                 onChange={(e) => setVendorId(e.value)}
                                                 options={(vendors as Vendor[]).map((v) => ({ label: v.vendorName, value: v.id }))}
                                                 placeholder="Select vendor"
                                                 disabled={isLocked}
-                                                filter
                                             />
                                         </div>
                                         <div className="form-field">
@@ -764,7 +773,7 @@ const PurchaseOrderForm = () => {
             <Dialog
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingItemRowId ? 'Edit Item' : 'Add Item'}
+                header={<DialogHeader icon={HiOutlineShoppingBag} title={editingItemRowId ? 'Edit Item' : 'Add Item'} />}
                 style={{ width: '540px', maxWidth: '95vw' }}
                 className="po-item-dialog"
                 footer={
@@ -797,7 +806,8 @@ const PurchaseOrderForm = () => {
                             <label>Unit <span className="po-item-required">*</span></label>
                             <div className="po-item-input-icon-wrapper">
                                 <HiOutlineCube className="po-item-input-icon" />
-                                <Dropdown
+                                <QuickAddDropdown
+                                    quickAddType="unit"
                                     className="po-item-input po-item-input--icon"
                                     value={itemForm.unit}
                                     onChange={(e) => setItemForm({ ...itemForm, unit: e.value })}
@@ -900,7 +910,7 @@ const PurchaseOrderForm = () => {
             <Dialog
                 visible={paymentDialogVisible}
                 onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header="Add Payment"
+                header={<DialogHeader icon={HiOutlineBanknotes} title="Add Payment" />}
                 style={{ width: '480px', maxWidth: '95vw' }}
                 className="po-item-dialog"
                 footer={

@@ -21,6 +21,13 @@
     --accent-primary-tint-100: color-mix(in srgb, var(--accent-primary) 15%, white);
     --accent-primary-tint-200: color-mix(in srgb, var(--accent-primary) 28%, white);
 
+    /* Runtime-mutable sidebar chrome color - SidebarColorContext sets this directly on <html>
+       via style.setProperty(), overriding the #0f1b3d fallback below. Not part of the
+       light/dark palette above: the sidebar is always-dark chrome in both app themes (its own
+       text/icon colors are hardcoded for a dark background), so this has a single value here
+       rather than being redefined per data-theme. */
+    --sidebar-bg: #0f1b3d;
+
     --surface-page: #f9fafc;
     --surface-card: #ffffff;
     --surface-subtle: #f8fafc;

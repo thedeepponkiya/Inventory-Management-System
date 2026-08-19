@@ -2,7 +2,7 @@
     height: 100%;
     flex-shrink: 0;
     width: 56px;
-    background: #0f1b3d;
+    background: var(--sidebar-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -128,6 +128,55 @@
     width: 100%;
 }
 
+/* Collapsed-rail (56px) flyout for a submenu (see isCollapsedFlyout in SideBarNavigation.tsx) -
+   floats outside the narrow rail instead of trying to render inline inside it, where there's
+   no room for labels. Portaled to document.body (see the component) since .side-panel has
+   overflow:hidden (needed to clip the wordmark/labels during the collapse/expand width
+   transition), which would otherwise clip this right along with everything else in that box -
+   so top/left below arrive as inline styles with real viewport coordinates, not CSS anchored
+   to a sidebar ancestor. */
+.sidebar-flyout-catcher {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    /* Invisible - just here to close the flyout on any click outside it, same idea as
+       .sidebar-overlay's mobile-drawer backdrop but without the visible dim. */
+    background: transparent;
+}
+
+.sidebar-flyout {
+    position: fixed;
+    z-index: 56;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    padding: 8px;
+    border-radius: 10px;
+    background: var(--sidebar-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.sidebar-flyout-title {
+    padding: 4px 10px 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7593;
+}
+
+.sidebar-flyout .sidebar-item {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 10px;
+}
+
+.sidebar-flyout .sidebar-item span {
+    display: block;
+}
+
 /* Extra breathing room between the Inventory sidebar's own menu groups (Operation, Master,
    Billing, Analytics, Administration). The CRM menu wrapper below them shares this same
    ".sidebar-group" class but is always the last child, so :not(:last-child) naturally
@@ -216,13 +265,13 @@
 }
 
 .sidebar-item--active {
-    background: var(--accent-primary);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+    color: color-mix(in srgb, var(--accent-primary) 0%, white);
 }
 
 .sidebar-item--active:hover {
-    background: var(--accent-primary);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+    color: color-mix(in srgb, var(--accent-primary) 0%, white);
 }
 
 .sidebar-item-chevron {
@@ -263,6 +312,71 @@
 
 .sidebar-overlay {
     display: none;
+}
+
+/* The "Light" sidebar background preset (SidebarColorContext sets data-sidebar-theme="light"
+   on <html> when it's selected - see SidebarColorContextDefinition.ts's isLight flag). Every
+   other color in this file above assumes a dark background (white-ish text, rgba(255,255,255,
+   x) hover/border tints) - this block swaps all of those to dark-on-light equivalents. Scoped
+   to :root[data-sidebar-theme="light"] (not a --sidebar-bg based media/color check, which CSS
+   can't do) so it only applies for that one preset, leaving every dark preset untouched. */
+/* A light sidebar sitting flush against the app's own light page background would otherwise
+   have almost no visual edge between them. */
+:root[data-sidebar-theme="light"] .side-panel {
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-collapse-btn {
+    border-color: rgba(15, 23, 42, 0.15);
+    background: rgba(15, 23, 42, 0.05);
+    color: #475569;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-collapse-btn:hover {
+    background: rgba(15, 23, 42, 0.08);
+    color: #1e293b;
+}
+
+/* The wordmark image's "Inventory" text is baked in near-white (designed for the dark
+   presets) - inverting just this image (not the colored icon beside it) turns it dark so it
+   stays legible against a light background. */
+:root[data-sidebar-theme="light"] .sidebar-logo-title {
+    filter: invert(1);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-flyout {
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-flyout-title,
+:root[data-sidebar-theme="light"] .sidebar-group-label {
+    color: #64748b;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-group-divider {
+    border-top-color: rgba(15, 23, 42, 0.1);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item {
+    color: #475569;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #0f172a;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item--active {
+    color: color-mix(in srgb, var(--accent-primary) 75%, black);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item--active:hover {
+    color: color-mix(in srgb, var(--accent-primary) 75%, black);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-footer {
+    border-top-color: rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 900px) {

@@ -21,6 +21,7 @@ import { HiOutlineFunnel, HiOutlinePlus, HiOutlineSquares2X2, HiOutlineTableCell
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useLeadsQuery, useCreateLead, useUpdateLead, useReorderLeads, useDeleteLead, useAssignableUsersQuery } from '../hooks/useLeadsQuery';
 import { useCreateNote } from '../hooks/useNotesQuery';
@@ -404,7 +405,7 @@ const CrmLeadsPage = () => {
                 visible={filterDialogVisible}
                 onHide={() => setFilterDialogVisible(false)}
                 position="bottom-right"
-                header="Filter Leads"
+                header={<DialogHeader icon={HiOutlineFunnel} title="Filter Leads" />}
                 style={{ width: '320px', maxWidth: '95vw' }}
                 className="crm-leads-filter-dialog"
             >

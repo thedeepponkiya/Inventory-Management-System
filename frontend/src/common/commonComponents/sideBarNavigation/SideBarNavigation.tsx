@@ -1,4 +1,5 @@
-import { useContext, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AppContext } from '../../../context/AppContextDefinition';
 import { useAuthContext } from '../../../context/AuthContextDefinition';
@@ -26,6 +27,7 @@ import {
     HiOutlineChevronRight,
     HiOutlineChevronDown,
     HiOutlineChevronDoubleLeft,
+    HiOutlineShieldCheck,
 } from 'react-icons/hi2';
 import { BsBoxSeam } from 'react-icons/bs';
 import inventoryLogo from '../../../assets/inventoryLogo.png';
@@ -71,13 +73,17 @@ const navGroups = [
             { label: 'Reports', path: '/reports', icon: HiOutlineChartBar },
         ],
     },
-    {
-        groupLabel: 'Administration',
-        items: [
-            { label: 'Users', path: '/users', icon: HiOutlineUsers },
-        ],
-    },
 ];
+
+// Rendered separately from navGroups, as its own collapsible parent menu rather than an
+// always-expanded groupLabel section - mirrors crmMenu's shape/behavior below.
+const administrationMenu = {
+    label: 'Administration',
+    icon: HiOutlineShieldCheck,
+    items: [
+        { label: 'Users', path: '/users', icon: HiOutlineUsers },
+    ],
+};
 
 // Rendered separately from navGroups, as its own collapsible parent menu rather than an
 // always-expanded groupLabel section - only Sources and Settings have a real page so far,
@@ -106,6 +112,7 @@ const SidePanel = () => {
     // top of the admin's global hiddenPaths above; an item needs to pass both checks to show.
     const isAllowedForRole = (path: string) => isModuleAllowed(path, user?.roleId ?? null, user?.isHidden ?? false, rolePermissions ?? {});
     const visibleCrmItems = crmMenu.items.filter((item) => !hiddenPaths.includes(item.path) && isAllowedForRole(item.path));
+    const visibleAdminItems = administrationMenu.items.filter((item) => !hiddenPaths.includes(item.path) && isAllowedForRole(item.path));
     const expanded = isSidePanelOpen;
     // Lifted to AppContext (not local state) so Header.tsx's hamburger button - a proper
     // flex child of the header row, so it always vertically aligns with the title text
@@ -116,6 +123,18 @@ const SidePanel = () => {
     const location = useLocation();
     // Starts open automatically if already on a CRM page (e.g. after a refresh).
     const [crmMenuOpen, setCrmMenuOpen] = useState(location.pathname.startsWith('/crm'));
+    // Same auto-open-on-refresh behavior as crmMenuOpen, keyed to this menu's own item paths.
+    const [adminMenuOpen, setAdminMenuOpen] = useState(administrationMenu.items.some((item) => location.pathname.startsWith(item.path)));
+    // Collapsed-rail flyouts (see isCollapsedFlyout below) are portaled to document.body since
+    // .side-panel has overflow:hidden (needed to clip the wordmark/labels during the collapse/
+    // expand width transition) - a plain position:absolute/fixed child would get clipped
+    // right along with everything else in that box. Portaling means it needs its own
+    // viewport coordinates instead of relying on CSS positioning against a sidebar ancestor,
+    // captured from the toggle button's own position at the moment it's opened.
+    const adminToggleRef = useRef<HTMLButtonElement>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const crmToggleRef = useRef<HTMLButtonElement>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [adminFlyoutPos, setAdminFlyoutPos] = useState<{ top: number; left: number } | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [crmFlyoutPos, setCrmFlyoutPos] = useState<{ top: number; left: number } | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     // '/' and '/crm' are index/dashboard routes - startsWith would otherwise also match
     // every nested path under them (e.g. '/crm/leads'), highlighting Dashboard alongside
@@ -123,6 +142,31 @@ const SidePanel = () => {
     const isItemActive = (path: string) => (path === '/' || path === '/crm' ? location.pathname === path : location.pathname.startsWith(path));
 
     const toggleExpanded = () => setIsSidePanelOpen((prev: boolean) => !prev);
+
+    // Collapsed rail is only 56px wide - no room for a label, so a submenu opened there can't
+    // render inline (it used to, and just showed a stack of unlabeled icons squeezed into that
+    // same narrow column). Instead it renders as a floating flyout positioned outside the rail
+    // (see .sidebar-flyout), same idea as VS Code's activity bar / most collapsed admin
+    // sidebars. Mobile's drawer always opens fully expanded regardless of this desktop
+    // collapse state (see the comment above .side-panel below), so it keeps the normal inline
+    // submenu too.
+    const isCollapsedFlyout = !expanded && !mobileOpen;
+
+    const toggleAdminMenu = () => {
+        if (isCollapsedFlyout && !adminMenuOpen && adminToggleRef.current) {
+            const rect = adminToggleRef.current.getBoundingClientRect();
+            setAdminFlyoutPos({ top: rect.top, left: rect.right + 8 });
+        }
+        setAdminMenuOpen((prev) => !prev);
+    };
+
+    const toggleCrmMenu = () => {
+        if (isCollapsedFlyout && !crmMenuOpen && crmToggleRef.current) {
+            const rect = crmToggleRef.current.getBoundingClientRect();
+            setCrmFlyoutPos({ top: rect.top, left: rect.right + 8 });
+        }
+        setCrmMenuOpen((prev) => !prev);
+    };
 
     return (
         <>
@@ -214,18 +258,93 @@ const SidePanel = () => {
                         );
                     })}
 
+                    {visibleAdminItems.length > 0 && (
+                        <div className="sidebar-group">
+                            <button
+                                ref={adminToggleRef}
+                                type="button"
+                                className={`sidebar-item sidebar-item--toggle${adminMenuOpen ? ' sidebar-item--active' : ''}`}
+                                onClick={toggleAdminMenu}
+                            >
+                                <administrationMenu.icon size={19} />
+                                <span>{administrationMenu.label}</span>
+                                {adminMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
+                            </button>
+                            {adminMenuOpen && isCollapsedFlyout && adminFlyoutPos && createPortal(
+                                <>
+                                    <div className="sidebar-flyout-catcher" onClick={() => setAdminMenuOpen(false)} />
+                                    <div className="sidebar-flyout" style={{ top: adminFlyoutPos.top, left: adminFlyoutPos.left }}>
+                                        <span className="sidebar-flyout-title">{administrationMenu.label}</span>
+                                        {visibleAdminItems.map(({ label, path, icon: Icon }) => (
+                                            <NavLink
+                                                key={path}
+                                                to={path}
+                                                className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                                title={label}
+                                                onClick={() => setAdminMenuOpen(false)}
+                                            >
+                                                <Icon size={17} />
+                                                <span>{label}</span>
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                </>,
+                                document.body
+                            )}
+                            {adminMenuOpen && !isCollapsedFlyout && (
+                                <div className="sidebar-submenu">
+                                    {visibleAdminItems.map(({ label, path, icon: Icon }) => (
+                                        <NavLink
+                                            key={path}
+                                            to={path}
+                                            className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                            title={label}
+                                            onClick={() => setMobileOpen(false)}
+                                        >
+                                            <Icon size={17} />
+                                            <span>{label}</span>
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {visibleCrmItems.length > 0 && (
                         <div className="sidebar-group">
                             <button
+                                ref={crmToggleRef}
                                 type="button"
                                 className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
-                                onClick={() => setCrmMenuOpen((prev) => !prev)}
+                                onClick={toggleCrmMenu}
                             >
                                 <crmMenu.icon size={19} />
                                 <span>{crmMenu.label}</span>
                                 {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
                             </button>
-                            {crmMenuOpen && (
+                            {crmMenuOpen && isCollapsedFlyout && crmFlyoutPos && createPortal(
+                                <>
+                                    <div className="sidebar-flyout-catcher" onClick={() => setCrmMenuOpen(false)} />
+                                    <div className="sidebar-flyout" style={{ top: crmFlyoutPos.top, left: crmFlyoutPos.left }}>
+                                        <span className="sidebar-flyout-title">{crmMenu.label}</span>
+                                        {visibleCrmItems.map(({ label, path, icon: Icon }) => (
+                                            <NavLink
+                                                key={path}
+                                                to={path}
+                                                end={path === '/crm'}
+                                                className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                                title={label}
+                                                onClick={() => setCrmMenuOpen(false)}
+                                            >
+                                                <Icon size={17} />
+                                                <span>{label}</span>
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                </>,
+                                document.body
+                            )}
+                            {crmMenuOpen && !isCollapsedFlyout && (
                                 <div className="sidebar-submenu">
                                     {visibleCrmItems.map(({ label, path, icon: Icon }) => (
                                         <NavLink

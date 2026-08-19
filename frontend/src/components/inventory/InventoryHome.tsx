@@ -3,7 +3,6 @@ import type { ChangeEvent, DragEvent } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
-import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import {
@@ -25,6 +24,8 @@ import {
 } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
 import { AppContext } from '../../context/AppContextDefinition';
@@ -190,12 +191,17 @@ const InventoryHome = () => {
         }
 
         const assembly = assemblyRows.map(({ skuCode, skuName, quantity, unit }) => ({ skuCode, skuName, quantity, unit }));
-        if (editingId) {
-            await updateInventoryItem(editingId, { ...form, assembly });
-            showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
-        } else {
-            await createInventoryItem({ ...form, assembly });
-            showToast(toast, 'success', 'Created', 'Inventory item created successfully');
+        try {
+            if (editingId) {
+                await updateInventoryItem(editingId, { ...form, assembly });
+                showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
+            } else {
+                await createInventoryItem({ ...form, assembly, skuId: previewSkuId });
+                showToast(toast, 'success', 'Created', 'Inventory item created successfully');
+            }
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+            return;
         }
         fetchInventories();
         setForm(emptyForm);
@@ -273,7 +279,7 @@ const InventoryHome = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit Inventory Item' : 'Add New Inventory Item'}
+                header={<DialogHeader icon={HiOutlineCube} title={editingId ? 'Edit Inventory Item' : 'Add New Inventory Item'} />}
                 className="inventory-home-dialog"
                 style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
@@ -315,7 +321,13 @@ const InventoryHome = () => {
                                         <div className="form-field">
                                             <label>SKU (ID) <span className="inventory-home-required">*</span></label>
                                             <div className="inventory-home-input-icon-wrapper">
-                                                <InputText className="inventory-home-input inventory-home-input--icon" value={editingId ? editingSkuId : (previewSkuId || 'Generating...')} disabled />
+                                                <InputText
+                                                    className="inventory-home-input inventory-home-input--icon"
+                                                    value={editingId ? editingSkuId : previewSkuId}
+                                                    onChange={(e) => setPreviewSkuId(e.target.value)}
+                                                    placeholder="Generating..."
+                                                    disabled={!!editingId}
+                                                />
                                                 <HiOutlineTag size={15} className="inventory-home-input-icon" />
                                             </div>
                                         </div>
@@ -333,7 +345,8 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Category <span className="inventory-home-required">*</span></label>
-                                            <Dropdown
+                                            <QuickAddDropdown
+                                                quickAddType="category"
                                                 value={form.categoryName}
                                                 onChange={(e) => setForm({ ...form, categoryName: e.value })}
                                                 options={(categories as Category[]).map((c) => ({ label: c.category, value: c.category }))}
@@ -342,7 +355,8 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Product Type <span className="inventory-home-required">*</span></label>
-                                            <Dropdown
+                                            <QuickAddDropdown
+                                                quickAddType="productType"
                                                 value={form.productType}
                                                 onChange={(e) => setForm({ ...form, productType: e.value })}
                                                 options={(productTypes as ProductType[]).map((t) => ({ label: t.productType, value: t.productType }))}
@@ -363,7 +377,7 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Unit <span className="inventory-home-required">*</span></label>
-                                            <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
+                                            <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                                         </div>
                                     </div>
                                 </div>
@@ -426,7 +440,7 @@ const InventoryHome = () => {
                                             </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Product Cost (Rs.) <span className="inventory-home-required">*</span></label>
+                                            <label>Product Cost (Rs.)</label>
                                             <div className="inventory-home-input-icon-wrapper">
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
@@ -439,7 +453,7 @@ const InventoryHome = () => {
                                             </div>
                                         </div>
                                         <div className="form-field">
-                                            <label>Selling Cost (Rs.) <span className="inventory-home-required">*</span></label>
+                                            <label>Selling Cost (Rs.)</label>
                                             <div className="inventory-home-input-icon-wrapper">
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
@@ -453,7 +467,8 @@ const InventoryHome = () => {
                                         </div>
                                         <div className="form-field">
                                             <label>Location <span className="inventory-home-required">*</span></label>
-                                            <Dropdown
+                                            <QuickAddDropdown
+                                                quickAddType="location"
                                                 value={form.locationName}
                                                 onChange={(e) => setForm({ ...form, locationName: e.value })}
                                                 options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.location }))}

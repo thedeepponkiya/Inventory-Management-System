@@ -173,6 +173,161 @@
     font-size: 13px;
 }
 
+.bom-revert-info {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    overflow: hidden;
+}
+
+.bom-revert-info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+.bom-revert-info-row:not(:last-child) {
+    border-bottom: 1px dashed var(--border-dashed);
+}
+
+.bom-revert-info-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+
+.bom-revert-info-icon--produced {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--accent-primary);
+}
+
+.bom-revert-info-icon--reversed {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
+}
+
+.bom-revert-info-icon--remaining {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.bom-revert-info-label {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.bom-revert-info-value {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.bom-revert-info-value--produced {
+    color: var(--accent-primary);
+}
+
+.bom-revert-info-value--remaining {
+    color: var(--accent-success-text);
+}
+
+.bom-revert-qty-field {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    height: 52px;
+    padding: 0 4px 0 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--accent-primary);
+    background: var(--surface-card);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    overflow: hidden;
+}
+
+.bom-revert-qty-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Hides the native number-input spinner - the custom stepper on the right replaces it. */
+.bom-revert-qty-input::-webkit-outer-spin-button,
+.bom-revert-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.bom-revert-qty-input {
+    appearance: textfield;
+}
+
+.bom-revert-qty-unit {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 3px 10px;
+    margin: auto 0;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bom-revert-qty-steppers {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 40px;
+}
+
+.bom-revert-qty-steppers button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--accent-primary);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.bom-revert-qty-steppers button:first-child {
+    border-top-right-radius: 8px;
+}
+
+.bom-revert-qty-steppers button:last-child {
+    border-bottom-right-radius: 8px;
+}
+
+.bom-revert-qty-steppers button:hover {
+    background: var(--accent-primary-hover);
+}
+
+.bom-revert-qty-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.bom-revert-qty-hint strong {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
 .bom-recipe-table th {
     text-align: left;
     font-size: 11px;

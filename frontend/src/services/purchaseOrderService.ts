@@ -78,6 +78,10 @@ export interface PurchaseOrder {
 }
 
 export interface PurchaseOrderPayload {
+    // Only meaningful on create - a user-typed PO No. (the field is editable at create time,
+    // left blank to auto-generate). Ignored by the update endpoint, which never lets poNo
+    // change after creation.
+    poNo?: string;
     vendorId: number;
     poDate: string;
     expectedDeliveryDate: string | null;

@@ -2,18 +2,24 @@ const pool = require('../config/db');
 
 const TABLE = 'ims_sales_order';
 
-// "payments" is aggregated in here (rather than fetched separately by the frontend) so the
-// Transaction History tab gets its data for free from the same global fetch-all-SOs call
-// AppContext already makes on load - mirrors purchaseOrder.model.js's identical SELECT_WITH_VENDOR
-// pattern (SO has no vendor to join, so this is just the payments subquery on its own).
-// COALESCE(..., '[]') so an SO with no payments yet gets an empty array instead of a SQL NULL.
+// "payments"/"dispatches" are aggregated in here (rather than fetched separately by the
+// frontend) so the Transaction History / Dispatch History tabs get their data for free from
+// the same global fetch-all-SOs call AppContext already makes on load - mirrors
+// purchaseOrder.model.js's identical SELECT_WITH_VENDOR pattern (SO has no vendor to join, so
+// this is just the two subqueries on their own). COALESCE(..., '[]') so an SO with none yet
+// gets an empty array instead of a SQL NULL.
 const SELECT_WITH_PAYMENTS = `
   SELECT so.*,
     COALESCE(
       (SELECT json_agg(p.* ORDER BY p."paymentDate" ASC, p."createdAt" ASC)
        FROM ims_sales_order_payments p WHERE p."soId" = so.id),
       '[]'
-    ) AS payments
+    ) AS payments,
+    COALESCE(
+      (SELECT json_agg(d.* ORDER BY d."dispatchDate" ASC, d."createdAt" ASC)
+       FROM ims_sales_order_dispatches d WHERE d."soId" = so.id),
+      '[]'
+    ) AS dispatches
   FROM ${TABLE} so
 `;
 
@@ -53,7 +59,7 @@ async function getNextSoNo() {
 async function create(soNo, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "soNo", "customerName", "customerCode", "orderDate", "deliveryDate", "deliveryAddress",
+      "soNo", "customerName", "customerGstNo", "orderDate", "deliveryDate", "deliveryAddress",
       status, "paymentStatus", "paidAmount", "purchaseOrderRef", items,
       "totalItems", "totalQty", "subTotal", "discountAmount", "gstAmount", "grandTotal", remarks, "createdBy"
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
@@ -61,7 +67,7 @@ async function create(soNo, fields) {
     [
       soNo,
       fields.customerName,
-      fields.customerCode,
+      fields.customerGstNo,
       fields.orderDate,
       fields.deliveryDate,
       fields.deliveryAddress,
@@ -89,7 +95,7 @@ async function create(soNo, fields) {
 async function update(id, fields, db = pool) {
   const result = await db.query(
     `UPDATE ${TABLE} SET
-      "customerName" = $1, "customerCode" = $2, "orderDate" = $3, "deliveryDate" = $4, "deliveryAddress" = $5,
+      "customerName" = $1, "customerGstNo" = $2, "orderDate" = $3, "deliveryDate" = $4, "deliveryAddress" = $5,
       status = $6, "paymentStatus" = $7, "paidAmount" = $8, "purchaseOrderRef" = $9,
       items = $10, "totalItems" = $11, "totalQty" = $12,
       "subTotal" = $13, "discountAmount" = $14, "gstAmount" = $15, "grandTotal" = $16,
@@ -98,7 +104,7 @@ async function update(id, fields, db = pool) {
     RETURNING *`,
     [
       fields.customerName,
-      fields.customerCode,
+      fields.customerGstNo,
       fields.orderDate,
       fields.deliveryDate,
       fields.deliveryAddress,
@@ -125,4 +131,11 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, findByIdForUpdate, getNextSoNo, create, update, remove };
+// Existence check used by createSalesOrder to validate a user-typed soNo (the field is
+// editable at create time) isn't already taken.
+async function findBySoNo(soNo) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "soNo" = $1`, [soNo]);
+  return result.rows[0];
+}
+
+module.exports = { getAll, findById, findByIdForUpdate, findBySoNo, getNextSoNo, create, update, remove };

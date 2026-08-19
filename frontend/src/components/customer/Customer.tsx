@@ -3,9 +3,10 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlineUserCircle } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { createCustomer, updateCustomer, deleteCustomer, type Customer as CustomerType, type CustomerPayload } from '../../services/customerService';
@@ -137,7 +138,7 @@ const Customer = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit Customer' : 'Add New Customer'}
+                header={<DialogHeader icon={HiOutlineUserCircle} title={editingId ? 'Edit Customer' : 'Add New Customer'} />}
                 style={{ width: '480px', maxWidth: '95vw' }}
                 footer={
                     <>

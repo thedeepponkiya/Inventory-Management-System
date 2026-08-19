@@ -15,7 +15,9 @@ import {
     HiOutlineEnvelope,
     HiOutlinePhone,
     HiOutlineUser,
+    HiOutlineUsers,
 } from 'react-icons/hi2';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { useStagesQuery } from '../hooks/useStagesQuery';
 import { useSourcesQuery } from '../hooks/useSourcesQuery';
 import { useCampaignsQuery } from '../hooks/useCampaignsQuery';
@@ -115,7 +117,7 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
         <Dialog
             visible={visible}
             onHide={onHide}
-            header={editing ? 'Edit Lead' : 'Add New Lead'}
+            header={<DialogHeader icon={HiOutlineUsers} title={editing ? 'Edit Lead' : 'Add New Lead'} />}
             className="lead-form-dialog"
             style={{ width: '640px', maxWidth: '95vw' }}
             footer={

@@ -4,7 +4,8 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
-import { HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineViewColumns } from 'react-icons/hi2';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import type { CrmStage, CrmStagePayload, CrmStageOutcome } from '../types/stage.types';
 
 const outcomeOptions: { label: string; value: CrmStageOutcome }[] = [
@@ -44,7 +45,7 @@ const StageFormDialog = ({ visible, editing, nextSortOrder, onHide, onSave }: St
         <Dialog
             visible={visible}
             onHide={onHide}
-            header={editing ? 'Edit Stage' : 'Add New Stage'}
+            header={<DialogHeader icon={HiOutlineViewColumns} title={editing ? 'Edit Stage' : 'Add New Stage'} />}
             style={{ width: '440px', maxWidth: '95vw' }}
             footer={
                 <>

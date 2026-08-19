@@ -11,10 +11,12 @@ import {
     HiOutlineCalendarDays, HiOutlineSun, HiOutlineMoon, HiOutlineCheck,
 } from 'react-icons/hi2';
 import { FiSave } from 'react-icons/fi';
+import DialogHeader from '../dialogHeader/DialogHeader';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
 import { ACCENT_COLORS, useAccentColorContext } from '../../../context/AccentColorContextDefinition';
+import { SIDEBAR_COLORS, useSidebarColorContext } from '../../../context/SidebarColorContextDefinition';
 import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
 import { useCompanyLogoContext } from '../../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../../context/CompanySettingsContextDefinition';
@@ -57,6 +59,7 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const { dateFormat, setDateFormat } = useDateFormatContext();
     const { companyLogo, setCompanyLogo } = useCompanyLogoContext();
     const { accentColor, accentColorHex, setAccentColor } = useAccentColorContext();
+    const { sidebarColor, setSidebarColor } = useSidebarColorContext();
 
     // Read as a base64 data: URL (not URL.createObjectURL) so the logo can be persisted to
     // localStorage and embedded directly into jsPDF documents via doc.addImage() - applied
@@ -90,14 +93,7 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
             <Dialog
                 visible={visible}
                 onHide={onHide}
-                header={
-                    <div className="settings-dialog-header">
-                        <span className="settings-dialog-header-icon">
-                            <HiOutlineCog6Tooth size={20} />
-                        </span>
-                        <span className="settings-dialog-header-title">Settings</span>
-                    </div>
-                }
+                header={<DialogHeader icon={HiOutlineCog6Tooth} title="Settings" />}
                 className="settings-dialog"
                 style={{ width: '760px', maxWidth: '95vw' }}
                 footer={
@@ -257,6 +253,31 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                                     key={option.key}
                                                     className={`settings-accent-chip${isSelected ? ' settings-accent-chip--active' : ''}`}
                                                     onClick={() => setAccentColor(option.key)}
+                                                    style={isSelected ? { borderColor: option.color, background: `${option.color}14` } : undefined}
+                                                >
+                                                    <span className="settings-accent-dot" style={{ background: option.color }}>
+                                                        {isSelected && <HiOutlineCheck size={11} />}
+                                                    </span>
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="settings-appearance-section">
+                                    <div className="settings-appearance-section-header">
+                                        <span className="settings-appearance-section-label">Sidebar Background</span>
+                                    </div>
+                                    <div className="settings-accent-options">
+                                        {SIDEBAR_COLORS.map((option) => {
+                                            const isSelected = sidebarColor === option.key;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={option.key}
+                                                    className={`settings-accent-chip${isSelected ? ' settings-accent-chip--active' : ''}`}
+                                                    onClick={() => setSidebarColor(option.key)}
                                                     style={isSelected ? { borderColor: option.color, background: `${option.color}14` } : undefined}
                                                 >
                                                     <span className="settings-accent-dot" style={{ background: option.color }}>

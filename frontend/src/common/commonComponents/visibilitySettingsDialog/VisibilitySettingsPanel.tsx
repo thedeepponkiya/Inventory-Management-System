@@ -290,10 +290,7 @@ const VisibilitySettingsPanel = forwardRef<VisibilitySettingsPanelHandle, Visibi
             {!hideHeader && (
                 <div className="visibility-settings-header">
                     <span className="visibility-settings-header-icon"><HiOutlineEye size={20} /></span>
-                    <div className="visibility-settings-header-text">
-                        <h2>Manage Visibility</h2>
-                        <p>Control what&apos;s visible in the Quick Actions and Sidebar menus for your workspace.</p>
-                    </div>
+                    <h2>Manage Visibility</h2>
                     {onCancel && (
                         <button type="button" className="visibility-settings-close-btn" onClick={onCancel} aria-label="Close">
                             <HiOutlineXMark size={18} />

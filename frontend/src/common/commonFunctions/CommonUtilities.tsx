@@ -28,7 +28,7 @@ import type { Customer } from '../../services/customerService';
 import type { User } from '../../services/userService';
 import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseOrderPayment } from '../../services/purchaseOrderService';
-import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment } from '../../services/salesOrderService';
+import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment, SalesOrderDispatch } from '../../services/salesOrderService';
 import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
 import type { Invoice, PaymentStatus } from '../../services/invoiceService';
 import type { Bom, BomItem } from '../../services/bomService';
@@ -679,6 +679,7 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
                 options={unitOptions}
                 placeholder="Select unit"
                 className="inventory-home-assembly-dropdown"
+                filter
             />
         ),
     },
@@ -862,6 +863,28 @@ export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption, users:
     { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
     { field: 'recordedBy', header: 'Recorded By', fieldType: 'userAvatar', options: { users } },
+];
+
+// One row per Dispatch History entry (see salesOrder.controller.js's dispatchSalesOrder) -
+// read-only ledger, no action column (unlike getSalesOrderPaymentColumns, there's no
+// add/delete flow for these from the frontend - "Revert Dispatch" undoes the SO's aggregate
+// totals in one shot but deliberately never removes rows here, see the schema comment).
+export const getSalesOrderDispatchColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<SalesOrderDispatch>[] => [
+    { field: 'dispatchDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    {
+        field: 'items',
+        header: 'Items Shipped',
+        body: (row) => (
+            <div className="so-dispatch-history-items">
+                {row.items.map((item) => (
+                    <span key={item.skuId} className="so-dispatch-history-item">
+                        {item.itemName} <strong>&times;{item.shipQty}</strong> {item.unit}
+                    </span>
+                ))}
+            </div>
+        ),
+    },
+    { field: 'dispatchedBy', header: 'Dispatched By', fieldType: 'userAvatar', options: { users } },
 ];
 
 const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {

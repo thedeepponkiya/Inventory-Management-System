@@ -153,8 +153,8 @@
     width: 2.5rem;
 }
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item {
-    font-size: 0.8125rem;
-    padding: 0.45rem 0.75rem;
+    font-size: 13px;
+    padding: 0.3rem 0.7rem;
 }
 .p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
     color: var(--accent-primary-active);
@@ -174,8 +174,16 @@
     padding: 0.5rem 0.75rem;
 }
 .p-multiselect-panel .p-multiselect-item {
-    font-size: 0.8125rem;
-    padding: 0.45rem 0.75rem;
+    font-size: 13px;
+    padding: 0.3rem 0.7rem;
+}
+
+/* AutoComplete's suggestion panel (PO/SO product search) - same "dropdown option" treatment
+   as .p-dropdown-item/.p-multiselect-item above, kept consistent even though PrimeReact ships
+   it as a separate component/class set. */
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item {
+    font-size: 13px;
+    padding: 0.3rem 0.7rem;
 }
 .p-multiselect-panel .p-multiselect-item.p-highlight {
     color: var(--accent-primary-active);
@@ -230,15 +238,32 @@
     border-color: var(--accent-primary-hover);
 }
 
-/* Dialog header / content spacing */
+/* Dialog header / content spacing - every dialog's header now renders a DialogHeader
+   (icon badge + title, see common/commonComponents/dialogHeader/DialogHeader.tsx) instead of
+   a bare title string, so this needs enough padding/room for that badge, plus a consistently
+   styled close button (bordered square instead of PrimeReact's default plain hover-circle). */
 .p-dialog .p-dialog-header {
-    padding: 0.5rem;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-subtle);
 }
 .p-dialog .p-dialog-header .p-dialog-title {
     font-size: 14px;
 }
+.p-dialog .p-dialog-header-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+    background: var(--surface-card);
+    color: var(--text-tertiary);
+}
+.p-dialog .p-dialog-header-icon:hover {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+}
 .p-dialog .p-dialog-content {
-    padding: 0 0.5rem 0.5rem;
+    padding: 0.75rem 0.5rem 0.5rem;
 }
 .p-dialog .p-dialog-footer {
     padding: 0 0 1rem;
