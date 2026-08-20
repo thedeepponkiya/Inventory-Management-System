@@ -32,7 +32,6 @@ import CrmSourcesPage from '../features/crm/pages/CrmSourcesPage';
 import CrmSettingsPage from '../features/crm/pages/CrmSettingsPage';
 import CrmLeadsPage from '../features/crm/pages/CrmLeadsPage';
 import CrmFollowupsPage from '../features/crm/pages/CrmFollowupsPage';
-import CrmCampaignsPage from '../features/crm/pages/CrmCampaignsPage';
 import CrmDashboardPage from '../features/crm/pages/CrmDashboardPage';
 import CrmReportsPage from '../features/crm/pages/CrmReportsPage';
 import './routers.css';
@@ -106,7 +105,6 @@ const AppRoutes = () => {
                             <Route index element={<CrmDashboardPage />}></Route>
                             <Route path='leads' element={<CrmLeadsPage />}></Route>
                             <Route path='followups' element={<CrmFollowupsPage />}></Route>
-                            <Route path='campaigns' element={<CrmCampaignsPage />}></Route>
                             <Route path='reports' element={<CrmReportsPage />}></Route>
                             <Route path='sources' element={<CrmSourcesPage />}></Route>
                             <Route path='settings' element={<CrmSettingsPage />}></Route>

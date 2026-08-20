@@ -11,12 +11,10 @@ const SELECT_WITH_JOINS = `
     s.name AS "stageName",
     s.color AS "stageColor",
     src.name AS "sourceName",
-    cmp.name AS "campaignName",
     u."userName" AS "assignedToName"
   FROM ${TABLE} l
   LEFT JOIN crm_stages s ON s.id = l."stageId"
   LEFT JOIN crm_sources src ON src.id = l."sourceId"
-  LEFT JOIN crm_campaigns cmp ON cmp.id = l."campaignId"
   LEFT JOIN users u ON u.id = l."assignedTo"
 `;
 
@@ -50,13 +48,11 @@ async function getNextSortOrder(stageId) {
   return result.rows[0].nextOrder;
 }
 
-// metaLeadId/metaFormId/metaFormName are only ever populated by metaSync.service.js - the
-// regular create-lead flow (crmLead.controller.js) never sets them, so they default to null.
 async function create(leadCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
-      "leadCode", name, phone, email, company, "stageId", "sourceId", "campaignId", "assignedTo", value, status, priority, "isStarred", "sortOrder", "metaLeadId", "metaFormId", "metaFormName"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      "leadCode", name, phone, email, company, "stageId", "sourceId", "assignedTo", value, status, priority, "isStarred", "sortOrder"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
     [
       leadCode,
@@ -66,32 +62,23 @@ async function create(leadCode, fields) {
       fields.company,
       fields.stageId,
       fields.sourceId,
-      fields.campaignId,
       fields.assignedTo,
       fields.value,
       fields.status,
       fields.priority,
       fields.isStarred,
       fields.sortOrder,
-      fields.metaLeadId ?? null,
-      fields.metaFormId ?? null,
-      fields.metaFormName ?? null,
     ]
   );
   return findById(result.rows[0].id);
-}
-
-async function findByMetaLeadId(metaLeadId) {
-  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "metaLeadId" = $1`, [metaLeadId]);
-  return result.rows[0];
 }
 
 async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
       name = $1, phone = $2, email = $3, company = $4, "stageId" = $5, "sourceId" = $6,
-      "campaignId" = $7, "assignedTo" = $8, value = $9, status = $10, priority = $11, "isStarred" = $12, "updatedAt" = now()
-    WHERE id = $13
+      "assignedTo" = $7, value = $8, status = $9, priority = $10, "isStarred" = $11, "updatedAt" = now()
+    WHERE id = $12
     RETURNING *`,
     [
       fields.name,
@@ -100,7 +87,6 @@ async function update(id, fields) {
       fields.company,
       fields.stageId,
       fields.sourceId,
-      fields.campaignId,
       fields.assignedTo,
       fields.value,
       fields.status,
@@ -144,4 +130,4 @@ async function reorderStage(stageId, orderedLeadIds) {
   }
 }
 
-module.exports = { getAll, findById, findByMetaLeadId, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };
+module.exports = { getAll, findById, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };

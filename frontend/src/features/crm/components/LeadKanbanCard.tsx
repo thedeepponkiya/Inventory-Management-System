@@ -35,8 +35,6 @@ const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardPr
     const { dateFormat } = useDateFormatContext();
     const avatarColor = getColorForString(lead.id);
     const sourceBadgeColors = lead.sourceName ? getBadgeColors(lead.sourceName) : null;
-    // Separate seed from avatarColor/sourceColor so the dot doesn't just repeat one of them.
-    const dotColor = getColorForString(`${lead.id}-dot`);
 
     return (
         <>
@@ -69,15 +67,11 @@ const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardPr
                 </div>
             )}
 
-            {(lead.sourceName || lead.campaignName) && (
+            {lead.sourceName && sourceBadgeColors && (
                 <div className="lead-kanban-card-tags">
-                    {lead.sourceName && sourceBadgeColors && (
-                        <span className="lead-kanban-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>
-                            {lead.sourceName}
-                        </span>
-                    )}
-                    {lead.sourceName && lead.campaignName && <span className="lead-kanban-tag-dot" style={{ color: dotColor }}>•</span>}
-                    {lead.campaignName && <span className="lead-kanban-campaign-text">{lead.campaignName}</span>}
+                    <span className="lead-kanban-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>
+                        {lead.sourceName}
+                    </span>
                 </div>
             )}
 

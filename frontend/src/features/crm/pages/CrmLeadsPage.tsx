@@ -288,7 +288,6 @@ const CrmLeadsPage = () => {
             ) : '—'),
         },
         { field: 'sourceName', header: 'Source', body: (row) => row.sourceName ?? '—' },
-        { field: 'campaignName', header: 'Campaign', body: (row) => row.campaignName ?? '—' },
         { field: 'assignedToName', header: 'Assigned To', body: (row) => row.assignedToName ?? '—' },
         {
             field: 'priority',

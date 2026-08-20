@@ -413,10 +413,6 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                                     <span className="lead-detail-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>{lead.sourceName}</span>
                                 ) : <span>—</span>}
                             </div>
-                            <div className="lead-detail-field">
-                                <span className="lead-detail-label">Campaign</span>
-                                <span className="lead-detail-value-14">{lead.campaignName ?? '—'}</span>
-                            </div>
                         </div>
 
                         <div className="lead-detail-grid-row">

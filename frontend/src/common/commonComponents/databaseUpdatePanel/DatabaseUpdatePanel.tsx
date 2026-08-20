@@ -29,7 +29,7 @@ const steps = [
 ];
 
 function countChanges(changes: PendingSchemaChanges): number {
-    return changes.newTables.length + changes.newColumns.length + changes.removedColumns.length
+    return changes.newTables.length + changes.droppedTables.length + changes.newColumns.length + changes.removedColumns.length
         + changes.renamedColumns.length + changes.newIndexes.length;
 }
 
@@ -180,6 +180,12 @@ const DatabaseUpdatePanel = () => {
                                 <div className="database-update-preview-item database-update-preview-item--risky" key={`drop-${table}-${column}`}>
                                     <span className="database-update-preview-icon database-update-preview-icon--drop"><HiOutlineTrash size={16} /></span>
                                     <span>Remove column <strong>{table}.{column}</strong> - any data in it will be lost</span>
+                                </div>
+                            ))}
+                            {preview.droppedTables.map((table) => (
+                                <div className="database-update-preview-item database-update-preview-item--risky" key={`drop-table-${table}`}>
+                                    <span className="database-update-preview-icon database-update-preview-icon--drop"><HiOutlineTrash size={16} /></span>
+                                    <span>Remove table <strong>{table}</strong> - all its data will be lost</span>
                                 </div>
                             ))}
                         </div>

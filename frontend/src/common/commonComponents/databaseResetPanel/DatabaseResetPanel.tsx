@@ -18,7 +18,6 @@ import {
     HiOutlineArchiveBox,
     HiOutlineTag,
     HiOutlineUser,
-    HiOutlineMegaphone,
     HiOutlineUsers,
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
@@ -55,7 +54,6 @@ const clearedItems: ResetDataItem[] = [
     { label: 'BOM', detail: 'Bill of Materials, in-process and completed', icon: FaSitemap },
     { label: 'Finished / Raw SKU', detail: 'SKU catalog and stock levels', icon: HiOutlineTag },
     { label: 'CRM Leads', detail: 'Leads, notes, follow-ups, activity timeline, notifications', icon: HiOutlineUser },
-    { label: 'CRM Campaigns', detail: 'Marketing campaigns', icon: HiOutlineMegaphone },
 ];
 
 const keptItems: ResetDataItem[] = [
@@ -193,7 +191,7 @@ const DatabaseResetPanel = () => {
                 closeOnEscape={!resetting}
             >
                 <p className="database-reset-dialog-text">
-                    A backup will be taken first, then this will permanently delete every Purchase Order, Sales Order, Sales Order Dispatch History, Material Inward, Invoice, Inventory record, BOM, Finished/Raw SKU, and CRM Lead/Campaign. Users and master data will not be affected.
+                    A backup will be taken first, then this will permanently delete every Purchase Order, Sales Order, Sales Order Dispatch History, Material Inward, Invoice, Inventory record, BOM, Finished/Raw SKU, and CRM Lead. Users and master data will not be affected.
                 </p>
                 <p className="database-reset-dialog-text">
                     Type <strong>{CONFIRM_PHRASE}</strong> below to confirm.

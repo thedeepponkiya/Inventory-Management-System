@@ -62,14 +62,12 @@ const sidebarMenuItems: VisibilityItem[] = [
 const crmQuickActionItems: VisibilityItem[] = [
     { label: 'Leads', path: '/crm/leads' },
     { label: 'Follow Ups', path: '/crm/followups' },
-    { label: 'Campaigns', path: '/crm/campaigns' },
 ];
 
 const crmSidebarMenuItems: VisibilityItem[] = [
     { label: 'Dashboard', path: '/crm' },
     { label: 'Leads', path: '/crm/leads' },
     { label: 'Follow-ups', path: '/crm/followups' },
-    { label: 'Campaigns', path: '/crm/campaigns' },
     { label: 'Sources', path: '/crm/sources' },
     { label: 'Reports', path: '/crm/reports' },
     { label: 'Settings', path: '/crm/settings' },

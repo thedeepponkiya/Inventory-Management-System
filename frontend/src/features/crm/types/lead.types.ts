@@ -10,7 +10,6 @@ export interface CrmLead {
     company: string | null;
     stageId: string | null;
     sourceId: string | null;
-    campaignId: string | null;
     assignedTo: number | null;
     value: number;
     status: CrmLeadStatus;
@@ -24,7 +23,6 @@ export interface CrmLead {
     stageName: string | null;
     stageColor: string | null;
     sourceName: string | null;
-    campaignName: string | null;
     assignedToName: string | null;
 }
 
@@ -35,7 +33,6 @@ export interface CrmLeadPayload {
     company: string | null;
     stageId: string | null;
     sourceId: string | null;
-    campaignId: string | null;
     assignedTo: number | null;
     value: number;
     status: CrmLeadStatus;

@@ -16,11 +16,13 @@ export interface DatabaseUpdateResult {
 
 export interface PendingSchemaChanges {
     newTables: string[];
+    // Called out separately from newTables/newColumns/renamedColumns, alongside
+    // removedColumns below - unlike those, this and removedColumns are the two categories that
+    // can actually discard data (a table/column schema.sql wants dropped, if it still exists
+    // and still holds values on this database). See databaseSchemaPreview.util.js's own
+    // comment for the full reasoning.
+    droppedTables: string[];
     newColumns: { table: string; column: string }[];
-    // Called out separately from newColumns/newTables/renamedColumns - unlike those, this is
-    // the one category that can actually discard data (a column schema.sql wants dropped, if
-    // it still exists and still holds values on this database). See
-    // databaseSchemaPreview.util.js's own comment for the full reasoning.
     removedColumns: { table: string; column: string }[];
     renamedColumns: { table: string; fromColumn: string; toColumn: string }[];
     newIndexes: { indexName: string; table: string }[];

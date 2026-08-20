@@ -22,7 +22,6 @@ import {
     HiOutlineUsers, // Users nav item hidden below
     HiOutlineCog6Tooth,
     HiOutlineUserGroup,
-    HiOutlineMegaphone,
     HiOutlineChartPie,
     HiOutlineChevronRight,
     HiOutlineChevronDown,
@@ -95,7 +94,6 @@ const crmMenu = {
         { label: 'Dashboard', path: '/crm', icon: HiOutlineChartBar },
         { label: 'Leads', path: '/crm/leads', icon: HiOutlineUsers },
         { label: 'Follow-ups', path: '/crm/followups', icon: HiOutlineClipboardDocumentList },
-        { label: 'Campaigns', path: '/crm/campaigns', icon: HiOutlineMegaphone },
         { label: 'Sources', path: '/crm/sources', icon: HiOutlineBuildingStorefront },
         { label: 'Reports', path: '/crm/reports', icon: HiOutlineChartPie },
         { label: 'Settings', path: '/crm/settings', icon: HiOutlineCog6Tooth },
@@ -231,6 +229,60 @@ const SidePanel = () => {
                         </NavLink>
                     )}
 
+                    {visibleCrmItems.length > 0 && (
+                        <div className="sidebar-group">
+                            <button
+                                ref={crmToggleRef}
+                                type="button"
+                                className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
+                                onClick={toggleCrmMenu}
+                            >
+                                <crmMenu.icon size={19} />
+                                <span>{crmMenu.label}</span>
+                                {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
+                            </button>
+                            {crmMenuOpen && isCollapsedFlyout && crmFlyoutPos && createPortal(
+                                <>
+                                    <div className="sidebar-flyout-catcher" onClick={() => setCrmMenuOpen(false)} />
+                                    <div className="sidebar-flyout" style={{ top: crmFlyoutPos.top, left: crmFlyoutPos.left }}>
+                                        <span className="sidebar-flyout-title">{crmMenu.label}</span>
+                                        {visibleCrmItems.map(({ label, path, icon: Icon }) => (
+                                            <NavLink
+                                                key={path}
+                                                to={path}
+                                                end={path === '/crm'}
+                                                className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                                title={label}
+                                                onClick={() => setCrmMenuOpen(false)}
+                                            >
+                                                <Icon size={17} />
+                                                <span>{label}</span>
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                </>,
+                                document.body
+                            )}
+                            {crmMenuOpen && !isCollapsedFlyout && (
+                                <div className="sidebar-submenu">
+                                    {visibleCrmItems.map(({ label, path, icon: Icon }) => (
+                                        <NavLink
+                                            key={path}
+                                            to={path}
+                                            end={path === '/crm'}
+                                            className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
+                                            title={label}
+                                            onClick={() => setMobileOpen(false)}
+                                        >
+                                            <Icon size={17} />
+                                            <span>{label}</span>
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {navGroups.map((group) => {
                         const visibleItems = group.items.filter((item) => !hiddenPaths.includes(item.path) && isAllowedForRole(item.path));
                         // Skip the whole group (divider + label included) once every item in
@@ -297,60 +349,6 @@ const SidePanel = () => {
                                         <NavLink
                                             key={path}
                                             to={path}
-                                            className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
-                                            title={label}
-                                            onClick={() => setMobileOpen(false)}
-                                        >
-                                            <Icon size={17} />
-                                            <span>{label}</span>
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {visibleCrmItems.length > 0 && (
-                        <div className="sidebar-group">
-                            <button
-                                ref={crmToggleRef}
-                                type="button"
-                                className={`sidebar-item sidebar-item--toggle${crmMenuOpen ? ' sidebar-item--active' : ''}`}
-                                onClick={toggleCrmMenu}
-                            >
-                                <crmMenu.icon size={19} />
-                                <span>{crmMenu.label}</span>
-                                {crmMenuOpen ? <HiOutlineChevronDown size={16} className="sidebar-item-chevron" /> : <HiOutlineChevronRight size={16} className="sidebar-item-chevron" />}
-                            </button>
-                            {crmMenuOpen && isCollapsedFlyout && crmFlyoutPos && createPortal(
-                                <>
-                                    <div className="sidebar-flyout-catcher" onClick={() => setCrmMenuOpen(false)} />
-                                    <div className="sidebar-flyout" style={{ top: crmFlyoutPos.top, left: crmFlyoutPos.left }}>
-                                        <span className="sidebar-flyout-title">{crmMenu.label}</span>
-                                        {visibleCrmItems.map(({ label, path, icon: Icon }) => (
-                                            <NavLink
-                                                key={path}
-                                                to={path}
-                                                end={path === '/crm'}
-                                                className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
-                                                title={label}
-                                                onClick={() => setCrmMenuOpen(false)}
-                                            >
-                                                <Icon size={17} />
-                                                <span>{label}</span>
-                                            </NavLink>
-                                        ))}
-                                    </div>
-                                </>,
-                                document.body
-                            )}
-                            {crmMenuOpen && !isCollapsedFlyout && (
-                                <div className="sidebar-submenu">
-                                    {visibleCrmItems.map(({ label, path, icon: Icon }) => (
-                                        <NavLink
-                                            key={path}
-                                            to={path}
-                                            end={path === '/crm'}
                                             className={`sidebar-item sidebar-subitem${isItemActive(path) ? ' sidebar-item--active' : ''}`}
                                             title={label}
                                             onClick={() => setMobileOpen(false)}

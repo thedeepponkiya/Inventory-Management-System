@@ -4,12 +4,13 @@ const pool = require('../config/db');
 
 const SCHEMA_PATH = path.join(__dirname, '../db/schema.sql');
 
-// Regex-extracted (not a real SQL parser) - schema.sql only ever uses these five DDL shapes,
+// Regex-extracted (not a real SQL parser) - schema.sql only ever uses these six DDL shapes,
 // each on a single logical statement, so this is reliable for this one file without pulling
 // in a full SQL parser dependency. See schema.sql's own house style for why every one of
 // these is written IF [NOT] EXISTS in the first place (idempotent, safe to re-run).
 const PATTERNS = {
     newTable: /CREATE TABLE IF NOT EXISTS\s+"?(\w+)"?/gi,
+    dropTable: /DROP TABLE IF EXISTS\s+"?(\w+)"?/gi,
     addColumn: /ALTER TABLE\s+"?(\w+)"?\s+ADD COLUMN IF NOT EXISTS\s+"?(\w+)"?/gi,
     dropColumn: /ALTER TABLE\s+"?(\w+)"?\s+DROP COLUMN IF EXISTS\s+"?(\w+)"?/gi,
     renameColumn: /ALTER TABLE\s+"?(\w+)"?\s+RENAME COLUMN\s+"?(\w+)"?\s+TO\s+"?(\w+)"?/gi,
@@ -50,6 +51,17 @@ async function getPendingSchemaChanges() {
         }
     }
     const pendingNewTableSet = new Set(pendingNewTables);
+
+    // The other genuinely destructive category alongside removedColumns below - a DROP TABLE
+    // taking effect on a database that still has that table (and whatever rows are in it).
+    const dropTableNames = [...sql.matchAll(PATTERNS.dropTable)].map((m) => m[1]);
+    const pendingDroppedTables = [];
+    for (const name of new Set(dropTableNames)) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await tableExists(name)) {
+            pendingDroppedTables.push(name);
+        }
+    }
 
     const pendingNewColumns = [];
     for (const m of sql.matchAll(PATTERNS.addColumn)) {
@@ -95,6 +107,7 @@ async function getPendingSchemaChanges() {
 
     return {
         newTables: pendingNewTables,
+        droppedTables: pendingDroppedTables,
         newColumns: pendingNewColumns,
         removedColumns: pendingRemovedColumns,
         renamedColumns: pendingRenamedColumns,

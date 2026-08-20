@@ -35,13 +35,12 @@ export function exportLeadsReportPdf(leads: CrmLead[], filterSummary: string): v
     autoTable(doc, {
         startY: 38,
         margin: { left: MARGIN, right: MARGIN },
-        head: [['Lead Code', 'Name', 'Stage', 'Source', 'Campaign', 'Value', 'Status', 'Created']],
+        head: [['Lead Code', 'Name', 'Stage', 'Source', 'Value', 'Status', 'Created']],
         body: leads.map((lead) => [
             lead.leadCode,
             lead.name,
             lead.stageName ?? '—',
             lead.sourceName ?? '—',
-            lead.campaignName ?? '—',
             formatValue(lead.value),
             lead.status,
             formatDate(lead.createdAt),

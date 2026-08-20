@@ -568,30 +568,12 @@ INSERT INTO crm_sources (name, type) VALUES
     ('Justdial', 'Justdial')
 ON CONFLICT DO NOTHING;
 
--- Marketing campaigns, optionally tied to a source. No UI this module.
-CREATE TABLE IF NOT EXISTS crm_campaigns (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(150) NOT NULL,
-    "sourceId" UUID REFERENCES crm_sources(id),
-    "startDate" DATE,
-    "endDate" DATE,
-    budget NUMERIC(12,2) NOT NULL DEFAULT 0,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active',
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS crm_campaigns_source_idx ON crm_campaigns ("sourceId");
-CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_name_lower_idx ON crm_campaigns (LOWER(name));
-
--- Meta (Facebook/Instagram) Ads read-only sync columns - populated by the Meta Marketing API
--- pull in metaSync.service.js, null for manually-created campaigns.
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaCampaignId" VARCHAR(50);
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "metaStatus" VARCHAR(30);
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS spend NUMERIC(12,2);
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS impressions BIGINT;
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS clicks BIGINT;
-ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS "lastSyncedAt" TIMESTAMPTZ;
-CREATE UNIQUE INDEX IF NOT EXISTS crm_campaigns_meta_campaign_id_idx ON crm_campaigns ("metaCampaignId") WHERE "metaCampaignId" IS NOT NULL;
+-- Campaigns (Marketing campaigns module) was built and then fully removed - this drop undoes
+-- the table (CASCADE also drops crm_leads."campaignId"'s FK constraint to it, see the
+-- ALTER TABLE ... DROP COLUMN IF EXISTS "campaignId" further down for the column itself) for
+-- any database that already ran the CREATE TABLE version of this block, including any data it
+-- held.
+DROP TABLE IF EXISTS crm_campaigns CASCADE;
 
 -- Free-form lead tags. No UI this module.
 CREATE TABLE IF NOT EXISTS crm_tags (
@@ -616,7 +598,6 @@ CREATE TABLE IF NOT EXISTS crm_leads (
     company VARCHAR(150),
     "stageId" UUID REFERENCES crm_stages(id),
     "sourceId" UUID REFERENCES crm_sources(id),
-    "campaignId" UUID REFERENCES crm_campaigns(id),
     "assignedTo" INTEGER REFERENCES users(id),
     value NUMERIC(12,2) NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'Active',
@@ -625,8 +606,10 @@ CREATE TABLE IF NOT EXISTS crm_leads (
 );
 CREATE INDEX IF NOT EXISTS crm_leads_stage_idx ON crm_leads ("stageId");
 CREATE INDEX IF NOT EXISTS crm_leads_source_idx ON crm_leads ("sourceId");
-CREATE INDEX IF NOT EXISTS crm_leads_campaign_idx ON crm_leads ("campaignId");
 CREATE INDEX IF NOT EXISTS crm_leads_assigned_idx ON crm_leads ("assignedTo");
+-- Campaigns module removed (see crm_campaigns' own DROP TABLE above) - drops the column for
+-- any database that already had it, along with whatever campaign links it held.
+ALTER TABLE crm_leads DROP COLUMN IF EXISTS "campaignId";
 
 -- Priority for the Kanban board's lead card (Module 3) - not part of the original table
 -- since Leads CRUD (Module 2) didn't need it yet.
@@ -642,32 +625,15 @@ ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "isStarred" BOOLEAN NOT NULL DEFA
 -- stage whenever that stage's column is reordered - see CrmLeadModel.reorderStage.
 ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "sortOrder" INTEGER NOT NULL DEFAULT 0;
 
--- Meta (Facebook/Instagram) Lead Ads polling sync columns - populated by
--- metaSync.service.js, null for manually-created/other-source leads. The partial unique
--- index makes re-polling idempotent (upsert-by-metaLeadId) without constraining every
--- other lead (which all have metaLeadId IS NULL).
-ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaLeadId" VARCHAR(50);
-ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormId" VARCHAR(50);
-ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS "metaFormName" VARCHAR(150);
-CREATE UNIQUE INDEX IF NOT EXISTS crm_leads_meta_lead_id_idx ON crm_leads ("metaLeadId") WHERE "metaLeadId" IS NOT NULL;
-
--- Stores the single connected Meta Page/Ad Account (manual long-lived Page Access Token,
--- pasted by the admin in CRM Settings - see crmMetaIntegration.*). One row in practice.
-CREATE TABLE IF NOT EXISTS crm_meta_integration (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "pageId" VARCHAR(50) NOT NULL,
-    "pageName" VARCHAR(150),
-    "pageAccessTokenEnc" TEXT NOT NULL,
-    "adAccountId" VARCHAR(50),
-    "adAccountName" VARCHAR(150),
-    "tokenExpiresAt" TIMESTAMPTZ,
-    "lastLeadSyncAt" TIMESTAMPTZ,
-    "lastCampaignSyncAt" TIMESTAMPTZ,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active',
-    "connectedBy" VARCHAR(150),
-    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-    "updatedAt" TIMESTAMPTZ
-);
+-- Meta (Facebook/Instagram) Lead Ads integration was built and then fully removed (client's
+-- live account - the integration is out of scope for now) - these drops undo the polling-sync
+-- columns/index and the connection table for any database that already ran them, including
+-- any data they held (all Meta-only fields/rows, never populated for a manually-created lead).
+DROP INDEX IF EXISTS crm_leads_meta_lead_id_idx;
+ALTER TABLE crm_leads DROP COLUMN IF EXISTS "metaLeadId";
+ALTER TABLE crm_leads DROP COLUMN IF EXISTS "metaFormId";
+ALTER TABLE crm_leads DROP COLUMN IF EXISTS "metaFormName";
+DROP TABLE IF EXISTS crm_meta_integration;
 
 -- Scheduled follow-ups per lead. No UI this module.
 CREATE TABLE IF NOT EXISTS crm_followups (

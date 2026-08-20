@@ -33,7 +33,6 @@ export const routeMetaList: RouteMeta[] = [
     { path: '/crm', title: 'CRM Dashboard', subtitle: 'Overview of your leads and pipeline.' },
     { path: '/crm/leads', title: 'Leads', subtitle: 'Manage all leads captured across every source, in table or Kanban view.' },
     { path: '/crm/followups', title: 'Follow-ups', subtitle: 'Track scheduled follow-ups across all leads.' },
-    { path: '/crm/campaigns', title: 'Campaigns', subtitle: 'Manage marketing campaigns tied to your lead sources.' },
     { path: '/crm/sources', title: 'Sources', subtitle: 'Manage where your leads come from.' },
     { path: '/crm/reports', title: 'CRM Reports', subtitle: 'View, analyze and export CRM reports.' },
     { path: '/crm/settings', title: 'CRM Settings', subtitle: 'Customize pipeline stages and CRM preferences.' },

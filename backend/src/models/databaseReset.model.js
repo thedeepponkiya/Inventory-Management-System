@@ -1,9 +1,9 @@
 // Tables intentionally KEPT (never touched by reset): "users" (avoid locking everyone out,
 // including the hidden Super Admin), master data (ims_location/ims_category/
 // ims_product_type/ims_unit/ims_vendor/ims_customer), and settings/config-like tables
-// (ims_developer_admin_settings, crm_meta_integration, crm_stages/crm_sources/crm_tags -
-// these define the CRM's pipeline/lead-source/tag lookups, not day-to-day business records,
-// and CRM would have nothing to attach a lead to without them).
+// (ims_developer_admin_settings, crm_stages/crm_sources/crm_tags - these define the CRM's
+// pipeline/lead-source/tag lookups, not day-to-day business records, and CRM would have
+// nothing to attach a lead to without them).
 //
 // This is deliberately an OPT-OUT list, not an opt-in one. It used to be the other way around
 // (a hand-maintained TABLES_TO_RESET array) and that already silently drifted out of sync
@@ -27,7 +27,6 @@ const KEPT_TABLES = new Set([
     'ims_vendor',
     'ims_customer',
     'ims_developer_admin_settings',
-    'crm_meta_integration',
     'crm_stages',
     'crm_sources',
     'crm_tags',

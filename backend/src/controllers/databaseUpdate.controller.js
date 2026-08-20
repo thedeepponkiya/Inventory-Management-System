@@ -22,7 +22,7 @@ async function previewDatabaseUpdate(req, res) {
     } catch (err) {
         res.status(500).json({ status: false, message: `Could not compute pending changes: ${err.message}`, data: null });
     }
-}   
+}
 
 // Same isHidden + typed-confirm-phrase double gate as databaseReset.controller.js (see its
 // own comment for why isHidden is checked server-side here rather than trusted from the

@@ -7,7 +7,6 @@ import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useStagesQuery, useCreateStage, useUpdateStage, useDeleteStage } from '../hooks/useStagesQuery';
 import StageFormDialog from '../components/StageFormDialog';
 import StageReorderList from '../components/StageReorderList';
-import MetaIntegrationPanel from '../components/MetaIntegrationPanel';
 import type { CrmStage, CrmStagePayload } from '../types/stage.types';
 import './CrmSettingsPage.css';
 
@@ -103,7 +102,6 @@ const CrmSettingsPage = () => {
                 )}
             </div>
             <StageFormDialog visible={dialogVisible} editing={editing} nextSortOrder={nextSortOrder} onHide={() => setDialogVisible(false)} onSave={handleSave} />
-            <MetaIntegrationPanel />
         </div>
     );
 };

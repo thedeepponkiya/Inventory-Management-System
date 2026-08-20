@@ -49,7 +49,6 @@ async function createLead(req, res) {
       company: req.body.company || null,
       stageId,
       sourceId: req.body.sourceId || null,
-      campaignId: req.body.campaignId || null,
       assignedTo: req.body.assignedTo || null,
       value: req.body.value || 0,
       status,
@@ -80,9 +79,9 @@ async function updateLead(req, res) {
     }
 
     // Nullable relationship fields use `'key' in body` rather than `??` - a lead form
-    // submission can legitimately send an explicit `null` to clear a showClear dropdown
-    // (e.g. removing a Campaign), which `??` would otherwise silently discard by falling
-    // back to the existing value. Fields never explicitly nulled by the UI keep `??`.
+    // submission can legitimately send an explicit `null` to clear a showClear dropdown,
+    // which `??` would otherwise silently discard by falling back to the existing value.
+    // Fields never explicitly nulled by the UI keep `??`.
     const updated = await CrmLeadModel.update(id, {
       name: body.name ?? existing.name,
       phone: body.phone ?? existing.phone,
@@ -90,7 +89,6 @@ async function updateLead(req, res) {
       company: body.company ?? existing.company,
       stageId: 'stageId' in body ? body.stageId : existing.stageId,
       sourceId: 'sourceId' in body ? body.sourceId : existing.sourceId,
-      campaignId: 'campaignId' in body ? body.campaignId : existing.campaignId,
       assignedTo: 'assignedTo' in body ? body.assignedTo : existing.assignedTo,
       value: body.value ?? existing.value,
       status: body.status ?? existing.status,

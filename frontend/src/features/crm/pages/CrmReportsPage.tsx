@@ -7,7 +7,6 @@ import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadg
 import { useLeadsQuery } from '../hooks/useLeadsQuery';
 import { useStagesQuery } from '../hooks/useStagesQuery';
 import { useSourcesQuery } from '../hooks/useSourcesQuery';
-import { useCampaignsQuery } from '../hooks/useCampaignsQuery';
 import { exportLeadsReportPdf } from '../utils/crmReportPdf';
 import { crmQuickActions } from '../crmQuickActions';
 import type { CrmLead } from '../types/lead.types';
@@ -31,17 +30,15 @@ const CrmReportsPage = () => {
     const { data: leads = [], isLoading } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
-    const { data: campaigns = [] } = useCampaignsQuery();
 
     const [filters, setFilters] = useState<Record<string, unknown>>({
-        dateRange: null, stageId: null, sourceId: null, campaignId: null, status: null,
+        dateRange: null, stageId: null, sourceId: null, status: null,
     });
 
     const filterFields: FilterField[] = [
         { key: 'dateRange', type: 'dateRange', label: 'Created Between', placeholder: 'Select date range' },
         { key: 'stageId', type: 'select', label: 'Stage', options: stages.map((s) => ({ label: s.name, value: s.id })) },
         { key: 'sourceId', type: 'select', label: 'Source', options: sources.map((s) => ({ label: s.name, value: s.id })) },
-        { key: 'campaignId', type: 'select', label: 'Campaign', options: campaigns.map((c) => ({ label: c.name, value: c.id })) },
         { key: 'status', type: 'select', label: 'Status', options: [{ label: 'Active', value: 'Active' }, { label: 'Archived', value: 'Archived' }] },
     ];
 
@@ -56,9 +53,8 @@ const CrmReportsPage = () => {
             const matchesEnd = !rangeEnd || createdAt <= new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate(), 23, 59, 59, 999);
             const matchesStage = !filters.stageId || lead.stageId === filters.stageId;
             const matchesSource = !filters.sourceId || lead.sourceId === filters.sourceId;
-            const matchesCampaign = !filters.campaignId || lead.campaignId === filters.campaignId;
             const matchesStatus = !filters.status || lead.status === filters.status;
-            return matchesStart && matchesEnd && matchesStage && matchesSource && matchesCampaign && matchesStatus;
+            return matchesStart && matchesEnd && matchesStage && matchesSource && matchesStatus;
         });
     }, [leads, filters]);
 
@@ -82,10 +78,9 @@ const CrmReportsPage = () => {
         }
         if (filters.stageId) parts.push(`Stage: ${stages.find((s) => s.id === filters.stageId)?.name ?? ''}`);
         if (filters.sourceId) parts.push(`Source: ${sources.find((s) => s.id === filters.sourceId)?.name ?? ''}`);
-        if (filters.campaignId) parts.push(`Campaign: ${campaigns.find((c) => c.id === filters.campaignId)?.name ?? ''}`);
         if (filters.status) parts.push(`Status: ${filters.status}`);
         return parts.length > 0 ? `Filters: ${parts.join(' | ')}` : 'Filters: None (all leads)';
-    }, [filters, stages, sources, campaigns]);
+    }, [filters, stages, sources]);
 
     const stageSummaryColumns: ColumnConfig<StageSummaryRow>[] = [
         {
@@ -109,7 +104,6 @@ const CrmReportsPage = () => {
         { field: 'company', header: 'Company', body: (row) => row.company ?? '—' },
         { field: 'stageName', header: 'Stage', body: (row) => row.stageName ?? '—' },
         { field: 'sourceName', header: 'Source', body: (row) => row.sourceName ?? '—' },
-        { field: 'campaignName', header: 'Campaign', body: (row) => row.campaignName ?? '—' },
         { field: 'assignedToName', header: 'Assigned To', body: (row) => row.assignedToName ?? '—' },
         { field: 'value', header: 'Value', body: (row) => `Rs. ${row.value.toLocaleString('en-IN')}` },
         {
@@ -129,7 +123,7 @@ const CrmReportsPage = () => {
                 values={filters}
                 onChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
                 onReset={() => {
-                    setFilters({ dateRange: null, stageId: null, sourceId: null, campaignId: null, status: null });
+                    setFilters({ dateRange: null, stageId: null, sourceId: null, status: null });
                     stageSummaryTableRef.current?.clearFilters();
                     leadsTableRef.current?.clearFilters();
                 }}
