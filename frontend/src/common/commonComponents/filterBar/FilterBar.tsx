@@ -5,6 +5,8 @@ import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { AppContext } from '../../../context/AppContextDefinition';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
+import { isModuleAllowed } from '../../../services/rolePermissionsService';
 import {
     HiOutlineArchiveBox,
     HiOutlineClipboardDocumentList,
@@ -64,14 +66,20 @@ const defaultQuickActions: FilterBarQuickAction[] = [
 ];
 
 const FilterBar = ({ fields, values, onChange, onReset, actions, trailingActions, quickActions }: FilterBarProps) => {
-    const { hiddenQuickActions } = useContext(AppContext);
+    const { hiddenQuickActions, rolePermissions } = useContext(AppContext);
+    const { user } = useAuthContext();
     const searchFields = fields.filter((field) => field.type === 'search');
     const otherFields = fields.filter((field) => field.type !== 'search');
-    // Filtered against the admin's hidden-items list (VisibilitySettingsDialog) regardless of
-    // whether this is the default list or an explicitly-passed one (e.g. CRM's own
-    // crmQuickActions) - every quick action's path is globally unique across both lists, so
-    // one hidden-paths array covers both without any special-casing here.
-    const effectiveQuickActions = (quickActions ?? defaultQuickActions).filter((qa) => !((hiddenQuickActions as string[]) ?? []).includes(qa.path));
+    // Filtered against both the admin's hidden-items list (VisibilitySettingsDialog) AND the
+    // role-based Role Access restrictions (same isModuleAllowed check SideBarNavigation.tsx
+    // uses) - without the second check, a role restricted from a page could still see a quick
+    // action shortcut to it here, and clicking through would just land on Access Denied instead
+    // of the button not being there at all. Every quick action's path is globally unique across
+    // both the default list and any explicitly-passed one (e.g. CRM's own crmQuickActions), so
+    // one check covers both without any special-casing here.
+    const effectiveQuickActions = (quickActions ?? defaultQuickActions).filter((qa) =>
+        !((hiddenQuickActions as string[]) ?? []).includes(qa.path)
+        && isModuleAllowed(qa.path, user?.roleId ?? null, user?.isHidden ?? false, rolePermissions ?? {}));
 
     return (
         <div className="filter-bar">

@@ -644,15 +644,20 @@ const SalesOrderForm = () => {
     const handleRevertDispatch = () => {
         if (!existingSo) return;
         confirmDialog({
-            message: 'Revert this order back to Processing? Every shipped item will be added back onto Inventory stock.',
+            message: 'Revert this order back to Processing? Every shipped item will be added back onto Inventory stock, and its Dispatch History and auto-generated invoice(s) for this shipment will be removed.',
             header: 'Revert Dispatch',
             icon: 'pi pi-exclamation-triangle',
             accept: async () => {
                 try {
-                    await revertDispatchSalesOrder(existingSo.id);
+                    const { warning } = await revertDispatchSalesOrder(existingSo.id);
                     showToast(toast, 'success', 'Reverted', 'Sales order reverted to Processing successfully');
+                    if (warning) showToast(toast, 'warn', 'Invoice not removed', warning, 6000);
                     fetchSalesOrders();
                     fetchInventories();
+                    // Revert also deletes this order's still-unpaid auto-generated invoice(s)
+                    // server-side (see salesOrder.controller.js's revertDispatch) - refetch so
+                    // /invoices reflects that immediately.
+                    fetchInvoices();
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }

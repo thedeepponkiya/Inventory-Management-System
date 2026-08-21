@@ -103,8 +103,22 @@ async function update(id, fields) {
   return result.rows[0];
 }
 
-async function remove(id) {
-  await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
+// Used by salesOrder.controller.js's revertDispatch to find every Sales invoice
+// auto-generated from this SO's dispatches (see createInvoiceFromSalesOrder in
+// invoice.controller.js) - so a full revert can clean up the ones it created rather than
+// leaving stale duplicates behind once the order is dispatched again. Accepts an optional
+// `client` so the controller can read this inside the same transaction it's about to delete
+// rows in.
+async function findByReferenceNo(referenceNo, invoiceType, client = pool) {
+  const result = await client.query(
+    `SELECT * FROM ${TABLE} WHERE "referenceNo" = $1 AND "invoiceType" = $2`,
+    [referenceNo, invoiceType]
+  );
+  return result.rows;
 }
 
-module.exports = { getAll, findById, getNextInvoiceNo, create, update, remove };
+async function remove(id, client = pool) {
+  await client.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
+}
+
+module.exports = { getAll, findById, getNextInvoiceNo, create, update, remove, findByReferenceNo };

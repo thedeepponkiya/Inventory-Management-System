@@ -46,6 +46,12 @@ export async function updateRolePermissions(payload: RolePermissionsConfig): Pro
 export function isModuleAllowed(pathname: string, roleId: string | null, isHidden: boolean, rolePermissions: RolePermissionsConfig): boolean {
     if (isHidden) return true;
     if (!roleId) return true;
+    // Dashboard is always reachable regardless of role (see RolePermissionsPanel.tsx's
+    // DASHBOARD_KEY comment) - its switch there is permanently ON and disabled, which means it
+    // is deliberately never written into a role's saved module-key array. Checked here, not
+    // just assumed from the UI, so that omission doesn't turn into every configured role
+    // actually losing Dashboard access the moment it's saved.
+    if (getModuleKeyForPath(pathname) === '/') return true;
     const allowed = rolePermissions[roleId];
     if (!allowed) return true;
     return allowed.includes(getModuleKeyForPath(pathname));

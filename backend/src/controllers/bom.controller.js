@@ -265,12 +265,13 @@ async function revertBomToProcess(req, res) {
   }
 }
 
-// Completed BOMs are a permanent production record now - never deletable, regardless of
-// whether reversing their stock impact would still be safe. Revert to Process first (which
-// itself is blocked once the output has been sold/dispatched - see revertBomToProcess) if a
-// Completed BOM genuinely needs to be undone. Still runs inside a transaction with a row lock
-// (not just a plain findById) so a delete can't race a concurrent completeBom transitioning
-// this same row from Process to Completed.
+// Deletable regardless of status, including Completed - deliberately does NOT reverse the
+// stock impact a Completed BOM already made (raw materials stay deducted, finished goods stay
+// credited exactly as they are). If that stock movement itself needs undoing, revert to
+// Process first (revertBomToProcess) before deleting; deleting a Completed BOM directly is
+// purely a record-cleanup action. Still runs inside a transaction with a row lock (not just a
+// plain findById) so a delete can't race a concurrent completeBom transitioning this same row
+// from Process to Completed.
 async function deleteBom(req, res) {
   const client = await pool.connect();
   try {
@@ -281,15 +282,6 @@ async function deleteBom(req, res) {
     if (!existing) {
       await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
-    }
-
-    if (existing.status === 'Completed') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        status: false,
-        message: 'Completed BOMs cannot be deleted - revert to Process first if you need to undo it.',
-        data: null,
-      });
     }
 
     await BomModel.remove(id, client);

@@ -4,6 +4,7 @@ const SalesOrderModel = require('../models/salesOrder.model');
 const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
 const SalesOrderDispatchModel = require('../models/salesOrderDispatch.model');
 const InventoryModel = require('../models/inventory.model');
+const InvoiceModel = require('../models/invoice.model');
 const { createInvoiceFromSalesOrder } = require('./invoice.controller');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
@@ -333,6 +334,16 @@ async function dispatchSalesOrder(req, res) {
 // dispatchedQty back to Inventory and resets it to fully pending. Does not support
 // reverting a single partial shipment out of several; only a full reset back to Processing.
 // Same transaction + locking treatment as dispatchSalesOrder.
+//
+// Because this undoes the ENTIRE shipment history, not just one batch, it also cleans up the
+// two things dispatchSalesOrder created along the way: the Dispatch History ledger rows (see
+// salesOrderDispatch.model.js) and the auto-generated Sales Invoice(s) (see
+// createInvoiceFromSalesOrder) - without this, reverting and re-dispatching the same items
+// left the old (now-undone) entries sitting alongside the new ones, looking like duplicates
+// that "keep piling up" on every revert/re-dispatch cycle. An invoice is only deleted if it's
+// still fully Unpaid - one with a recorded payment against it is left alone (deleting a paid
+// invoice would be a real accounting problem) and called out in the response's `warning`
+// instead, same pattern dispatchSalesOrder already uses for its own invoice-generation warning.
 async function revertDispatch(req, res) {
   const client = await pool.connect();
   try {
@@ -359,8 +370,23 @@ async function revertDispatch(req, res) {
     }
 
     const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Processing' }, client);
+
+    // Clean up what this order's dispatch(es) created - every history row (the whole ledger
+    // for this SO, since revert undoes all of it) and every still-Unpaid auto-generated
+    // invoice tied to it.
+    await SalesOrderDispatchModel.removeAllForSo(id, client);
+    const linkedInvoices = await InvoiceModel.findByReferenceNo(existing.soNo, 'Sales', client);
+    const unpaidInvoices = linkedInvoices.filter((inv) => Number(inv.paidAmount) === 0);
+    const paidInvoices = linkedInvoices.filter((inv) => Number(inv.paidAmount) > 0);
+    for (const invoice of unpaidInvoices) {
+      await InvoiceModel.remove(invoice.id, client);
+    }
+
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated });
+    const warning = paidInvoices.length > 0
+      ? `${paidInvoices.length} invoice(s) from this order's earlier dispatch (${paidInvoices.map((inv) => inv.invoiceNo).join(', ')}) already have a payment recorded and were left in place - cancel or credit them manually from the Invoices page if they're no longer valid.`
+      : null;
+    res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated, warning });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);

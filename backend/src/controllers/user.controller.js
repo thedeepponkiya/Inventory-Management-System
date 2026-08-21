@@ -12,12 +12,24 @@ const SALT_ROUNDS = 10;
 // grant themselves (or anyone) full elevated status - this app has no other RBAC, isHidden is
 // the one gate that exists, so only an already-isHidden caller may assign a role outside this
 // whitelist.
-const VALID_ROLES = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Accounts User'];
+const VALID_ROLES = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Sales User', 'Accounts User'];
 
 function isRoleAssignmentAllowed(req, roleId) {
   if (!roleId) return true;
   if (VALID_ROLES.includes(roleId)) return true;
   return Boolean(req.user?.isHidden);
+}
+
+// The Users page is an Admin-only feature (see roleModules.ts's '/users' module + Role
+// Access), but that was only ever enforced by the frontend hiding the page/nav item - every
+// write below was reachable by ANY authenticated user via a direct API call, with no check on
+// who was calling, only on which roleId value they tried to set. That let any logged-in user
+// (e.g. a Sales User) call PUT /users/<their own id> with { roleId: 'Admin' } and self-promote,
+// since 'Admin' passes isRoleAssignmentAllowed regardless of the caller's own role. Gating
+// create/update/delete here closes that off; isHidden (the Super Admin account) always passes
+// too, same as every other admin-only gate in this codebase (see databaseReset.controller.js).
+function isCallerAdmin(req) {
+  return Boolean(req.user?.isHidden) || req.user?.roleId === 'Admin';
 }
 
 async function getUsers(req, res) {
@@ -31,6 +43,9 @@ async function getUsers(req, res) {
 
 async function createUser(req, res) {
   try {
+    if (!isCallerAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to create users', data: null });
+    }
     const { fullName, email, phone, password, roleId, departmentId, profileImage, status } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ status: false, message: 'fullName, email and password are required', data: null });
@@ -69,6 +84,9 @@ async function createUser(req, res) {
 
 async function updateUser(req, res) {
   try {
+    if (!isCallerAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to update users', data: null });
+    }
     const { id } = req.params;
     const { fullName, email, phone, password, roleId, departmentId, profileImage, status } = req.body;
 
@@ -112,6 +130,9 @@ async function updateUser(req, res) {
 
 async function deleteUser(req, res) {
   try {
+    if (!isCallerAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete users', data: null });
+    }
     const { id } = req.params;
     const existing = await UserModel.findById(id);
     if (!existing) {

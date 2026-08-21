@@ -1,4 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
+const { isCrmAdmin, canEditLead } = require('../utils/crmPermissions.util');
 const CrmLeadModel = require('../models/crmLead.model');
 
 const VALID_STATUSES = ['Active', 'Archived'];
@@ -24,6 +25,9 @@ async function getNextLeadCode(req, res) {
 
 async function createLead(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to create leads', data: null });
+    }
     const { name } = req.body;
     if (!name) {
       return res.status(400).json({ status: false, message: 'name is required', data: null });
@@ -64,6 +68,9 @@ async function createLead(req, res) {
 
 async function updateLead(req, res) {
   try {
+    if (!canEditLead(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to edit leads', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmLeadModel.findById(id);
     if (!existing) {
@@ -118,6 +125,9 @@ async function reorderLeads(req, res) {
 
 async function deleteLead(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete leads', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmLeadModel.findById(id);
     if (!existing) {

@@ -381,7 +381,7 @@ export const ACTIVE_INACTIVE_OPTIONS = ['Active', 'Inactive'];
 // Single source of truth for Users' Role/Department options - both the Add/Edit form
 // dropdowns (Users.tsx) and this column's filter dropdown import these, so they can never
 // drift out of sync with each other.
-export const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Accounts User'];
+export const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Sales User', 'Accounts User'];
 export const DEPARTMENT_OPTIONS = ['Sales', 'Warehouse', 'Production', 'Accounts', 'Admin'];
 
 export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: (sku: RawSku) => void, onEditClick?: (sku: RawSku) => void): ColumnConfig<RawSkuWithStockLevel>[] => [

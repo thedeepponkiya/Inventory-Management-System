@@ -1,16 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
-import { HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineTrash } from 'react-icons/hi2';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useFollowupsQuery, useUpdateFollowup, useDeleteFollowup } from '../hooks/useFollowupsQuery';
-import { useLeadsQuery, useUpdateLead } from '../hooks/useLeadsQuery';
+import { useLeadsQuery, useUpdateLead, useAssignableUsersQuery } from '../hooks/useLeadsQuery';
 import { useCreateNote } from '../hooks/useNotesQuery';
 import LeadDetailDrawer from '../components/LeadDetailDrawer';
 import LeadFormDialog from '../components/LeadFormDialog';
+import AssigneeAvatar from '../components/AssigneeAvatar';
 import { crmQuickActions } from '../crmQuickActions';
 import type { CrmFollowup } from '../types/followup.types';
 import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
@@ -18,13 +20,30 @@ import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
 interface FollowupRow extends CrmFollowup {
     leadName: string;
     leadCode: string;
+    // The follow-up itself has no assignee of its own - this is the lead's own assignedTo,
+    // same field the Leads Kanban/table already shows, so "who does this follow-up belong to"
+    // reads the same way in both places.
+    assignedTo: number | null;
+    assignedToName: string;
 }
 
 const CrmFollowupsPage = () => {
     const toast = useRef<Toast>(null);
     const dataTableRef = useRef<DataTableHandle>(null);
+    const { user } = useAuthContext();
+    // Only Admin (or the hidden Super Admin account) may delete a follow-up - mirrors
+    // CrmLeadsPage.tsx's canManageCrm. Marking one complete is a status update, not a
+    // delete, so it stays available to every CRM role.
+    const canManageCrm = user?.isHidden || user?.roleId === 'Admin';
+    // Mirrors CrmLeadsPage.tsx's canEditLead - Sales User can view a lead from here but not
+    // edit its own fields.
+    const canEditLead = user?.roleId !== 'Sales User';
+    // Mirrors CrmLeadsPage.tsx's canViewFollowups - Sales User doesn't get the drawer's
+    // Follow-ups tab either.
+    const canViewFollowups = user?.roleId !== 'Sales User';
     const { data: followups = [], isLoading } = useFollowupsQuery();
     const { data: leads = [] } = useLeadsQuery();
+    const { data: users = [] } = useAssignableUsersQuery();
     const updateFollowup = useUpdateFollowup();
     const deleteFollowup = useDeleteFollowup();
     const updateLead = useUpdateLead();
@@ -37,7 +56,7 @@ const CrmFollowupsPage = () => {
 
     const rows: FollowupRow[] = useMemo(() => followups.map((f) => {
         const lead = leads.find((l) => l.id === f.leadId);
-        return { ...f, leadName: lead?.name ?? '—', leadCode: lead?.leadCode ?? '—' };
+        return { ...f, leadName: lead?.name ?? '—', leadCode: lead?.leadCode ?? '—', assignedTo: lead?.assignedTo ?? null, assignedToName: lead?.assignedToName ?? '—' };
     }), [followups, leads]);
 
     const filterFields: FilterField[] = [
@@ -85,6 +104,7 @@ const CrmFollowupsPage = () => {
 
     const columns: ColumnConfig<FollowupRow>[] = [
         { field: 'leadName', header: 'Lead', body: (row) => <span className="common-table-id-link" onClick={() => openLeadDrawer(row)}>{row.leadName}</span> },
+        { field: 'assignedToName', header: 'Assigned To', body: (row) => <AssigneeAvatar userId={row.assignedTo} name={row.assignedToName} users={users} /> },
         { field: 'dueAt', header: 'Due At', body: (row) => new Date(row.dueAt).toLocaleString('en-IN') },
         { field: 'type', header: 'Type', filterType: 'dropdown', filterOptions: ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'] },
         { field: 'notes', header: 'Notes', filter: false, body: (row) => row.notes ?? '—' },
@@ -100,9 +120,9 @@ const CrmFollowupsPage = () => {
     const actionTemplate = (row: FollowupRow) => (
         <div className="data-table-actions" style={{ display: 'flex', gap: '12px' }}>
             {row.status === 'Pending' && (
-                <span className="common-table-id-link" onClick={() => handleMarkComplete(row)}>Mark Complete</span>
+                <HiOutlineCheckCircle size={16} color="var(--accent-success-text)" title="Mark Complete" onClick={() => handleMarkComplete(row)} />
             )}
-            <HiOutlineTrash size={16} color="var(--accent-danger-text)" title="Delete" onClick={() => handleDelete(row)} />
+            {canManageCrm && <HiOutlineTrash size={16} color="var(--accent-danger-text)" title="Delete" onClick={() => handleDelete(row)} />}
         </div>
     );
 
@@ -145,6 +165,8 @@ const CrmFollowupsPage = () => {
                 lead={drawerLead ? (leads.find((l) => l.id === drawerLead.id) ?? drawerLead) : null}
                 onHide={() => setDrawerLead(null)}
                 onEdit={openEditDialog}
+                canEdit={canEditLead}
+                showFollowupsTab={canViewFollowups}
             />
             <LeadFormDialog
                 visible={dialogVisible}

@@ -14,8 +14,9 @@ import {
     HiOutlineUserCircle,
     HiOutlineDocumentText,
     HiOutlineChartBar,
+    HiOutlineChartPie,
+    HiOutlineCog6Tooth,
     HiOutlineUsers,
-    HiOutlineUserGroup,
 } from 'react-icons/hi2';
 import { BsBoxSeam } from 'react-icons/bs';
 
@@ -31,7 +32,7 @@ export interface RoleModule {
     icon: IconType;
 }
 
-export const ROLE_MODULES: RoleModule[] = [
+export const ERP_MODULES: RoleModule[] = [
     { key: '/', label: 'Dashboard', icon: HiOutlineSquares2X2 },
     { key: '/home', label: 'Inventories', icon: BsBoxSeam },
     { key: '/material-inward', label: 'Material Inward', icon: HiOutlineTruck },
@@ -48,17 +49,37 @@ export const ROLE_MODULES: RoleModule[] = [
     { key: '/invoices', label: 'Invoices', icon: HiOutlineDocumentText },
     { key: '/reports', label: 'Reports', icon: HiOutlineChartBar },
     { key: '/users', label: 'Users', icon: HiOutlineUsers },
-    { key: '/crm', label: 'CRM', icon: HiOutlineUserGroup },
 ];
 
+// Broken out per individual CRM page (not one blanket '/crm' entry) so each CRM component can
+// be individually shown/hidden per role. Mirrors crmMenu.items in SideBarNavigation.tsx and
+// crmSidebarMenuItems in VisibilitySettingsPanel.tsx exactly - keep all three in sync.
+export const CRM_MODULES: RoleModule[] = [
+    { key: '/crm', label: 'Dashboard', icon: HiOutlineChartBar },
+    { key: '/crm/leads', label: 'Leads', icon: HiOutlineUsers },
+    { key: '/crm/followups', label: 'Follow-ups', icon: HiOutlineClipboardDocumentList },
+    { key: '/crm/sources', label: 'Sources', icon: HiOutlineBuildingStorefront },
+    { key: '/crm/reports', label: 'Reports', icon: HiOutlineChartPie },
+    { key: '/crm/settings', label: 'Settings', icon: HiOutlineCog6Tooth },
+];
+
+export const ROLE_MODULES: RoleModule[] = [...ERP_MODULES, ...CRM_MODULES];
+
 // '/' only matches the exact dashboard route (otherwise it would prefix-match every other
-// path); every other module's key covers itself and everything nested under it (e.g. '/crm'
-// covers '/crm/leads', '/crm/followups', ... - CRM is permissioned as one module, not per
-// sub-page). Falls back to the pathname itself if it doesn't belong to any known module (an
+// path). Every other module matches itself and everything nested under it, but CRM now has
+// several sibling/nested keys ('/crm', '/crm/leads', ...), so a plain first-match-in-array
+// would let the shorter '/crm' shadow a more specific '/crm/leads' if it happened to come
+// first - picking the LONGEST matching key instead makes this correct regardless of array
+// order. Falls back to the pathname itself if it doesn't belong to any known module (an
 // unmapped route is treated as its own always-unrestricted key rather than silently matching
 // the wrong module).
 export function getModuleKeyForPath(pathname: string): string {
     if (pathname === '/') return '/';
-    const match = ROLE_MODULES.find((m) => m.key !== '/' && (pathname === m.key || pathname.startsWith(`${m.key}/`)));
-    return match?.key ?? pathname;
+    let best: RoleModule | undefined;
+    for (const m of ROLE_MODULES) {
+        if (m.key === '/') continue;
+        const matches = pathname === m.key || pathname.startsWith(`${m.key}/`);
+        if (matches && (!best || m.key.length > best.key.length)) best = m;
+    }
+    return best?.key ?? pathname;
 }

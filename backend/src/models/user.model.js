@@ -42,9 +42,11 @@ async function updateLastLogin(id) {
 // Deliberately named getAllBasic (not getAll) and an explicit column list - never SELECT *
 // here, so password/token/tokenExpiresAt can never leak. Added for CRM's Assigned-To
 // dropdown (see crmUser.controller.js) - this is not the general user-management list.
-// Excludes "isHidden" rows for the same reason getAll() does.
+// Excludes "isHidden" rows for the same reason getAll() does. Includes "profileImage" so
+// CRM's Assigned-To avatars (Leads/Follow-ups tables, Lead Detail drawer) can show the real
+// uploaded photo instead of always falling back to colored initials.
 async function getAllBasic() {
-  const result = await pool.query(`SELECT id, "userName", email FROM ${TABLE} WHERE "isHidden" = false ORDER BY "userName" ASC`);
+  const result = await pool.query(`SELECT id, "userName", email, "profileImage" FROM ${TABLE} WHERE "isHidden" = false ORDER BY "userName" ASC`);
   return result.rows;
 }
 

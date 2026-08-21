@@ -3,6 +3,7 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
@@ -15,6 +16,11 @@ import { SOURCE_TYPE_OPTIONS, type CrmSource, type CrmSourcePayload } from '../t
 const CrmSourcesPage = () => {
     const toast = useRef<Toast>(null);
     const dataTableRef = useRef<DataTableHandle>(null);
+    const { user } = useAuthContext();
+    // Only Admin (or the hidden Super Admin account) may add or delete a source - mirrors
+    // CrmLeadsPage.tsx's canManageCrm. Editing an existing source's name/type/status stays
+    // available to every CRM role.
+    const canManageCrm = user?.isHidden || user?.roleId === 'Admin';
     const { data: sources = [], isLoading } = useSourcesQuery();
     const createSource = useCreateSource();
     const updateSource = useUpdateSource();
@@ -110,10 +116,10 @@ const CrmSourcesPage = () => {
                     setFilters({ search: '' });
                     dataTableRef.current?.clearFilters();
                 }}
-                actions={<Button label="Add Source" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
+                actions={canManageCrm && <Button label="Add Source" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
                 quickActions={crmQuickActions}
             />
-            <DataTable ref={dataTableRef} value={filteredSources} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
+            <DataTable ref={dataTableRef} value={filteredSources} columns={columns} loading={isLoading} actionBodyTemplate={canManageCrm ? actionTemplate : undefined} dataKey="id" />
             <SourceFormDialog visible={dialogVisible} editing={editing} onHide={() => setDialogVisible(false)} onSave={handleSave} />
         </div>
     );

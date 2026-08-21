@@ -5,7 +5,9 @@ import './StageReorderList.css';
 interface StageReorderListProps {
     stages: CrmStage[];
     onEdit: (stage: CrmStage) => void;
-    onDelete: (stage: CrmStage) => void;
+    // Omitted entirely (not just disabled) for a role that isn't allowed to delete stages - see
+    // CrmSettingsPage.tsx's canManageCrm - so the row shows no delete button at all.
+    onDelete?: (stage: CrmStage) => void;
     onMoveUp: (stage: CrmStage) => void;
     onMoveDown: (stage: CrmStage) => void;
 }
@@ -29,9 +31,11 @@ const StageReorderList = ({ stages, onEdit, onDelete, onMoveUp, onMoveDown }: St
                     <button type="button" onClick={() => onEdit(stage)} title="Edit">
                         <HiOutlinePencilSquare size={16} />
                     </button>
-                    <button type="button" onClick={() => onDelete(stage)} title="Delete">
-                        <HiOutlineTrash size={16} />
-                    </button>
+                    {onDelete && (
+                        <button type="button" onClick={() => onDelete(stage)} title="Delete">
+                            <HiOutlineTrash size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
         ))}

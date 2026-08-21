@@ -1,4 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
+const { isCrmAdmin } = require('../utils/crmPermissions.util');
 const CrmSourceModel = require('../models/crmSource.model');
 
 async function getSources(req, res) {
@@ -12,6 +13,9 @@ async function getSources(req, res) {
 
 async function createSource(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to create sources', data: null });
+    }
     const { name } = req.body;
     if (!name) {
       return res.status(400).json({ status: false, message: 'name is required', data: null });
@@ -62,6 +66,9 @@ async function updateSource(req, res) {
 
 async function deleteSource(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete sources', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmSourceModel.findById(id);
     if (!existing) {

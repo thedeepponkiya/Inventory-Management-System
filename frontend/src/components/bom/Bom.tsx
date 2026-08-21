@@ -299,14 +299,15 @@ const Bom = () => {
 
     const itemColumns = getBomItemColumns(items, form.outputQty, rawSkus as RawSku[]);
 
+    // Completed BOMs are deletable too (backend allows it - see bom.controller.js's
+    // deleteBom) - deleting one is a record-cleanup action only, it deliberately does not
+    // reverse the raw material/finished goods stock a Completed BOM already moved.
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<BomType>({
         getId: (row) => row.id,
         deleteOne: deleteBom,
         onDeleted: fetchBoms,
         toast,
         entityNamePlural: 'BOMs',
-        canDelete: (row) => row.status !== 'Completed',
-        cannotDeleteMessage: 'Completed BOMs cannot be deleted - revert to Process first if you need to undo it.',
     });
 
     return (

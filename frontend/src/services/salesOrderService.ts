@@ -132,7 +132,9 @@ interface ApiResponse<T> {
     data: T;
     // Set when the dispatch itself succeeded but a best-effort side effect (the
     // auto-generated Sales Invoice) failed - see salesOrder.controller.js's
-    // dispatchSalesOrder. Absent/null on every other endpoint.
+    // dispatchSalesOrder. Also set by revertDispatch when one of this order's
+    // auto-generated invoices already had a payment recorded and couldn't be
+    // auto-deleted. Absent/null on every other endpoint.
     warning?: string | null;
 }
 
@@ -227,9 +229,10 @@ export async function dispatchSalesOrder(id: number, items: DispatchShipment[]):
     return { data: normalizeSalesOrder(result.data), warning: result.warning };
 }
 
-export async function revertDispatchSalesOrder(id: number): Promise<SalesOrder> {
+export async function revertDispatchSalesOrder(id: number): Promise<{ data: SalesOrder; warning: string | null }> {
     const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/revert-dispatch`, { method: 'POST' });
-    return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
+    const result = await parseResponseWithWarning<SalesOrder>(response);
+    return { data: normalizeSalesOrder(result.data), warning: result.warning };
 }
 
 export async function cancelSalesOrder(id: number): Promise<SalesOrder> {
