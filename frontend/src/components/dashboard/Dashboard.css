@@ -14,7 +14,14 @@
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 3fr 2fr;
+    /* minmax(0, ...), not plain 3fr/2fr - a bare fr track's minimum size defaults to its
+       content's max-content width, so a column can only grow past its "fair share", never
+       shrink below it. That's fine while nothing inside is wide enough to hit that floor,
+       but StockDistribution's header (title + location filter + chart-type toggle) is wide
+       enough to trigger it - without the minmax(0, ...) floor, the side column (and the
+       Chart.js canvas stretching to fill it, since maintainAspectRatio is false) blows out
+       past the card's own boundary instead of the column actually shrinking to fit. */
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: 16px;
     align-items: stretch;
     margin-bottom: 24px;
@@ -31,6 +38,13 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    /* The other half of the minmax(0, ...) fix on .dashboard-grid above: that bounds the
+       TRACK, but a grid item's own automatic minimum width still defaults to its content's
+       min-content size (bubbled up from children like StockDistribution's header) unless the
+       item itself opts out via overflow != visible. Without this, the track could shrink but
+       these two columns - the actual grid items - would still refuse to, dragging the whole
+       grid wider than the viewport right along with them. */
+    min-width: 0;
 }
 
 .dashboard-main-col > .dashboard-card,
@@ -191,6 +205,11 @@
     padding: 18px;
     border: 1px solid var(--border-subtle);
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    /* Lets the header-wrapping rule below react to THIS card's own rendered width, not the
+       viewport's - a card sitting in .dashboard-grid's narrower 2fr column (StockDistribution)
+       can be well under 700px wide on an otherwise ordinary desktop-width screen, which the
+       old @media (max-width: 700px) below never caught since the viewport itself stayed wide. */
+    container-type: inline-size;
 }
 
 .dashboard-card-header {
@@ -295,9 +314,16 @@
    Sales Orders). Stacks the header and lets the search box size to whatever's actually
    available instead of a fixed width. Scoped to only headers that actually have a
    .dashboard-card-header-actions row (Recent Sales Orders, MaterialInwardAnalytics,
-   OrdersTrend) - a header with just a title + plain "View all" link (Low Stock Alerts) has
-   nothing to stack for and was left with "View all" oddly left-aligned on its own line. */
-@media (max-width: 700px) {
+   OrdersTrend, StockDistribution) - a header with just a title + plain "View all" link (Low
+   Stock Alerts) has nothing to stack for and was left with "View all" oddly left-aligned on
+   its own line.
+   A container query (keyed to .dashboard-card's own width, not the viewport - see its
+   container-type above) rather than a viewport media query: StockDistribution's header (icon
+   + title + location filter + 3-way chart-type toggle) needs more room than the others, and
+   it sits in .dashboard-grid's narrower 2fr column - on an ordinary desktop-width screen the
+   viewport itself never dips below 700px, but that specific card's own rendered width can,
+   and a viewport query can't see that. */
+@container (max-width: 460px) {
     .dashboard-card-header:has(.dashboard-card-header-actions) {
         flex-direction: column;
         align-items: stretch;
@@ -314,7 +340,9 @@
         width: auto;
         min-width: 0;
     }
+}
 
+@media (max-width: 700px) {
     .dashboard-card .app-data-table .p-paginator {
         flex-wrap: wrap;
         row-gap: 6px;

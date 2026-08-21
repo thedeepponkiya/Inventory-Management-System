@@ -8,10 +8,13 @@
 */
 :root {
     /* Runtime-mutable brand accent - AccentColorContext sets --accent-primary directly on
-       <html> via style.setProperty(), overriding the #2563eb fallback below. Every other
-       "brand blue" surface in the app (buttons, active nav/tab states, focus rings, checkbox/
-       radio fills, dropdown highlights etc.) derives from this single value via color-mix()
-       so picking a new accent recolors the whole app without touching every file again. */
+       <html> via style.setProperty(), overriding the #2563eb fallback below (this fallback
+       is only ever visible for an instant before that inline script runs - see main.tsx -
+       so it's kept in sync with AccentColorContextDefinition.ts's 'blue' entry rather than
+       left stale). Every other "brand blue" surface in the app (buttons, active nav/tab
+       states, focus rings, checkbox/radio fills, dropdown highlights etc.) derives from this
+       single value via color-mix() so picking a new accent recolors the whole app without
+       touching every file again. */
     --accent-primary: #2563eb;
     --accent-primary-hover: color-mix(in srgb, var(--accent-primary) 82%, black);
     --accent-primary-active: color-mix(in srgb, var(--accent-primary) 68%, black);

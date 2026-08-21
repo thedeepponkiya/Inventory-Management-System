@@ -66,7 +66,7 @@
 
 .sidebar-logo-title {
     display: none;
-    width: 125px;
+    width: 115px;
     height: auto;
     object-fit: contain;
     flex-shrink: 0;
@@ -236,6 +236,13 @@
     color: #8b93ab;
     background: transparent;
     border: none;
+    /* CRM/Administration's collapsible toggles render as a real <button>, not an <a> like
+       every plain nav item - without this, the browser's own UA-stylesheet button padding
+       (never zeroed here before) nudged just those two icons off-center from the rest,
+       only visible in the collapsed rail since the expanded state already sets its own
+       explicit padding below regardless. */
+    padding: 0;
+    font: inherit;
     cursor: pointer;
     flex-shrink: 0;
     font-size: 13px;
@@ -265,13 +272,13 @@
 }
 
 .sidebar-item--active {
-    background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
-    color: color-mix(in srgb, var(--accent-primary) 0%, white);
+    background: var(--accent-primary);
+    color: #ffffff;
 }
 
 .sidebar-item--active:hover {
-    background: color-mix(in srgb, var(--accent-primary) 40%, transparent);
-    color: color-mix(in srgb, var(--accent-primary) 0%, white);
+    background: var(--accent-primary);
+    color: #ffffff;
 }
 
 .sidebar-item-chevron {
@@ -367,13 +374,9 @@
     color: #0f172a;
 }
 
-:root[data-sidebar-theme="light"] .sidebar-item--active {
-    color: color-mix(in srgb, var(--accent-primary) 75%, black);
-}
-
-:root[data-sidebar-theme="light"] .sidebar-item--active:hover {
-    color: color-mix(in srgb, var(--accent-primary) 75%, black);
-}
+/* No longer needs its own text color - the active pill is a solid, fully-opaque accent fill
+   in both sidebar themes now (see the base .sidebar-item--active rule above), so plain white
+   already reads correctly against it without a per-theme override. */
 
 :root[data-sidebar-theme="light"] .sidebar-footer {
     border-top-color: rgba(15, 23, 42, 0.08);

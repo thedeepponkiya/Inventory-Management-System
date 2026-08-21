@@ -28,10 +28,11 @@ export function getAccentHex(key: AccentColorKey): string {
     return ACCENT_COLORS.find((option) => option.key === key)?.color ?? ACCENT_COLORS[0].color;
 }
 
-// 'blue' (#2563eb) is the app's original hardcoded brand color - defaulting to it here means
-// nothing visually changes for any user until they actively pick a different swatch in
-// Settings. Also called directly by main.tsx (outside the React tree) to set --accent-primary
-// before first paint, same as loadThemeFromStorage does for the dark/light theme.
+// 'blue' is the app's default/brand accent - anyone who hasn't picked a different swatch in
+// Settings gets whatever hex is set on it above, so updating that value (e.g. to match a new
+// logo) is a real visual change for most users, not just new installs. Also called directly by
+// main.tsx (outside the React tree) to set --accent-primary before first paint, same as
+// loadThemeFromStorage does for the dark/light theme.
 export function loadAccentColorFromStorage(): AccentColorKey {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);

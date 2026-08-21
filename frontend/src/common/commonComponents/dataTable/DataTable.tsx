@@ -97,6 +97,12 @@ interface AppDataTableProps<T> {
     selectable?: boolean;
     selection?: T[];
     onSelectionChange?: (rows: T[]) => void;
+    // Adds an expander column - clicking it reveals rowExpansionTemplate's content inline
+    // beneath that row (e.g. Reports.tsx's per-customer/vendor Transaction History). Expanded
+    // state is kept internal (same reasoning as `filters` above) since no caller needs to
+    // read or control it from outside.
+    expandable?: boolean;
+    rowExpansionTemplate?: (row: T) => React.ReactNode;
 }
 
 // Imperative escape hatch for the one piece of state DataTable keeps local (per-column
@@ -131,8 +137,9 @@ function renderDropdownFilter(placeholder: string, options: string[]) {
     );
 }
 
-function DataTableInner<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange }: AppDataTableProps<T>, ref: Ref<DataTableHandle>) {
+function DataTableInner<T extends object>({ value, columns, actionBodyTemplate, actionHeader = 'Action', actionColumnStyle, rows = 25, paginator = true, emptyMessage, emptyDescription, loading = false, dataKey = 'id', sortable = true, filterable = true, height = 'flex', selectable = false, selection, onSelectionChange, expandable = false, rowExpansionTemplate }: AppDataTableProps<T>, ref: Ref<DataTableHandle>) {
     const [filters, setFilters] = useState<DataTableFilterMeta>(() => buildDefaultFilters(columns));
+    const [expandedRows, setExpandedRows] = useState<T[]>([]);
 
     useImperativeHandle(ref, () => ({
         clearFilters: () => setFilters(buildDefaultFilters(columns)),
@@ -175,7 +182,12 @@ function DataTableInner<T extends object>({ value, columns, actionBodyTemplate, 
             selection={(selectable ? (selection ?? []) : undefined) as any}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSelectionChange={selectable && onSelectionChange ? (e: any) => onSelectionChange(e.value as T[]) : undefined}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expandedRows={(expandable ? expandedRows : undefined) as any}
+            onRowToggle={expandable ? (e) => setExpandedRows(e.data as T[]) : undefined}
+            rowExpansionTemplate={expandable && rowExpansionTemplate ? (row) => rowExpansionTemplate(row as T) : undefined}
         >
+            {expandable && <Column key="__expander" expander style={{ width: '3rem' }} />}
             {selectable && <Column key="__selection" selectionMode="multiple" headerStyle={{ width: '3rem' }} style={{ width: '3rem' }} />}
             {actionBodyTemplate && (
                 <Column key="action" header={actionHeader} sortable={false} filter={false} body={actionBodyTemplate} style={actionColumnStyle} />

@@ -56,6 +56,21 @@ interface PartySummaryRow {
     balanceDue: number;
 }
 
+// One row per payment, across every order a customer/vendor has - not per-order, since a
+// single party can have several SOs/POs each with their own Transaction History. Same shape
+// for both (SalesOrderPayment/PurchaseOrderPayment only differ in soId/poId, which this
+// doesn't need), just sourced from a different order list/order-number field below.
+interface TransactionHistoryRow {
+    key: string;
+    orderNo: string;
+    paymentDate: string;
+    amount: number;
+    paymentMethod: string | null;
+    paymentTerms: string | null;
+    approvedBy: string | null;
+    remarks: string | null;
+}
+
 interface SkuMovementRow {
     skuCode: string;
     skuName: string;
@@ -329,6 +344,65 @@ const Reports = () => {
         { field: 'balanceDue', header: 'Balance Due', body: (row) => formatRupees(row.balanceDue) },
     ];
 
+    const transactionHistoryColumns: ColumnConfig<TransactionHistoryRow>[] = [
+        { field: 'orderNo', header: 'Order No.' },
+        { field: 'paymentDate', header: 'Payment Date', body: (row) => formatDate(row.paymentDate) },
+        { field: 'amount', header: 'Amount', body: (row) => formatRupees(row.amount) },
+        { field: 'paymentMethod', header: 'Method', body: (row) => row.paymentMethod ?? '—' },
+        { field: 'paymentTerms', header: 'Terms', body: (row) => row.paymentTerms ?? '—' },
+        { field: 'approvedBy', header: 'Approved By', body: (row) => row.approvedBy ?? '—' },
+        { field: 'remarks', header: 'Remarks', body: (row) => row.remarks ?? '—' },
+    ];
+
+    // Row expansion content for the Sales/Purchase Report tabs below - every payment across
+    // every order this customer/vendor has (filteredSOs/filteredPOs already carry the full
+    // orders-with-payments shape AppContext fetched, no extra request needed), newest first.
+    const renderTransactionHistory = (rows: TransactionHistoryRow[]) => {
+        if (rows.length === 0) {
+            return <div className="reports-transaction-empty">No transactions recorded yet.</div>;
+        }
+        return (
+            <div className="reports-transaction-expansion">
+                <h4 className="reports-transaction-title">Transaction History</h4>
+                <DataTable value={rows} columns={transactionHistoryColumns} paginator={false} filterable={false} sortable={false} dataKey="key" />
+            </div>
+        );
+    };
+
+    const renderCustomerTransactionHistory = (row: PartySummaryRow) => {
+        const rows: TransactionHistoryRow[] = filteredSOs
+            .filter((so) => so.customerName === row.name)
+            .flatMap((so) => so.payments.map((payment) => ({
+                key: `${so.id}-${payment.id}`,
+                orderNo: so.soNo,
+                paymentDate: payment.paymentDate,
+                amount: payment.amount,
+                paymentMethod: payment.paymentMethod,
+                paymentTerms: payment.paymentTerms,
+                approvedBy: payment.approvedBy,
+                remarks: payment.remarks,
+            })))
+            .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+        return renderTransactionHistory(rows);
+    };
+
+    const renderVendorTransactionHistory = (row: PartySummaryRow) => {
+        const rows: TransactionHistoryRow[] = filteredPOs
+            .filter((po) => po.vendorName === row.name)
+            .flatMap((po) => po.payments.map((payment) => ({
+                key: `${po.id}-${payment.id}`,
+                orderNo: po.poNo,
+                paymentDate: payment.paymentDate,
+                amount: payment.amount,
+                paymentMethod: payment.paymentMethod,
+                paymentTerms: payment.paymentTerms,
+                approvedBy: payment.approvedBy,
+                remarks: payment.remarks,
+            })))
+            .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+        return renderTransactionHistory(rows);
+    };
+
     // ---- Tab 3: SKU Movement ----
     const skuMovementRows: SkuMovementRow[] = useMemo(() => {
         const inwardBySku = new Map<string, number>();
@@ -600,11 +674,25 @@ const Reports = () => {
             )}
 
             {activeTab === 'sales' && (
-                <DataTable value={customerSummaryRows} columns={partySummaryColumns('Customer')} loading={salesOrdersLoading} dataKey="name" />
+                <DataTable
+                    value={customerSummaryRows}
+                    columns={partySummaryColumns('Customer')}
+                    loading={salesOrdersLoading}
+                    dataKey="name"
+                    expandable
+                    rowExpansionTemplate={renderCustomerTransactionHistory}
+                />
             )}
 
             {activeTab === 'purchase' && (
-                <DataTable value={vendorSummaryRows} columns={partySummaryColumns('Vendor')} loading={purchaseOrdersLoading} dataKey="name" />
+                <DataTable
+                    value={vendorSummaryRows}
+                    columns={partySummaryColumns('Vendor')}
+                    loading={purchaseOrdersLoading}
+                    dataKey="name"
+                    expandable
+                    rowExpansionTemplate={renderVendorTransactionHistory}
+                />
             )}
 
             {activeTab === 'skuMovement' && (

@@ -29,7 +29,7 @@ import {
     HiOutlineShieldCheck,
 } from 'react-icons/hi2';
 import { BsBoxSeam } from 'react-icons/bs';
-import inventoryLogo from '../../../assets/inventoryLogo.png';
+import inventoryLogo from '../../../assets/inventoryLogo.svg';
 import inventoryWordmark from '../../../assets/inventoryWordmark.png';
 import SettingsDialog from '../settingsDialog/SettingsDialog';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
