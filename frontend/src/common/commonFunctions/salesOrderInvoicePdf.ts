@@ -66,11 +66,11 @@ function buildDoc(so: SalesOrder, logoDataUrl?: string | null): jsPDF {
     doc.setTextColor(...COLOR.title);
     doc.text(so.customerName, MARGIN, y);
     y += 5.5;
-    if (so.customerCode) {
+    if (so.customerGstNo) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
         doc.setTextColor(...COLOR.body);
-        doc.text(so.customerCode, MARGIN, y);
+        doc.text(so.customerGstNo, MARGIN, y);
         y += 5;
     }
 

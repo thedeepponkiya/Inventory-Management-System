@@ -1,4 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
+const { isCrmAdmin, canEditLead, leadScopeUserId } = require('../utils/crmPermissions.util');
 const CrmLeadModel = require('../models/crmLead.model');
 
 const VALID_STATUSES = ['Active', 'Archived'];
@@ -6,7 +7,7 @@ const VALID_PRIORITIES = ['High', 'Medium', 'Low'];
 
 async function getLeads(req, res) {
   try {
-    const leads = await CrmLeadModel.getAll();
+    const leads = await CrmLeadModel.getAll(leadScopeUserId(req));
     res.json({ status: true, message: 'Leads fetched successfully', data: leads });
   } catch (err) {
     sendServerError(res, err);
@@ -24,6 +25,9 @@ async function getNextLeadCode(req, res) {
 
 async function createLead(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to create leads', data: null });
+    }
     const { name } = req.body;
     if (!name) {
       return res.status(400).json({ status: false, message: 'name is required', data: null });
@@ -49,7 +53,6 @@ async function createLead(req, res) {
       company: req.body.company || null,
       stageId,
       sourceId: req.body.sourceId || null,
-      campaignId: req.body.campaignId || null,
       assignedTo: req.body.assignedTo || null,
       value: req.body.value || 0,
       status,
@@ -65,6 +68,9 @@ async function createLead(req, res) {
 
 async function updateLead(req, res) {
   try {
+    if (!canEditLead(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to edit leads', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmLeadModel.findById(id);
     if (!existing) {
@@ -80,9 +86,9 @@ async function updateLead(req, res) {
     }
 
     // Nullable relationship fields use `'key' in body` rather than `??` - a lead form
-    // submission can legitimately send an explicit `null` to clear a showClear dropdown
-    // (e.g. removing a Campaign), which `??` would otherwise silently discard by falling
-    // back to the existing value. Fields never explicitly nulled by the UI keep `??`.
+    // submission can legitimately send an explicit `null` to clear a showClear dropdown,
+    // which `??` would otherwise silently discard by falling back to the existing value.
+    // Fields never explicitly nulled by the UI keep `??`.
     const updated = await CrmLeadModel.update(id, {
       name: body.name ?? existing.name,
       phone: body.phone ?? existing.phone,
@@ -90,7 +96,6 @@ async function updateLead(req, res) {
       company: body.company ?? existing.company,
       stageId: 'stageId' in body ? body.stageId : existing.stageId,
       sourceId: 'sourceId' in body ? body.sourceId : existing.sourceId,
-      campaignId: 'campaignId' in body ? body.campaignId : existing.campaignId,
       assignedTo: 'assignedTo' in body ? body.assignedTo : existing.assignedTo,
       value: body.value ?? existing.value,
       status: body.status ?? existing.status,
@@ -120,6 +125,9 @@ async function reorderLeads(req, res) {
 
 async function deleteLead(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete leads', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmLeadModel.findById(id);
     if (!existing) {

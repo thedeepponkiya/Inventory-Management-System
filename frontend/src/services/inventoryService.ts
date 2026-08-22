@@ -30,6 +30,10 @@ export interface InventoryItem {
 }
 
 export interface InventoryPayload {
+    // Only meaningful on create - a user-typed SKU ID (the field is editable at create time,
+    // pre-filled with a server-generated suggestion the user can overwrite). Ignored by the
+    // update endpoint, which never lets skuId change after creation.
+    skuId?: string;
     images: string[];
     productName: string;
     categoryName: string | null;

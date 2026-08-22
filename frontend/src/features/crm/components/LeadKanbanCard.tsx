@@ -18,8 +18,18 @@ import './LeadKanbanCard.css';
 interface LeadKanbanCardProps {
     lead: CrmLead;
     onEdit: (lead: CrmLead) => void;
-    onDelete: (lead: CrmLead) => void;
-    onOpenTab: (lead: CrmLead, tab: number) => void;
+    // Omitted entirely (not just disabled) for a role that isn't allowed to delete leads - see
+    // CrmLeadsPage.tsx's canManageCrm - so the card shows no delete (x) button at all.
+    onDelete?: (lead: CrmLead) => void;
+    // 'notes'/'followups' - which of the drawer's tabs to land on (see LeadDetailDrawer.tsx's
+    // tabKeys). String keys rather than a raw index, so which physical TabView slot a tab
+    // lands in can change (e.g. Follow-ups being hidden entirely for Sales User) without this
+    // call site needing to know about it.
+    onOpenTab: (lead: CrmLead, tab: 'notes' | 'followups') => void;
+    // False for Sales User - hides the "Schedule follow-up" icon, since that role doesn't get
+    // the drawer's Follow-ups tab to land on (see LeadDetailDrawer.tsx's showFollowupsTab).
+    // "Add note" stays available regardless.
+    showFollowupsAction?: boolean;
 }
 
 const priorityClass: Record<CrmLead['priority'], string> = {
@@ -31,12 +41,10 @@ const priorityClass: Record<CrmLead['priority'], string> = {
 // Shared visual body, used both by the normal draggable card (below) and by the DragOverlay
 // clone (LeadKanbanCardOverlay) that CrmLeadsPage renders while a drag is in progress - see
 // that component for why a separate, non-draggable clone is needed at all.
-const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardProps, 'onEdit'>) => {
+const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab, showFollowupsAction = true }: Omit<LeadKanbanCardProps, 'onEdit'>) => {
     const { dateFormat } = useDateFormatContext();
     const avatarColor = getColorForString(lead.id);
     const sourceBadgeColors = lead.sourceName ? getBadgeColors(lead.sourceName) : null;
-    // Separate seed from avatarColor/sourceColor so the dot doesn't just repeat one of them.
-    const dotColor = getColorForString(`${lead.id}-dot`);
 
     return (
         <>
@@ -46,14 +54,16 @@ const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardPr
                     <span className="lead-kanban-card-name">{lead.name}</span>
                     {lead.company && <span className="lead-kanban-card-company">{lead.company}</span>}
                 </div>
-                <button
-                    type="button"
-                    className="lead-kanban-card-close-btn"
-                    onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
-                    title="Delete"
-                >
-                    <HiOutlineXMark size={16} />
-                </button>
+                {onDelete && (
+                    <button
+                        type="button"
+                        className="lead-kanban-card-close-btn"
+                        onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
+                        title="Delete"
+                    >
+                        <HiOutlineXMark size={16} />
+                    </button>
+                )}
             </div>
 
             {lead.phone && (
@@ -69,15 +79,11 @@ const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardPr
                 </div>
             )}
 
-            {(lead.sourceName || lead.campaignName) && (
+            {lead.sourceName && sourceBadgeColors && (
                 <div className="lead-kanban-card-tags">
-                    {lead.sourceName && sourceBadgeColors && (
-                        <span className="lead-kanban-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>
-                            {lead.sourceName}
-                        </span>
-                    )}
-                    {lead.sourceName && lead.campaignName && <span className="lead-kanban-tag-dot" style={{ color: dotColor }}>•</span>}
-                    {lead.campaignName && <span className="lead-kanban-campaign-text">{lead.campaignName}</span>}
+                    <span className="lead-kanban-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>
+                        {lead.sourceName}
+                    </span>
                 </div>
             )}
 
@@ -109,18 +115,20 @@ const LeadKanbanCardBody = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardPr
                         <HiOutlineEnvelope size={14} />
                     </a>
                 )}
-                <button type="button" className="lead-kanban-action-btn lead-kanban-action-btn--note" onClick={(e) => { e.stopPropagation(); onOpenTab(lead, 1); }} title="Add note">
+                <button type="button" className="lead-kanban-action-btn lead-kanban-action-btn--note" onClick={(e) => { e.stopPropagation(); onOpenTab(lead, 'notes'); }} title="Add note">
                     <HiOutlineClipboardDocumentList size={14} />
                 </button>
-                <button type="button" className="lead-kanban-action-btn lead-kanban-action-btn--schedule" onClick={(e) => { e.stopPropagation(); onOpenTab(lead, 2); }} title="Schedule follow-up">
-                    <HiOutlineCalendarDays size={14} />
-                </button>
+                {showFollowupsAction && (
+                    <button type="button" className="lead-kanban-action-btn lead-kanban-action-btn--schedule" onClick={(e) => { e.stopPropagation(); onOpenTab(lead, 'followups'); }} title="Schedule follow-up">
+                        <HiOutlineCalendarDays size={14} />
+                    </button>
+                )}
             </div>
         </>
     );
 };
 
-const LeadKanbanCard = ({ lead, onEdit, onDelete, onOpenTab }: LeadKanbanCardProps) => {
+const LeadKanbanCard = ({ lead, onEdit, onDelete, onOpenTab, showFollowupsAction }: LeadKanbanCardProps) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id });
 
     // Always applies its own reflow transform (like every other card in the list), even while
@@ -145,7 +153,7 @@ const LeadKanbanCard = ({ lead, onEdit, onDelete, onOpenTab }: LeadKanbanCardPro
             className="lead-kanban-card"
             onClick={() => onEdit(lead)}
         >
-            <LeadKanbanCardBody lead={lead} onDelete={onDelete} onOpenTab={onOpenTab} />
+            <LeadKanbanCardBody lead={lead} onDelete={onDelete} onOpenTab={onOpenTab} showFollowupsAction={showFollowupsAction} />
         </div>
     );
 };
@@ -156,9 +164,9 @@ const LeadKanbanCard = ({ lead, onEdit, onDelete, onOpenTab }: LeadKanbanCardPro
 // crosses that column's edge. Deliberately NOT draggable itself (no useDraggable/listeners) -
 // it's a pure visual clone that follows the pointer; the real LeadKanbanCard above stays
 // mounted (invisible via opacity, see its style) for the actual drag/drop hit-testing.
-export const LeadKanbanCardOverlay = ({ lead, onDelete, onOpenTab }: Omit<LeadKanbanCardProps, 'onEdit'>) => (
+export const LeadKanbanCardOverlay = ({ lead, onDelete, onOpenTab, showFollowupsAction }: Omit<LeadKanbanCardProps, 'onEdit'>) => (
     <div className="lead-kanban-card lead-kanban-card--overlay">
-        <LeadKanbanCardBody lead={lead} onDelete={onDelete} onOpenTab={onOpenTab} />
+        <LeadKanbanCardBody lead={lead} onDelete={onDelete} onOpenTab={onOpenTab} showFollowupsAction={showFollowupsAction} />
     </div>
 );
 

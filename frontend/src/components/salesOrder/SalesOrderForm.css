@@ -804,6 +804,23 @@
     color: var(--text-subtle);
 }
 
+.so-dispatch-history-items {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 0;
+}
+
+.so-dispatch-history-item {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+}
+
+.so-dispatch-history-item strong {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
 .so-dispatch-item-details {
     display: flex;
     align-items: center;

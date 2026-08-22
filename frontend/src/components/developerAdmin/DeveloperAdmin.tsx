@@ -1,6 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 import {
     HiOutlineSquares2X2,
     HiOutlineKey,
@@ -20,11 +21,15 @@ import {
     HiOutlineArrowPath,
     HiOutlineEyeSlash,
     HiOutlineCheckCircle,
+    HiOutlineUserGroup,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import { useAuthContext } from '../../context/AuthContextDefinition';
 import { AppContext } from '../../context/AppContextDefinition';
 import VisibilitySettingsPanel, { type VisibilitySettingsPanelHandle } from '../../common/commonComponents/visibilitySettingsDialog/VisibilitySettingsPanel';
 import DatabaseResetPanel from '../../common/commonComponents/databaseResetPanel/DatabaseResetPanel';
+import DatabaseUpdatePanel from '../../common/commonComponents/databaseUpdatePanel/DatabaseUpdatePanel';
+import RolePermissionsPanel from '../../common/commonComponents/rolePermissionsPanel/RolePermissionsPanel';
 import './DeveloperAdmin.css';
 
 const devAdminMenu = [
@@ -34,6 +39,7 @@ const devAdminMenu = [
     { key: 'custom-fields', label: 'Custom Fields', icon: HiOutlineListBullet },
     { key: 'modules-features', label: 'Modules & Features', icon: HiOutlinePuzzlePiece },
     { key: 'manage-visibility', label: 'Manage Visibility', icon: HiOutlineEyeSlash },
+    { key: 'role-permissions', label: 'Role Permissions', icon: HiOutlineUserGroup },
     { key: 'database-settings', label: 'Database Settings', icon: HiOutlineCircleStack },
     { key: 'system-logs', label: 'System Logs', icon: HiOutlineDocumentText },
     { key: 'scheduled-jobs', label: 'Scheduled Jobs', icon: HiOutlineClock },
@@ -56,7 +62,7 @@ type DevAdminSectionKey = (typeof devAdminMenu)[number]['key'];
 // Dashboard, same pattern as the unauthenticated redirect in routers.tsx.
 const DeveloperAdmin = () => {
     const { user } = useAuthContext();
-    const { fetchUiVisibility } = useContext(AppContext);
+    const { fetchUiVisibility, fetchRolePermissions } = useContext(AppContext);
     const [activeSection, setActiveSection] = useState<DevAdminSectionKey>('overview');
     const visibilityPanelRef = useRef<VisibilitySettingsPanelHandle>(null);
 
@@ -107,9 +113,38 @@ const DeveloperAdmin = () => {
                     <div className="developer-admin-content developer-admin-content--panel">
                         <VisibilitySettingsPanel ref={visibilityPanelRef} onSaved={fetchUiVisibility} hideHeader />
                     </div>
+                ) : activeSection === 'role-permissions' ? (
+                    <div className="developer-admin-content developer-admin-content--panel">
+                        <RolePermissionsPanel onSaved={fetchRolePermissions} />
+                    </div>
                 ) : activeSection === 'database-settings' ? (
                     <div className="developer-admin-content developer-admin-content--panel">
-                        <DatabaseResetPanel />
+                        <Accordion multiple activeIndex={[0]} className="developer-admin-accordion">
+                            <AccordionTab
+                                header={
+                                    <span className="developer-admin-accordion-header">
+                                        <span className="developer-admin-accordion-header-icon developer-admin-accordion-header-icon--info">
+                                            <HiOutlineArrowPath size={16} />
+                                        </span>
+                                        <span>Database Update</span>
+                                    </span>
+                                }
+                            >
+                                <DatabaseUpdatePanel />
+                            </AccordionTab>
+                            <AccordionTab
+                                header={
+                                    <span className="developer-admin-accordion-header">
+                                        <span className="developer-admin-accordion-header-icon developer-admin-accordion-header-icon--danger">
+                                            <HiOutlineExclamationTriangle size={16} />
+                                        </span>
+                                        <span>Database Reset</span>
+                                    </span>
+                                }
+                            >
+                                <DatabaseResetPanel />
+                            </AccordionTab>
+                        </Accordion>
                     </div>
                 ) : (
                     <div className="developer-admin-content">

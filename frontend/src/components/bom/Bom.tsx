@@ -17,10 +17,19 @@ import {
     HiOutlineExclamationTriangle,
     HiOutlineCheckBadge,
     HiOutlineArrowPath,
+    HiCube,
+    HiOutlineClipboardDocumentList,
+    HiOutlineXCircle,
+    HiOutlineChevronUp,
+    HiOutlineChevronDown,
+    HiOutlineSquare3Stack3D,
+    HiOutlineDocumentText,
 } from 'react-icons/hi2';
 import { FaRegFilePdf } from 'react-icons/fa6';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
@@ -84,6 +93,8 @@ const Bom = () => {
     const [previewBomCode, setPreviewBomCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [recipeBom, setRecipeBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [stockErrors, setStockErrors] = useState<StockShortfall[]>([]);
+    const [revertBom, setRevertBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [revertQty, setRevertQty] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const menuRef = useRef<Menu>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const menuTargetRef = useRef<SVGElement | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [menuBom, setMenuBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -214,28 +225,40 @@ const Bom = () => {
         });
     };
 
+    // Opens the quantity dialog instead of reverting outright - defaults to the full
+    // un-reversed remainder so a plain "revert everything" still takes one click, but the
+    // user can lower it for a partial reverse.
     const handleRevertToProcess = (bom: BomType) => {
-        confirmDialog({
-            message: `Revert BOM "${bom.bomCode}" back to Process? This restores the deducted raw material quantities and removes the ${bom.outputQty} ${bom.unit} added to Inventory stock.`,
-            header: 'Revert to Process',
-            icon: 'pi pi-exclamation-triangle',
-            accept: async () => {
-                try {
-                    await revertBomToProcess(bom.id);
-                    fetchBoms();
-                    fetchRawSkus();
-                    fetchInventories();
-                    showToast(toast, 'success', 'Reverted', 'BOM reverted to Process - raw material and Inventory stock restored');
-                } catch (err) {
-                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-                }
-            },
-        });
+        setRevertBom(bom);
+        setRevertQty(bom.outputQty - bom.reversedQty);
+    };
+
+    const submitRevert = async () => {
+        if (!revertBom || !revertQty || revertQty <= 0) return;
+        try {
+            await revertBomToProcess(revertBom.id, revertQty);
+            fetchBoms();
+            fetchRawSkus();
+            fetchInventories();
+            const remaining = revertBom.outputQty - revertBom.reversedQty - revertQty;
+            showToast(
+                toast,
+                'success',
+                'Reverted',
+                remaining > 0
+                    ? `Reversed ${revertQty} ${revertBom.unit} - ${remaining} ${revertBom.unit} still remain Completed`
+                    : 'BOM fully reverted to Process - raw material and Inventory stock restored'
+            );
+            setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL);
+            setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        }
     };
 
     const menuItems = [
         { label: 'Print', icon: 'pi pi-print', command: () => menuBom && printBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
-        { label: 'Download', icon: <FaRegFilePdf className="bom-download-icon" />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
+        { label: 'Download', icon: <FaRegFilePdf />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
     ];
 
     const columns = getBomColumns(dateFormat, openEditDialog);
@@ -276,14 +299,15 @@ const Bom = () => {
 
     const itemColumns = getBomItemColumns(items, form.outputQty, rawSkus as RawSku[]);
 
+    // Completed BOMs are deletable too (backend allows it - see bom.controller.js's
+    // deleteBom) - deleting one is a record-cleanup action only, it deliberately does not
+    // reverse the raw material/finished goods stock a Completed BOM already moved.
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<BomType>({
         getId: (row) => row.id,
         deleteOne: deleteBom,
         onDeleted: fetchBoms,
         toast,
         entityNamePlural: 'BOMs',
-        canDelete: (row) => row.status !== 'Completed',
-        cannotDeleteMessage: 'Completed BOMs cannot be deleted - revert to Process first if you need to undo it.',
     });
 
     return (
@@ -333,7 +357,7 @@ const Bom = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingId ? 'Edit BOM' : 'Add New BOM'}
+                header={<DialogHeader icon={HiOutlineSquare3Stack3D} title={editingId ? 'Edit BOM' : 'Add New BOM'} />}
                 style={{ width: '960px', maxWidth: '95vw' }}
                 footer={
                     <>
@@ -404,7 +428,7 @@ const Bom = () => {
                             </div>
                             <div className="form-field">
                                 <label>Unit</label>
-                                <Dropdown value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
+                                <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                         </div>
                     </div>
@@ -438,13 +462,13 @@ const Bom = () => {
             <Dialog
                 visible={!!recipeBom}
                 onHide={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)}
-                header="BOM Recipe"
+                header={<DialogHeader icon={HiOutlineDocumentText} title="BOM Recipe" />}
                 style={{ width: '720px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <Button label="Close" outlined onClick={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)} />
                         <Button label="Print" icon={<HiOutlinePrinter className="mr-2" />} outlined onClick={() => recipeBom && printBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
-                        <Button label="Download" icon={<FaRegFilePdf className="mr-2 bom-download-icon" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
+                        <Button label="Download" icon={<FaRegFilePdf className="mr-2" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
                     </>
                 }
             >
@@ -486,6 +510,83 @@ const Bom = () => {
                         </table>
                     </div>
                 )}
+            </Dialog>
+
+            <Dialog
+                visible={!!revertBom}
+                onHide={() => { setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL); setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL); }}
+                header={<DialogHeader icon={HiOutlineArrowUturnLeft} title="Reverse Quantity" />}
+                style={{ width: '460px', maxWidth: '95vw' }}
+                footer={
+                    <>
+                        <Button
+                            label="Cancel"
+                            icon={<HiOutlineXCircle className="mr-2" />}
+                            outlined
+                            onClick={() => { setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL); setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL); }}
+                        />
+                        <Button
+                            label="Reverse"
+                            icon={<HiOutlineArrowUturnLeft className="mr-2" />}
+                            onClick={submitRevert}
+                            disabled={!revertQty || revertQty <= 0}
+                        />
+                    </>
+                }
+            >
+                {revertBom && (() => {
+                    const remaining = revertBom.outputQty - revertBom.reversedQty;
+                    const clamp = (next: number) => Math.min(Math.max(next, 1), remaining);
+                    return (
+                        <div className="bom-dialog-body">
+                            <div className="bom-revert-info">
+                                <div className="bom-revert-info-row">
+                                    <span className="bom-revert-info-icon bom-revert-info-icon--produced"><HiCube size={16} /></span>
+                                    <span className="bom-revert-info-label">Produced</span>
+                                    <strong className="bom-revert-info-value bom-revert-info-value--produced">{revertBom.outputQty} {revertBom.unit}</strong>
+                                </div>
+                                <div className="bom-revert-info-row">
+                                    <span className="bom-revert-info-icon bom-revert-info-icon--reversed"><HiOutlineArrowPath size={16} /></span>
+                                    <span className="bom-revert-info-label">Already Reversed</span>
+                                    <strong className="bom-revert-info-value">{revertBom.reversedQty} {revertBom.unit}</strong>
+                                </div>
+                                <div className="bom-revert-info-row">
+                                    <span className="bom-revert-info-icon bom-revert-info-icon--remaining"><HiOutlineClipboardDocumentList size={16} /></span>
+                                    <span className="bom-revert-info-label">Remaining</span>
+                                    <strong className="bom-revert-info-value bom-revert-info-value--remaining">{remaining} {revertBom.unit}</strong>
+                                </div>
+                            </div>
+                            <div className="form-field">
+                                <label>Quantity to Reverse *</label>
+                                <div className="bom-revert-qty-field">
+                                    <input
+                                        type="number"
+                                        className="bom-revert-qty-input"
+                                        value={revertQty ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}
+                                        min={1}
+                                        max={remaining}
+                                        onChange={(e) => {
+                                            const next = e.target.value === DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING ? DEFAULT_DATA_TYPE_VALUE.NULL : Number(e.target.value);
+                                            setRevertQty(next === DEFAULT_DATA_TYPE_VALUE.NULL ? next : clamp(next));
+                                        }}
+                                    />
+                                    <span className="bom-revert-qty-unit">{revertBom.unit}</span>
+                                    <div className="bom-revert-qty-steppers">
+                                        <button type="button" onClick={() => setRevertQty(clamp((revertQty ?? 0) + 1))} aria-label="Increase quantity">
+                                            <HiOutlineChevronUp size={14} />
+                                        </button>
+                                        <button type="button" onClick={() => setRevertQty(clamp((revertQty ?? 0) - 1))} aria-label="Decrease quantity">
+                                            <HiOutlineChevronDown size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <span className="bom-revert-qty-hint">
+                                    Enter a value between <strong>1 and {remaining} {revertBom.unit}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })()}
             </Dialog>
         </div>
     );

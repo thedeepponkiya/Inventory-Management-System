@@ -11,6 +11,9 @@ export interface AuthUser {
     // True only for the one hidden Super Admin account (see backend/user.model.js's
     // "isHidden" column) - gates the sidebar's "Developer Admin" section.
     isHidden: boolean;
+    // Drives role-based sidebar/route visibility (see rolePermissionsService.ts) - null for
+    // accounts with no role assigned, which (like isHidden accounts) sees everything.
+    roleId: string | null;
 }
 
 export interface LoginResult {

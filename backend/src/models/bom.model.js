@@ -72,12 +72,15 @@ async function create(bomCode, fields) {
 // Accepts an optional transaction client (`db`), same reasoning as rawSku.model.js's
 // adjustStockBySkuCode - completeBom/revertBomToProcess need this update to commit or roll
 // back atomically together with the raw-material/finished-good stock adjustments.
+// `reversedQty` defaults to whatever the caller passes (falls back to 0 for plain edits via
+// updateBom, which never touch it) - see revertBomToProcess for how it accumulates on partial
+// reverts and resets once a BOM is fully reverted back to Process.
 async function update(id, fields, db = pool) {
   const result = await db.query(
     `UPDATE ${TABLE} SET
       "productSku" = $1, "productName" = $2, "categoryName" = $3, version = $4, "outputQty" = $5,
-      unit = $6, status = $7, items = $8, "createdBy" = $9, "updatedAt" = now()
-    WHERE id = $10
+      unit = $6, status = $7, items = $8, "createdBy" = $9, "reversedQty" = $10, "updatedAt" = now()
+    WHERE id = $11
     RETURNING *`,
     [
       fields.productSku,
@@ -89,6 +92,7 @@ async function update(id, fields, db = pool) {
       fields.status,
       JSON.stringify(fields.items),
       fields.createdBy,
+      fields.reversedQty ?? 0,
       id,
     ]
   );

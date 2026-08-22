@@ -1,0 +1,27 @@
+/* Shared "Assigned To" avatar cell (AssigneeAvatar.tsx) - mirrors index.css's
+   .common-table-user-cell/.common-table-user-avatar (the ERP side's equivalent) so both look
+   the same size/style across the app. */
+.crm-assignee-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.crm-assignee-avatar.p-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #ffffff;
+}
+
+.crm-assignee-avatar.p-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.crm-assignee-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

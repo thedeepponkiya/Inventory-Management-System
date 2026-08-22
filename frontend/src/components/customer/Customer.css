@@ -62,9 +62,9 @@
     }
 
     .customer-page .filter-bar-quick-action--active {
-        border: 1px solid #2563eb;
+        border: 1px solid var(--accent-primary);
         background: var(--accent-info-bg);
-        color: #2563eb;
+        color: var(--accent-primary);
     }
 
     .customer-page .filter-bar-controls {
@@ -119,14 +119,14 @@
     }
 
     .customer-page .filter-bar-add-btn.p-button.p-button-outlined {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
         color: #ffffff;
     }
 
     .customer-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+        background: var(--accent-primary-hover);
+        border-color: var(--accent-primary-hover);
         color: #ffffff;
     }
 

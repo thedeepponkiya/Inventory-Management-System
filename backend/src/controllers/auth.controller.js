@@ -40,6 +40,9 @@ async function login(req, res) {
         // Lets the frontend show the "Developer Admin" sidebar section only to this one
         // hidden account (see SideBarNavigation.tsx) - never exposed anywhere else.
         isHidden: user.isHidden,
+        // Drives role-based sidebar/route visibility (see rolePermissionsService.ts) -
+        // isHidden accounts bypass this entirely and always see everything.
+        roleId: user.roleId,
         token,
       },
     });

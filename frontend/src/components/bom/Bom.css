@@ -74,16 +74,14 @@
     margin-right: 0;
 }
 
-.bom-download-icon {
-    color: var(--accent-danger-text);
-}
-
 .bom-item-qty-needed {
     font-weight: 600;
-    /* Hardcoded (not var(--primary-color)) - PrimeReact's own theme stylesheet loads after
-       themeOverrides.css and wins the :root custom-property tie, so the var resolves to
-       PrimeReact's default blue-500 instead of this app's actual #2563eb brand blue. */
-    color: #2563eb;
+    /* var(--accent-primary), not var(--primary-color) - PrimeReact's own theme stylesheet
+       loads after themeOverrides.css and wins the :root custom-property tie on --primary-*,
+       so that var would resolve to PrimeReact's default blue-500 instead of the app's actual
+       brand accent. --accent-primary is this app's own token (defined in index.css), which
+       PrimeReact's stylesheet has no knowledge of and can't clobber. */
+    color: var(--accent-primary);
 }
 
 .bom-item-qty-needed--insufficient {
@@ -175,6 +173,161 @@
     font-size: 13px;
 }
 
+.bom-revert-info {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    overflow: hidden;
+}
+
+.bom-revert-info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+.bom-revert-info-row:not(:last-child) {
+    border-bottom: 1px dashed var(--border-dashed);
+}
+
+.bom-revert-info-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+
+.bom-revert-info-icon--produced {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--accent-primary);
+}
+
+.bom-revert-info-icon--reversed {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
+}
+
+.bom-revert-info-icon--remaining {
+    background: var(--accent-success-bg);
+    color: var(--accent-success-text);
+}
+
+.bom-revert-info-label {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.bom-revert-info-value {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.bom-revert-info-value--produced {
+    color: var(--accent-primary);
+}
+
+.bom-revert-info-value--remaining {
+    color: var(--accent-success-text);
+}
+
+.bom-revert-qty-field {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    height: 52px;
+    padding: 0 4px 0 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--accent-primary);
+    background: var(--surface-card);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    overflow: hidden;
+}
+
+.bom-revert-qty-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Hides the native number-input spinner - the custom stepper on the right replaces it. */
+.bom-revert-qty-input::-webkit-outer-spin-button,
+.bom-revert-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.bom-revert-qty-input {
+    appearance: textfield;
+}
+
+.bom-revert-qty-unit {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 3px 10px;
+    margin: auto 0;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bom-revert-qty-steppers {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 40px;
+}
+
+.bom-revert-qty-steppers button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: var(--accent-primary);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.bom-revert-qty-steppers button:first-child {
+    border-top-right-radius: 8px;
+}
+
+.bom-revert-qty-steppers button:last-child {
+    border-bottom-right-radius: 8px;
+}
+
+.bom-revert-qty-steppers button:hover {
+    background: var(--accent-primary-hover);
+}
+
+.bom-revert-qty-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.bom-revert-qty-hint strong {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
 .bom-recipe-table th {
     text-align: left;
     font-size: 11px;
@@ -193,7 +346,7 @@
 
 .bom-recipe-qty-needed {
     font-weight: 700;
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 
 @media (max-width: 640px) {
@@ -266,9 +419,9 @@
     }
 
     .bom-page .filter-bar-quick-action--active {
-        border: 1px solid #2563eb;
+        border: 1px solid var(--accent-primary);
         background: var(--accent-info-bg);
-        color: #2563eb;
+        color: var(--accent-primary);
     }
 
     .bom-page .filter-bar-controls {
@@ -323,14 +476,14 @@
     }
 
     .bom-page .filter-bar-add-btn.p-button.p-button-outlined {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
         color: #ffffff;
     }
 
     .bom-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+        background: var(--accent-primary-hover);
+        border-color: var(--accent-primary-hover);
         color: #ffffff;
     }
 

@@ -129,4 +129,12 @@ async function findByCodeForUpdate(skuCode, client) {
   return result.rows[0];
 }
 
-module.exports = { getAll, findById, getNextSkuCode, create, update, remove, adjustStockBySkuCode, findByCodeForUpdate };
+// Plain (unlocked) existence check - used by createRawSku to validate a user-typed skuCode
+// (the field is editable at create time) isn't already taken, without the row-locking
+// semantics findByCodeForUpdate needs for its own transactional use.
+async function findByCode(skuCode) {
+  const result = await pool.query(`SELECT * FROM ${TABLE} WHERE "skuCode" = $1`, [skuCode]);
+  return result.rows[0];
+}
+
+module.exports = { getAll, findById, findByCode, getNextSkuCode, create, update, remove, adjustStockBySkuCode, findByCodeForUpdate };

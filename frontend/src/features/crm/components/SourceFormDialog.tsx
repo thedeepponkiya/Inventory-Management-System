@@ -5,7 +5,8 @@ import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dialog } from 'primereact/dialog';
-import { HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineBuildingStorefront } from 'react-icons/hi2';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { SOURCE_TYPE_OPTIONS, type CrmSource, type CrmSourcePayload } from '../types/source.types';
 
 const emptyForm: CrmSourcePayload = { name: '', type: 'Manual', status: 'Active' };
@@ -32,7 +33,7 @@ const SourceFormDialog = ({ visible, editing, onHide, onSave }: SourceFormDialog
         <Dialog
             visible={visible}
             onHide={onHide}
-            header={editing ? 'Edit Source' : 'Add New Source'}
+            header={<DialogHeader icon={HiOutlineBuildingStorefront} title={editing ? 'Edit Source' : 'Add New Source'} />}
             style={{ width: '440px', maxWidth: '95vw' }}
             footer={
                 <>

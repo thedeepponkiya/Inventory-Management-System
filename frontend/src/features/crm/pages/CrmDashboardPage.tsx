@@ -22,6 +22,7 @@ import { useLeadsQuery, useUpdateLead } from '../hooks/useLeadsQuery';
 import { useCreateNote } from '../hooks/useNotesQuery';
 import { useStagesQuery } from '../hooks/useStagesQuery';
 import { useFollowupsQuery } from '../hooks/useFollowupsQuery';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
 import LeadDetailDrawer from '../components/LeadDetailDrawer';
 import LeadFormDialog from '../components/LeadFormDialog';
 import { PERIOD_OPTIONS, getPeriodRange } from '../utils/period';
@@ -37,6 +38,13 @@ interface FollowupRow extends CrmFollowup {
 const CrmDashboardPage = () => {
     const navigate = useNavigate();
     const toast = useRef<Toast>(null);
+    const { user } = useAuthContext();
+    // Mirrors CrmLeadsPage.tsx's canEditLead - Sales User can view a lead from here but not
+    // edit its own fields.
+    const canEditLead = user?.roleId !== 'Sales User';
+    // Mirrors CrmLeadsPage.tsx's canViewFollowups - Sales User doesn't get the drawer's
+    // Follow-ups tab either.
+    const canViewFollowups = user?.roleId !== 'Sales User';
     const { data: leads = [] } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: followups = [] } = useFollowupsQuery();
@@ -371,6 +379,8 @@ const CrmDashboardPage = () => {
                 lead={drawerLead ? (leads.find((l) => l.id === drawerLead.id) ?? drawerLead) : null}
                 onHide={() => setDrawerLead(null)}
                 onEdit={openEditDialog}
+                canEdit={canEditLead}
+                showFollowupsTab={canViewFollowups}
             />
             <LeadFormDialog
                 visible={dialogVisible}

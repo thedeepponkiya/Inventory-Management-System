@@ -1,6 +1,11 @@
+import { useContext } from 'react';
+import type { ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from '../common/commonComponents/header/Header';
+import { AppContext } from '../context/AppContextDefinition';
 import { useAuthContext } from '../context/AuthContextDefinition';
+import { isModuleAllowed } from '../services/rolePermissionsService';
+import NoAccess from '../common/commonComponents/noAccess/NoAccess';
 import Dashboard from '../components/dashboard/Dashboard';
 import MaterialInward from '../components/materialInward/MaterialInward';
 import RawSku from '../components/rawSku/RawSku';
@@ -27,11 +32,27 @@ import CrmSourcesPage from '../features/crm/pages/CrmSourcesPage';
 import CrmSettingsPage from '../features/crm/pages/CrmSettingsPage';
 import CrmLeadsPage from '../features/crm/pages/CrmLeadsPage';
 import CrmFollowupsPage from '../features/crm/pages/CrmFollowupsPage';
-import CrmCampaignsPage from '../features/crm/pages/CrmCampaignsPage';
 import CrmDashboardPage from '../features/crm/pages/CrmDashboardPage';
 import CrmReportsPage from '../features/crm/pages/CrmReportsPage';
 import './routers.css';
 import SidePanel from '../common/commonComponents/sideBarNavigation/SideBarNavigation';
+
+// Renders NoAccess instead of `element` whenever the logged-in user's role isn't permitted
+// for the CURRENT url (see rolePermissionsService.ts) - this is what actually stops someone
+// from reaching a page by typing/bookmarking its URL directly, since SideBarNavigation.tsx
+// hiding the nav item only stops discovery through the UI, not direct navigation.
+// '/developer-admin' is deliberately never wrapped in this - it already has its own dedicated
+// isHidden-only guard (see DeveloperAdmin.tsx), and isn't one of rolePermissionsService.ts's
+// known modules, so wrapping it here would incorrectly default-allow it to every role.
+const ProtectedRoute = ({ element }: { element: ReactNode }) => {
+    const location = useLocation();
+    const { user } = useAuthContext();
+    const { rolePermissions } = useContext(AppContext);
+    if (!isModuleAllowed(location.pathname, user?.roleId ?? null, user?.isHidden ?? false, rolePermissions ?? {})) {
+        return <NoAccess />;
+    }
+    return <>{element}</>;
+};
 
 const AppRoutes = () => {
     const location = useLocation();
@@ -57,34 +78,33 @@ const AppRoutes = () => {
                 <Header />
                 <div className='app-content py-2 px-4'>
                     <Routes>
-                        <Route path='/' element={<Dashboard />}></Route>
-                        <Route path='/material-inward' element={<MaterialInward />}></Route>
-                        <Route path='/raw-sku' element={<RawSku />}></Route>
-                        <Route path='/locations' element={<Locations />}></Route>
-                        <Route path='/category' element={<Category />}></Route>
-                        <Route path='/product-type' element={<ProductType />}></Route>
-                        <Route path='/unit' element={<Unit />}></Route>
-                        <Route path='/vendor' element={<Vendor />}></Route>
-                        <Route path='/customer' element={<Customer />}></Route>
-                        <Route path='/home' element={<InventoryHome />}></Route>
-                        <Route path='/bom' element={<Bom />}></Route>
-                        <Route path='/invoices' element={<Invoices />}></Route>
-                        <Route path='/invoices/new' element={<InvoiceForm />}></Route>
-                        <Route path='/invoices/:id' element={<InvoiceForm />}></Route>
-                        <Route path='/reports' element={<Reports />}></Route>
-                        <Route path='/users' element={<Users />}></Route>
+                        <Route path='/' element={<ProtectedRoute element={<Dashboard />} />}></Route>
+                        <Route path='/material-inward' element={<ProtectedRoute element={<MaterialInward />} />}></Route>
+                        <Route path='/raw-sku' element={<ProtectedRoute element={<RawSku />} />}></Route>
+                        <Route path='/locations' element={<ProtectedRoute element={<Locations />} />}></Route>
+                        <Route path='/category' element={<ProtectedRoute element={<Category />} />}></Route>
+                        <Route path='/product-type' element={<ProtectedRoute element={<ProductType />} />}></Route>
+                        <Route path='/unit' element={<ProtectedRoute element={<Unit />} />}></Route>
+                        <Route path='/vendor' element={<ProtectedRoute element={<Vendor />} />}></Route>
+                        <Route path='/customer' element={<ProtectedRoute element={<Customer />} />}></Route>
+                        <Route path='/home' element={<ProtectedRoute element={<InventoryHome />} />}></Route>
+                        <Route path='/bom' element={<ProtectedRoute element={<Bom />} />}></Route>
+                        <Route path='/invoices' element={<ProtectedRoute element={<Invoices />} />}></Route>
+                        <Route path='/invoices/new' element={<ProtectedRoute element={<InvoiceForm />} />}></Route>
+                        <Route path='/invoices/:id' element={<ProtectedRoute element={<InvoiceForm />} />}></Route>
+                        <Route path='/reports' element={<ProtectedRoute element={<Reports />} />}></Route>
+                        <Route path='/users' element={<ProtectedRoute element={<Users />} />}></Route>
                         <Route path='/developer-admin' element={<DeveloperAdmin />}></Route>
-                        <Route path='/purchase-order' element={<PurchaseOrder />}></Route>
-                        <Route path='/purchase-order/new' element={<PurchaseOrderForm />}></Route>
-                        <Route path='/purchase-order/:id' element={<PurchaseOrderForm />}></Route>
-                        <Route path='/sales-order' element={<SalesOrder />}></Route>
-                        <Route path='/sales-order/new' element={<SalesOrderForm />}></Route>
-                        <Route path='/sales-order/:id' element={<SalesOrderForm />}></Route>
-                        <Route path='/crm' element={<CrmProviders />}>
+                        <Route path='/purchase-order' element={<ProtectedRoute element={<PurchaseOrder />} />}></Route>
+                        <Route path='/purchase-order/new' element={<ProtectedRoute element={<PurchaseOrderForm />} />}></Route>
+                        <Route path='/purchase-order/:id' element={<ProtectedRoute element={<PurchaseOrderForm />} />}></Route>
+                        <Route path='/sales-order' element={<ProtectedRoute element={<SalesOrder />} />}></Route>
+                        <Route path='/sales-order/new' element={<ProtectedRoute element={<SalesOrderForm />} />}></Route>
+                        <Route path='/sales-order/:id' element={<ProtectedRoute element={<SalesOrderForm />} />}></Route>
+                        <Route path='/crm' element={<ProtectedRoute element={<CrmProviders />} />}>
                             <Route index element={<CrmDashboardPage />}></Route>
                             <Route path='leads' element={<CrmLeadsPage />}></Route>
                             <Route path='followups' element={<CrmFollowupsPage />}></Route>
-                            <Route path='campaigns' element={<CrmCampaignsPage />}></Route>
                             <Route path='reports' element={<CrmReportsPage />}></Route>
                             <Route path='sources' element={<CrmSourcesPage />}></Route>
                             <Route path='settings' element={<CrmSettingsPage />}></Route>

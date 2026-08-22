@@ -1,0 +1,339 @@
+.role-permissions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ---- Header ---- */
+.role-permissions-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.role-permissions-header-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.role-permissions-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.role-permissions-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.role-permissions-header-text h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.role-permissions-header-text p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-subtle);
+}
+
+/* ---- Info banner ---- */
+.role-permissions-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--accent-info-bg);
+    border: 1px solid var(--accent-info-border);
+}
+
+.role-permissions-banner-icon {
+    color: var(--accent-info-text);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.role-permissions-banner strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-info-text);
+    margin-bottom: 3px;
+}
+
+.role-permissions-banner p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* ---- Role select ---- */
+.role-permissions-role-select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 320px;
+}
+
+.role-permissions-role-select label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.role-permissions-role-dropdown {
+    width: 100%;
+}
+
+.role-permissions-role-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---- Two-column body (module selector + detail), mirrors VisibilitySettingsPanel.css ---- */
+.role-permissions-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.role-permissions-modules {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 260px;
+    flex-shrink: 0;
+}
+
+.role-permissions-modules-heading h3 {
+    margin: 0 0 3px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.role-permissions-modules-heading p {
+    margin: 0 0 4px;
+    font-size: 11.5px;
+    color: var(--text-subtle);
+}
+
+.role-permissions-module-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: center;
+    text-align: left;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-default);
+    background: var(--surface-card);
+    cursor: pointer;
+}
+
+.role-permissions-module-card:hover {
+    border-color: var(--accent-info-border);
+}
+
+.role-permissions-module-card--active {
+    border-color: var(--accent-info-text);
+    background: var(--accent-info-bg);
+}
+
+.role-permissions-module-check {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    display: flex;
+    color: var(--accent-info-text);
+    background: var(--surface-card);
+    border-radius: 50%;
+}
+
+.role-permissions-module-name {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.role-permissions-module-desc {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 11.5px;
+    color: var(--text-subtle);
+}
+
+.role-permissions-module-badge {
+    grid-column: 3;
+    grid-row: 1;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--surface-subtle-2);
+    color: var(--text-tertiary);
+}
+
+/* ---- Icon badges (shared by module cards) ---- */
+.role-permissions-icon-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+
+.role-permissions-icon-badge--lg {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+}
+
+.role-permissions-icon-badge--erp {
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.role-permissions-icon-badge--crm {
+    background: var(--accent-purple-bg);
+    color: var(--accent-purple-text);
+}
+
+/* ---- Right column: selected module's detail card ---- */
+.role-permissions-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.role-permissions-module-detail {
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    padding: 18px;
+    background: var(--surface-card);
+}
+
+.role-permissions-module-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.role-permissions-module-detail-header h3 {
+    margin: 0 0 3px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.role-permissions-module-detail-header p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.role-permissions-module-detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.role-permissions-module-master {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+
+.role-permissions-count-badge {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+/* ---- Module items list (inside the detail card) ---- */
+.role-permissions-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.role-permissions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--surface-card);
+}
+
+.role-permissions-row + .role-permissions-row {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.role-permissions-row-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.role-permissions-row-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+@media (max-width: 720px) {
+    .role-permissions-body {
+        flex-direction: column;
+    }
+
+    .role-permissions-modules {
+        width: 100%;
+    }
+}
+

@@ -249,8 +249,8 @@
 }
 
 .raw-sku-image-preview--active {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 1px #2563eb;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .raw-sku-image-preview img {
@@ -294,8 +294,8 @@
 }
 
 .raw-sku-image-add:hover {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
 }
 
 /* Mobile/tablet redesign (Quick Actions grid + compact toolbar + wrapped paginator) - scoped
@@ -363,9 +363,9 @@
     }
 
     .raw-sku-page .filter-bar-quick-action--active {
-        border: 1px solid #2563eb;
+        border: 1px solid var(--accent-primary);
         background: var(--accent-info-bg);
-        color: #2563eb;
+        color: var(--accent-primary);
     }
 
     .raw-sku-page .filter-bar-controls {
@@ -420,14 +420,14 @@
     }
 
     .raw-sku-page .filter-bar-add-btn.p-button.p-button-outlined {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
         color: #ffffff;
     }
 
     .raw-sku-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+        background: var(--accent-primary-hover);
+        border-color: var(--accent-primary-hover);
         color: #ffffff;
     }
 

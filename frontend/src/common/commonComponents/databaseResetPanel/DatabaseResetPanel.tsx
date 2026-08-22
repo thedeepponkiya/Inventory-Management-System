@@ -18,14 +18,15 @@ import {
     HiOutlineArchiveBox,
     HiOutlineTag,
     HiOutlineUser,
-    HiOutlineMegaphone,
     HiOutlineUsers,
     HiOutlineCircleStack,
     HiOutlineCog6Tooth,
     HiOutlineCodeBracket,
+    HiOutlinePaperAirplane,
     HiCheckCircle,
 } from 'react-icons/hi2';
 import { FaSitemap } from 'react-icons/fa';
+import DialogHeader from '../dialogHeader/DialogHeader';
 import { resetDatabase } from '../../../services/databaseResetService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { showToast } from '../../commonFunctions/commonFunction';
@@ -39,19 +40,20 @@ interface ResetDataItem {
     icon: IconType;
 }
 
-// Kept in sync by hand with backend/src/models/databaseReset.model.js's TABLES_TO_RESET / the
-// tables intentionally excluded from it - this list is display-only, the backend is the
-// actual source of truth and re-checks everything server-side regardless of what this shows.
+// Kept in sync by hand with backend/src/models/databaseReset.model.js's KEPT_TABLES (this is
+// its inverse - everything NOT in KEPT_TABLES) - this list is display-only, the backend
+// computes the real target list dynamically from the live database at reset time and
+// re-checks everything server-side regardless of what this shows.
 const clearedItems: ResetDataItem[] = [
     { label: 'Purchase Orders', detail: 'Orders and their payment history', icon: HiOutlineDocumentText },
     { label: 'Sales Orders', detail: 'Orders and their payment history', icon: HiOutlineShoppingCart },
+    { label: 'Sales Order Dispatch History', detail: 'Every recorded dispatch entry', icon: HiOutlinePaperAirplane },
     { label: 'Material Inward', detail: 'Goods-received records', icon: HiOutlineTruck },
     { label: 'Invoices', detail: 'All generated invoices', icon: HiOutlineClipboardDocumentList },
     { label: 'Inventory', detail: 'On-hand stock records (Inventory Home)', icon: HiOutlineArchiveBox },
     { label: 'BOM', detail: 'Bill of Materials, in-process and completed', icon: FaSitemap },
     { label: 'Finished / Raw SKU', detail: 'SKU catalog and stock levels', icon: HiOutlineTag },
     { label: 'CRM Leads', detail: 'Leads, notes, follow-ups, activity timeline, notifications', icon: HiOutlineUser },
-    { label: 'CRM Campaigns', detail: 'Marketing campaigns', icon: HiOutlineMegaphone },
 ];
 
 const keptItems: ResetDataItem[] = [
@@ -62,8 +64,8 @@ const keptItems: ResetDataItem[] = [
 ];
 
 const checklistItems = [
-    'This action cannot be undone.',
-    'All cleared data will be permanently deleted.',
+    'A full backup is taken automatically before anything is cleared.',
+    'All cleared data will be removed from the live database immediately.',
     'Please confirm that you want to reset all business data.',
 ];
 
@@ -86,8 +88,8 @@ const DatabaseResetPanel = () => {
     const handleConfirmReset = async () => {
         setResetting(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
-            await resetDatabase();
-            showToast(toast, 'success', 'Database reset', 'All business data has been cleared. Reloading...');
+            const result = await resetDatabase();
+            showToast(toast, 'success', 'Database reset', `Backed up as ${result.backupFile}, then all business data was cleared. Reloading...`);
             // A full reload is the simplest way to guarantee every piece of cached state
             // (AppContext's fetched lists + CRM's separate react-query cache) reflects the
             // now-empty database, instead of hand-picking every fetch function across both.
@@ -141,8 +143,8 @@ const DatabaseResetPanel = () => {
             <div className="database-reset-warning">
                 <HiOutlineExclamationTriangle size={22} className="database-reset-warning-icon" />
                 <div>
-                    <strong>This action is permanent and cannot be undone.</strong>
-                    <p>It clears real business data from the live database. There is no backup/restore for this action - once confirmed, the data is gone.</p>
+                    <strong>This action clears real business data from the live database.</strong>
+                    <p>A full backup is taken automatically right before the clear runs - there is no in-app "restore" button, but the backup file on disk can be used to manually recover the data if this was a mistake.</p>
                 </div>
             </div>
 
@@ -180,7 +182,7 @@ const DatabaseResetPanel = () => {
             </div>
 
             <Dialog
-                header="Confirm Database Reset"
+                header={<DialogHeader icon={HiOutlineExclamationTriangle} title="Confirm Database Reset" />}
                 visible={confirmOpen}
                 onHide={closeDialog}
                 style={{ width: '460px' }}
@@ -189,7 +191,7 @@ const DatabaseResetPanel = () => {
                 closeOnEscape={!resetting}
             >
                 <p className="database-reset-dialog-text">
-                    This will permanently delete every Purchase Order, Sales Order, Material Inward, Invoice, Inventory record, BOM, Finished/Raw SKU, and CRM Lead/Campaign. Users and master data will not be affected.
+                    A backup will be taken first, then this will permanently delete every Purchase Order, Sales Order, Sales Order Dispatch History, Material Inward, Invoice, Inventory record, BOM, Finished/Raw SKU, and CRM Lead. Users and master data will not be affected.
                 </p>
                 <p className="database-reset-dialog-text">
                     Type <strong>{CONFIRM_PHRASE}</strong> below to confirm.

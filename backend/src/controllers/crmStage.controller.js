@@ -1,4 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
+const { isCrmAdmin } = require('../utils/crmPermissions.util');
 const CrmStageModel = require('../models/crmStage.model');
 
 async function getStages(req, res) {
@@ -12,6 +13,9 @@ async function getStages(req, res) {
 
 async function createStage(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to create stages', data: null });
+    }
     const { name } = req.body;
     if (!name) {
       return res.status(400).json({ status: false, message: 'name is required', data: null });
@@ -68,6 +72,9 @@ async function updateStage(req, res) {
 
 async function deleteStage(req, res) {
   try {
+    if (!isCrmAdmin(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to delete stages', data: null });
+    }
     const { id } = req.params;
     const existing = await CrmStageModel.findById(id);
     if (!existing) {

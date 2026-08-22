@@ -100,6 +100,7 @@ async function updateBom(req, res) {
       status: existing.status,
       items: body.items ?? existing.items,
       createdBy: body.createdBy ?? existing.createdBy,
+      reversedQty: existing.reversedQty,
     };
 
     const updated = await BomModel.update(id, fields);
@@ -172,7 +173,7 @@ async function completeBom(req, res) {
     }
     await InventoryModel.adjustStockBySkuId(existing.productSku, existing.outputQty, client);
 
-    const updated = await BomModel.update(id, { ...existing, status: 'Completed' }, client);
+    const updated = await BomModel.update(id, { ...existing, status: 'Completed', reversedQty: 0 }, client);
     await client.query('COMMIT');
     res.json({ status: true, message: 'BOM marked as Completed successfully', data: updated });
   } catch (err) {
@@ -183,12 +184,16 @@ async function completeBom(req, res) {
   }
 }
 
-// Reverses completeBom: moves Completed back to Process, restoring the deducted Raw SKU
-// quantities and removing the outputQty that was added to the finished good's Inventory.
-// Same transaction + locking treatment as completeBom, plus the mirror-image stock check:
-// if some of the finished-good quantity this order added has already been sold/dispatched
-// elsewhere, removing outputQty here would push Inventory negative - so that's checked and
-// rejected too, not just the raw-material side.
+// Reverses completeBom, partially or fully: restores a caller-supplied `qty` (not always the
+// whole run) of the deducted Raw SKU quantities, and removes that same qty from the finished
+// good's Inventory. Can be called multiple times on the same Completed BOM - `reversedQty`
+// accumulates across calls so a second/third partial reverse can't exceed what was actually
+// produced. Once the accumulated total reaches outputQty, the BOM flips back to Process (fully
+// undone) and reversedQty resets to 0, exactly like the old always-full revert used to behave.
+// Same transaction + locking treatment as completeBom, plus the mirror-image stock check: if
+// some of the finished-good quantity this order added has already been sold/dispatched
+// elsewhere, removing qty here would push Inventory negative - so that's checked and rejected
+// too, not just the raw-material side.
 async function revertBomToProcess(req, res) {
   const client = await pool.connect();
   try {
@@ -205,26 +210,53 @@ async function revertBomToProcess(req, res) {
       return res.status(400).json({ status: false, message: 'BOM is not completed', data: null });
     }
 
-    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(existing.productSku, client);
-    const availableQty = Number(inventoryItem?.quantity ?? 0);
-    if (availableQty < existing.outputQty) {
+    const outputQty = Number(existing.outputQty);
+    const alreadyReversed = Number(existing.reversedQty ?? 0);
+    const remaining = outputQty - alreadyReversed;
+    const qty = Number(req.body.qty);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ status: false, message: 'Enter a valid quantity to reverse', data: null });
+    }
+    if (qty > remaining) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         status: false,
-        message: `Cannot revert - only ${availableQty} of this finished good remain in Inventory (some may have already been sold/dispatched), but reverting would remove ${existing.outputQty}`,
+        message: `Cannot reverse ${qty} - only ${remaining} of this order's ${outputQty} ${existing.unit} remain un-reversed`,
+        data: null,
+      });
+    }
+
+    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(existing.productSku, client);
+    const availableQty = Number(inventoryItem?.quantity ?? 0);
+    if (availableQty < qty) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        status: false,
+        message: `Cannot reverse - only ${availableQty} of this finished good remain in Inventory (some may have already been sold/dispatched), but reversing would remove ${qty}`,
         data: null,
       });
     }
 
     for (const item of existing.items) {
-      const needed = qtyNeeded(item.requiredQty, existing.outputQty);
+      const needed = qtyNeeded(item.requiredQty, qty);
       await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, needed, client);
     }
-    await InventoryModel.adjustStockBySkuId(existing.productSku, -existing.outputQty, client);
+    await InventoryModel.adjustStockBySkuId(existing.productSku, -qty, client);
 
-    const updated = await BomModel.update(id, { ...existing, status: 'Process' }, client);
+    const newReversedQty = alreadyReversed + qty;
+    const fullyReversed = newReversedQty >= outputQty;
+    const updated = await BomModel.update(
+      id,
+      { ...existing, status: fullyReversed ? 'Process' : 'Completed', reversedQty: fullyReversed ? 0 : newReversedQty },
+      client
+    );
     await client.query('COMMIT');
-    res.json({ status: true, message: 'BOM reverted to Process successfully', data: updated });
+    res.json({
+      status: true,
+      message: fullyReversed ? 'BOM fully reverted to Process successfully' : `Reversed ${qty} ${existing.unit} - ${outputQty - newReversedQty} remaining`,
+      data: updated,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);
@@ -233,12 +265,13 @@ async function revertBomToProcess(req, res) {
   }
 }
 
-// Completed BOMs are a permanent production record now - never deletable, regardless of
-// whether reversing their stock impact would still be safe. Revert to Process first (which
-// itself is blocked once the output has been sold/dispatched - see revertBomToProcess) if a
-// Completed BOM genuinely needs to be undone. Still runs inside a transaction with a row lock
-// (not just a plain findById) so a delete can't race a concurrent completeBom transitioning
-// this same row from Process to Completed.
+// Deletable regardless of status, including Completed - deliberately does NOT reverse the
+// stock impact a Completed BOM already made (raw materials stay deducted, finished goods stay
+// credited exactly as they are). If that stock movement itself needs undoing, revert to
+// Process first (revertBomToProcess) before deleting; deleting a Completed BOM directly is
+// purely a record-cleanup action. Still runs inside a transaction with a row lock (not just a
+// plain findById) so a delete can't race a concurrent completeBom transitioning this same row
+// from Process to Completed.
 async function deleteBom(req, res) {
   const client = await pool.connect();
   try {
@@ -249,15 +282,6 @@ async function deleteBom(req, res) {
     if (!existing) {
       await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
-    }
-
-    if (existing.status === 'Completed') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        status: false,
-        message: 'Completed BOMs cannot be deleted - revert to Process first if you need to undo it.',
-        data: null,
-      });
     }
 
     await BomModel.remove(id, client);

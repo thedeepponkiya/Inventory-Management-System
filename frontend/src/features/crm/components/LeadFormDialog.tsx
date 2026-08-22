@@ -15,10 +15,11 @@ import {
     HiOutlineEnvelope,
     HiOutlinePhone,
     HiOutlineUser,
+    HiOutlineUsers,
 } from 'react-icons/hi2';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { useStagesQuery } from '../hooks/useStagesQuery';
 import { useSourcesQuery } from '../hooks/useSourcesQuery';
-import { useCampaignsQuery } from '../hooks/useCampaignsQuery';
 import { useAssignableUsersQuery } from '../hooks/useLeadsQuery';
 import { getNextLeadCode } from '../api/leads.api';
 import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
@@ -31,7 +32,6 @@ const emptyForm: CrmLeadPayload = {
     company: null,
     stageId: null,
     sourceId: null,
-    campaignId: null,
     assignedTo: null,
     value: 0,
     status: 'Active',
@@ -63,7 +63,6 @@ interface LeadFormDialogProps {
 const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: LeadFormDialogProps) => {
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
-    const { data: campaigns = [] } = useCampaignsQuery();
     const { data: users = [] } = useAssignableUsersQuery();
     const [previewLeadCode, setPreviewLeadCode] = useState('');
     const [notes, setNotes] = useState('');
@@ -92,7 +91,6 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
                 company: editing.company,
                 stageId: editing.stageId,
                 sourceId: editing.sourceId,
-                campaignId: editing.campaignId,
                 assignedTo: editing.assignedTo,
                 value: editing.value,
                 status: editing.status,
@@ -115,7 +113,7 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
         <Dialog
             visible={visible}
             onHide={onHide}
-            header={editing ? 'Edit Lead' : 'Add New Lead'}
+            header={<DialogHeader icon={HiOutlineUsers} title={editing ? 'Edit Lead' : 'Add New Lead'} />}
             className="lead-form-dialog"
             style={{ width: '640px', maxWidth: '95vw' }}
             footer={
@@ -223,24 +221,7 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
                     </div>
                 </div>
 
-                <div className="lead-form-row">
-                    <div className="lead-form-field">
-                        <label className="lead-form-label">Campaign</label>
-                        <Controller
-                            control={control}
-                            name="campaignId"
-                            render={({ field }) => (
-                                <Dropdown
-                                    {...field}
-                                    options={campaigns.map((c) => ({ label: c.name, value: c.id }))}
-                                    onChange={(e) => field.onChange(e.value)}
-                                    placeholder="Select campaign"
-                                    showClear
-                                    className="lead-form-dropdown"
-                                />
-                            )}
-                        />
-                    </div>
+                <div className="lead-form-row lead-form-row--single">
                     <div className="lead-form-field">
                         <label className="lead-form-label">Assigned To</label>
                         <Controller

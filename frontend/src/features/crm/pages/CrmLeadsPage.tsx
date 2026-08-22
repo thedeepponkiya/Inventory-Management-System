@@ -18,9 +18,11 @@ import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlineFunnel, HiOutlinePlus, HiOutlineSquares2X2, HiOutlineTableCells, HiOutlineTrash } from 'react-icons/hi2';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
 import FilterBar, { type FilterField } from '../../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type ColumnConfig, type DataTableHandle } from '../../../common/commonComponents/dataTable/DataTable';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
+import DialogHeader from '../../../common/commonComponents/dialogHeader/DialogHeader';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useLeadsQuery, useCreateLead, useUpdateLead, useReorderLeads, useDeleteLead, useAssignableUsersQuery } from '../hooks/useLeadsQuery';
 import { useCreateNote } from '../hooks/useNotesQuery';
@@ -29,6 +31,7 @@ import { useSourcesQuery } from '../hooks/useSourcesQuery';
 import LeadFormDialog from '../components/LeadFormDialog';
 import LeadDetailDrawer from '../components/LeadDetailDrawer';
 import KanbanColumn from '../components/KanbanColumn';
+import AssigneeAvatar from '../components/AssigneeAvatar';
 import { LeadKanbanCardOverlay } from '../components/LeadKanbanCard';
 import { crmQuickActions } from '../crmQuickActions';
 import { PERIOD_OPTIONS, getPeriodRange } from '../utils/period';
@@ -84,6 +87,20 @@ function moveLeadForPreview(allLeads: CrmLead[], activeId: string, overId: Uniqu
 const CrmLeadsPage = () => {
     const toast = useRef<Toast>(null);
     const dataTableRef = useRef<DataTableHandle>(null);
+    const { user } = useAuthContext();
+    // Only Admin (or the hidden Super Admin account, which bypasses every restriction - see
+    // isModuleAllowed) may create or delete leads - every other CRM role can view, edit and
+    // work them (move stage, add notes, schedule follow-ups) but not add new ones or remove
+    // existing ones. Hidden here (both the toolbar Add button, each Kanban column's own "+",
+    // and every delete affordance), not just disabled, so there's no dead control on screen.
+    const canManageCrm = user?.isHidden || user?.roleId === 'Admin';
+    // Sales User specifically (every other role, including Sales Manager, keeps normal edit
+    // access) can't edit a lead's own fields - hides the drawer's Edit button and disables its
+    // inline Stage/Assigned To/Status dropdowns.
+    const canEditLead = user?.roleId !== 'Sales User';
+    // Sales User also doesn't get the drawer's Follow-ups tab (or the Kanban card's "Schedule
+    // follow-up" icon, which would otherwise open it) - view/edit notes stays available.
+    const canViewFollowups = user?.roleId !== 'Sales User';
     const { data: leads = [], isLoading } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
@@ -101,16 +118,16 @@ const CrmLeadsPage = () => {
     const [editing, setEditing] = useState<CrmLead | null>(null);
     const [addStageId, setAddStageId] = useState<string | null>(null);
     const [drawerLead, setDrawerLead] = useState<CrmLead | null>(null);
-    const [drawerInitialTab, setDrawerInitialTab] = useState(0);
+    const [drawerInitialTab, setDrawerInitialTab] = useState<'notes' | 'followups' | undefined>(undefined);
 
     // Live preview order while a drag is in progress (see handleDragOver) - null outside of a
     // drag, in which case the real server-backed `leads` is used directly.
     const [liveLeads, setLiveLeads] = useState<CrmLead[] | null>(null);
     const displayLeads = liveLeads ?? leads;
 
-    // tab: 0 = Overview (default), 1 = Notes, 2 = Follow-ups - see LeadKanbanCard's
-    // Add Note / Schedule Follow-up action icons.
-    const openDrawer = (lead: CrmLead, tab = 0) => {
+    // tab: undefined = Overview (default) - see LeadKanbanCard's Add Note / Schedule
+    // Follow-up action icons for the other two.
+    const openDrawer = (lead: CrmLead, tab?: 'notes' | 'followups') => {
         setDrawerLead(lead);
         setDrawerInitialTab(tab);
     };
@@ -287,8 +304,7 @@ const CrmLeadsPage = () => {
             ) : '—'),
         },
         { field: 'sourceName', header: 'Source', body: (row) => row.sourceName ?? '—' },
-        { field: 'campaignName', header: 'Campaign', body: (row) => row.campaignName ?? '—' },
-        { field: 'assignedToName', header: 'Assigned To', body: (row) => row.assignedToName ?? '—' },
+        { field: 'assignedToName', header: 'Assigned To', body: (row) => <AssigneeAvatar userId={row.assignedTo} name={row.assignedToName ?? '—'} users={users} /> },
         {
             field: 'priority',
             header: 'Priority',
@@ -338,7 +354,7 @@ const CrmLeadsPage = () => {
                 quickActions={crmQuickActions}
                 actions={(
                     <>
-                        <Button label="Add Lead" icon={<HiOutlinePlus className="mr-2" />} onClick={() => openAddDialog()} outlined />
+                        {canManageCrm && <Button label="Add Lead" icon={<HiOutlinePlus className="mr-2" />} onClick={() => openAddDialog()} outlined />}
                         <Button
                             className="crm-leads-filter-btn"
                             icon={<HiOutlineFunnel className="mr-2" />}
@@ -361,7 +377,7 @@ const CrmLeadsPage = () => {
             />
 
             {view === 'table' && (
-                <DataTable ref={dataTableRef} value={filteredLeads} columns={columns} loading={isLoading} actionBodyTemplate={actionTemplate} dataKey="id" />
+                <DataTable ref={dataTableRef} value={filteredLeads} columns={columns} loading={isLoading} actionBodyTemplate={canManageCrm ? actionTemplate : undefined} dataKey="id" />
             )}
 
             {view === 'kanban' && !isLoading && (
@@ -373,10 +389,11 @@ const CrmLeadsPage = () => {
                                 name="Unassigned"
                                 color="#94A3B8"
                                 leads={unassignedLeads}
-                                onAdd={openAddDialog}
+                                onAdd={canManageCrm ? openAddDialog : undefined}
                                 onEdit={openDrawer}
-                                onDelete={handleDelete}
+                                onDelete={canManageCrm ? handleDelete : undefined}
                                 onOpenTab={openDrawer}
+                                showFollowupsAction={canViewFollowups}
                             />
                         )}
                         {sortedStages.map((stage) => (
@@ -387,15 +404,16 @@ const CrmLeadsPage = () => {
                                 color={stage.color}
                                 outcome={stage.outcome}
                                 leads={filteredLeads.filter((lead) => lead.stageId === stage.id)}
-                                onAdd={openAddDialog}
+                                onAdd={canManageCrm ? openAddDialog : undefined}
                                 onEdit={openDrawer}
-                                onDelete={handleDelete}
+                                onDelete={canManageCrm ? handleDelete : undefined}
                                 onOpenTab={openDrawer}
+                                showFollowupsAction={canViewFollowups}
                             />
                         ))}
                     </div>
                     <DragOverlay dropAnimation={dropAnimationConfig}>
-                        {activeLead && <LeadKanbanCardOverlay lead={activeLead} onDelete={handleDelete} onOpenTab={openDrawer} />}
+                        {activeLead && <LeadKanbanCardOverlay lead={activeLead} onDelete={canManageCrm ? handleDelete : undefined} onOpenTab={openDrawer} showFollowupsAction={canViewFollowups} />}
                     </DragOverlay>
                 </DndContext>
             )}
@@ -404,7 +422,7 @@ const CrmLeadsPage = () => {
                 visible={filterDialogVisible}
                 onHide={() => setFilterDialogVisible(false)}
                 position="bottom-right"
-                header="Filter Leads"
+                header={<DialogHeader icon={HiOutlineFunnel} title="Filter Leads" />}
                 style={{ width: '320px', maxWidth: '95vw' }}
                 className="crm-leads-filter-dialog"
             >
@@ -462,8 +480,10 @@ const CrmLeadsPage = () => {
                 lead={drawerLead ? (leads.find((l) => l.id === drawerLead.id) ?? drawerLead) : null}
                 onHide={() => setDrawerLead(null)}
                 onEdit={openEditDialog}
-                onDelete={handleDelete}
+                onDelete={canManageCrm ? handleDelete : undefined}
                 initialTab={drawerInitialTab}
+                canEdit={canEditLead}
+                showFollowupsTab={canViewFollowups}
             />
         </div>
     );

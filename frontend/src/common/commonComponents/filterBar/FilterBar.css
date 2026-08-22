@@ -40,15 +40,15 @@
 
 .filter-bar-quick-action--active {
     background: transparent;
-    color: #2563eb;
-    border: 1px solid #2563eb;
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
 }
 
 /* Same specificity as .filter-bar-quick-action:hover above, so source order lets this win
    and keep the active button's own look instead of picking up the plain hover style. */
 .filter-bar-quick-action--active:hover {
     background: transparent;
-    color: #2563eb;
+    color: var(--accent-primary);
 }
 
 .filter-bar-controls {
@@ -155,7 +155,7 @@
     .filter-bar-quick-action--active {
         background: var(--accent-info-bg);
         border: 1px solid transparent;
-        border-bottom: 2px solid #2563eb;
+        border-bottom: 2px solid var(--accent-primary);
     }
 
     .filter-bar-search {

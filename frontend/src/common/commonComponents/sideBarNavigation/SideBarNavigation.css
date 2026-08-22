@@ -2,7 +2,7 @@
     height: 100%;
     flex-shrink: 0;
     width: 56px;
-    background: #0f1b3d;
+    background: var(--sidebar-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -60,13 +60,13 @@
 }
 
 .sidebar-logo:focus-visible {
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
 
 .sidebar-logo-title {
     display: none;
-    width: 125px;
+    width: 115px;
     height: auto;
     object-fit: contain;
     flex-shrink: 0;
@@ -75,6 +75,30 @@
 
 .side-panel--expanded .sidebar-logo-title {
     display: block;
+}
+
+.sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    /* Row is align-items:flex-start (see .sidebar-logo's own comment on why) - align-self
+       overrides just this one child back to vertically centered against the icon/wordmark,
+       instead of pinned to the row's top edge like it was inheriting by default. */
+    align-self: center;
+    margin-left: auto;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.sidebar-collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
 }
 
 .sidebar-items {
@@ -102,6 +126,55 @@
 
 .sidebar-group {
     width: 100%;
+}
+
+/* Collapsed-rail (56px) flyout for a submenu (see isCollapsedFlyout in SideBarNavigation.tsx) -
+   floats outside the narrow rail instead of trying to render inline inside it, where there's
+   no room for labels. Portaled to document.body (see the component) since .side-panel has
+   overflow:hidden (needed to clip the wordmark/labels during the collapse/expand width
+   transition), which would otherwise clip this right along with everything else in that box -
+   so top/left below arrive as inline styles with real viewport coordinates, not CSS anchored
+   to a sidebar ancestor. */
+.sidebar-flyout-catcher {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    /* Invisible - just here to close the flyout on any click outside it, same idea as
+       .sidebar-overlay's mobile-drawer backdrop but without the visible dim. */
+    background: transparent;
+}
+
+.sidebar-flyout {
+    position: fixed;
+    z-index: 56;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    padding: 8px;
+    border-radius: 10px;
+    background: var(--sidebar-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.sidebar-flyout-title {
+    padding: 4px 10px 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7593;
+}
+
+.sidebar-flyout .sidebar-item {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 10px;
+}
+
+.sidebar-flyout .sidebar-item span {
+    display: block;
 }
 
 /* Extra breathing room between the Inventory sidebar's own menu groups (Operation, Master,
@@ -163,6 +236,13 @@
     color: #8b93ab;
     background: transparent;
     border: none;
+    /* CRM/Administration's collapsible toggles render as a real <button>, not an <a> like
+       every plain nav item - without this, the browser's own UA-stylesheet button padding
+       (never zeroed here before) nudged just those two icons off-center from the rest,
+       only visible in the collapsed rail since the expanded state already sets its own
+       explicit padding below regardless. */
+    padding: 0;
+    font: inherit;
     cursor: pointer;
     flex-shrink: 0;
     font-size: 13px;
@@ -192,12 +272,12 @@
 }
 
 .sidebar-item--active {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
 }
 
 .sidebar-item--active:hover {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
 }
 
@@ -239,6 +319,67 @@
 
 .sidebar-overlay {
     display: none;
+}
+
+/* The "Light" sidebar background preset (SidebarColorContext sets data-sidebar-theme="light"
+   on <html> when it's selected - see SidebarColorContextDefinition.ts's isLight flag). Every
+   other color in this file above assumes a dark background (white-ish text, rgba(255,255,255,
+   x) hover/border tints) - this block swaps all of those to dark-on-light equivalents. Scoped
+   to :root[data-sidebar-theme="light"] (not a --sidebar-bg based media/color check, which CSS
+   can't do) so it only applies for that one preset, leaving every dark preset untouched. */
+/* A light sidebar sitting flush against the app's own light page background would otherwise
+   have almost no visual edge between them. */
+:root[data-sidebar-theme="light"] .side-panel {
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-collapse-btn {
+    border-color: rgba(15, 23, 42, 0.15);
+    background: rgba(15, 23, 42, 0.05);
+    color: #475569;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-collapse-btn:hover {
+    background: rgba(15, 23, 42, 0.08);
+    color: #1e293b;
+}
+
+/* The wordmark image's "Inventory" text is baked in near-white (designed for the dark
+   presets) - inverting just this image (not the colored icon beside it) turns it dark so it
+   stays legible against a light background. */
+:root[data-sidebar-theme="light"] .sidebar-logo-title {
+    filter: invert(1);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-flyout {
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-flyout-title,
+:root[data-sidebar-theme="light"] .sidebar-group-label {
+    color: #64748b;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-group-divider {
+    border-top-color: rgba(15, 23, 42, 0.1);
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item {
+    color: #475569;
+}
+
+:root[data-sidebar-theme="light"] .sidebar-item:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #0f172a;
+}
+
+/* No longer needs its own text color - the active pill is a solid, fully-opaque accent fill
+   in both sidebar themes now (see the base .sidebar-item--active rule above), so plain white
+   already reads correctly against it without a per-theme override. */
+
+:root[data-sidebar-theme="light"] .sidebar-footer {
+    border-top-color: rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 900px) {

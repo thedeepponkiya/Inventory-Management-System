@@ -25,7 +25,7 @@ import {
     HiOutlineXMark,
 } from 'react-icons/hi2';
 import StatusBadge from '../../../common/commonComponents/statusBadge/StatusBadge';
-import { showToast } from '../../../common/commonFunctions/commonFunction';
+import { showToast, resolveImageUrl } from '../../../common/commonFunctions/commonFunction';
 import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
 import { formatDate } from '../../../common/commonFunctions/dateFormat';
 import { getBadgeColors, getColorForString, getInitials } from '../utils/cardStyle';
@@ -48,8 +48,19 @@ interface LeadDetailDrawerProps {
     // quick-view without delete wired up, so the kebab menu simply doesn't render there.
     onDelete?: (lead: CrmLead) => void;
     // Lets a caller (e.g. the Kanban card's Add Note / Schedule Follow-up icons) open the
-    // drawer straight to that tab instead of always landing on Overview.
-    initialTab?: number;
+    // drawer straight to that tab instead of always landing on Overview. A string key (not a
+    // raw TabView index) so it stays correct regardless of which tabs are actually rendered -
+    // see tabKeys below.
+    initialTab?: 'notes' | 'followups';
+    // False for Sales User - hides the header's Edit (pencil) button and disables the
+    // Overview tab's inline Stage/Assigned To/Status dropdowns, so that role can view a lead
+    // but can't change the lead's own fields. Defaults to true so every existing call site
+    // keeps working unchanged unless it explicitly opts out.
+    canEdit?: boolean;
+    // False for Sales User - hides the Follow-ups tab (and the footer's Reschedule button)
+    // entirely, so that role can't see or manage a lead's scheduled follow-ups from here.
+    // Defaults to true so every existing call site keeps working unchanged.
+    showFollowupsTab?: boolean;
 }
 
 const priorityColors: Record<CrmLead['priority'], { text: string; bg: string }> = {
@@ -169,8 +180,21 @@ function getNextFollowup(followups: CrmFollowup[]): CrmFollowup | null {
     return pending[0] ?? null;
 }
 
-const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab }: LeadDetailDrawerProps) => {
+const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab, canEdit = true, showFollowupsTab = true }: LeadDetailDrawerProps) => {
     const toast = useRef<Toast>(null);
+
+    // Stable order of the tabs actually rendered below - Follow-ups is omitted entirely when
+    // showFollowupsTab is false, which shifts every later tab's TabView index down by one.
+    // Every place that needs to land on a specific tab looks its index up here instead of
+    // hard-coding a number, so hiding/showing a tab can never point activeTab at the wrong panel.
+    const tabKeys: Array<'overview' | 'notes' | 'followups' | 'activity'> = showFollowupsTab
+        ? ['overview', 'notes', 'followups', 'activity']
+        : ['overview', 'notes', 'activity'];
+    const indexOfTab = (key: 'notes' | 'followups' | 'activity') => {
+        const i = tabKeys.indexOf(key);
+        return i === -1 ? 0 : i;
+    };
+
     const [activeTab, setActiveTab] = useState(0);
 
     // Reset to the requested tab whenever the drawer transitions from hidden to visible -
@@ -180,7 +204,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
     const [wasVisible, setWasVisible] = useState(visible);
     if (visible !== wasVisible) {
         setWasVisible(visible);
-        if (visible) setActiveTab(initialTab ?? 0);
+        if (visible) setActiveTab(initialTab ? indexOfTab(initialTab) : 0);
     }
 
     const [noteBody, setNoteBody] = useState('');
@@ -333,9 +357,11 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                         </button>
                     </div>
                 </div>
-                <button type="button" className="lead-detail-edit-btn" onClick={() => onEdit(lead)} title="Edit lead">
-                    <HiOutlinePencilSquare size={17} />
-                </button>
+                {canEdit && (
+                    <button type="button" className="lead-detail-edit-btn" onClick={() => onEdit(lead)} title="Edit lead">
+                        <HiOutlinePencilSquare size={17} />
+                    </button>
+                )}
                 {onDelete && (
                     <button type="button" className="lead-detail-delete-btn" onClick={() => onDelete(lead)} title="Delete lead">
                         <HiOutlineTrash size={18} />
@@ -402,6 +428,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                                         </span>
                                     )}
                                     className="lead-detail-inline-dropdown lead-detail-pill-dropdown"
+                                    disabled={!canEdit}
                                 />
                             </div>
                         </div>
@@ -413,10 +440,6 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                                     <span className="lead-detail-source-badge" style={{ color: sourceBadgeColors.text, background: sourceBadgeColors.bg }}>{lead.sourceName}</span>
                                 ) : <span>—</span>}
                             </div>
-                            <div className="lead-detail-field">
-                                <span className="lead-detail-label">Campaign</span>
-                                <span className="lead-detail-value-14">{lead.campaignName ?? '—'}</span>
-                            </div>
                         </div>
 
                         <div className="lead-detail-grid-row">
@@ -424,18 +447,24 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                                 <span className="lead-detail-label">Assigned To</span>
                                 <Dropdown
                                     value={lead.assignedTo}
-                                    options={users.map((u) => ({ label: u.userName, value: u.id }))}
+                                    options={users.map((u) => ({ label: u.userName, value: u.id, image: u.profileImage }))}
                                     onChange={(e) => updateLead.mutate({ id: lead.id, payload: { assignedTo: e.value } })}
                                     valueTemplate={(option) => (
                                         <span className="lead-detail-assigned-value">
                                             <span className="lead-detail-assigned-avatar" style={{ background: getColorForString(String(option?.value ?? '')) }}>
-                                                {getInitials(option?.label ?? '?')}
+                                                {/* Real uploaded photo when the assignee has one (matched by id, not name - a
+                                                    real FK, unlike the ERP side's name-only snapshots), falling back to
+                                                    colored initials otherwise. */}
+                                                {option?.image ? (
+                                                    <img src={resolveImageUrl(option.image)} alt={option.label} className="lead-detail-assigned-photo" />
+                                                ) : getInitials(option?.label ?? '?')}
                                             </span>
                                             <span className="lead-detail-assigned-name">{option?.label ?? assignedUser?.userName ?? '—'}</span>
                                             <HiChevronRight size={15} className="lead-detail-assigned-chevron" />
                                         </span>
                                     )}
                                     className="lead-detail-inline-dropdown lead-detail-assigned-dropdown"
+                                    disabled={!canEdit}
                                 />
                             </div>
                             <div className="lead-detail-field">
@@ -462,6 +491,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                                         <span className="lead-detail-pill-value" style={{ color: option.text, background: option.bg }}>{option.label}</span>
                                     )}
                                     className="lead-detail-inline-dropdown lead-detail-pill-dropdown"
+                                    disabled={!canEdit}
                                 />
                             </div>
                         </div>
@@ -496,7 +526,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                         <div className="lead-detail-activity-card">
                             <div className="lead-detail-card-header">
                                 <span>Recent Activity</span>
-                                <button type="button" className="lead-detail-view-all" onClick={() => setActiveTab(3)}>View All</button>
+                                <button type="button" className="lead-detail-view-all" onClick={() => setActiveTab(indexOfTab('activity'))}>View All</button>
                             </div>
                             {renderActivityFeed(activityFeed.slice(0, 4))}
                         </div>
@@ -544,49 +574,51 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                     </div>
                 </TabPanel>
 
-                <TabPanel header="Follow-ups">
-                    <div className="lead-detail-add-form">
-                        <div className="lead-detail-followup-row">
-                            <Dropdown
-                                value={followupType}
-                                options={FOLLOWUP_TYPES.map((t) => ({ label: t, value: t }))}
-                                onChange={(e) => setFollowupType(e.value)}
-                                placeholder="Type"
-                            />
-                            <Calendar
-                                value={followupDueAt}
-                                onChange={(e) => setFollowupDueAt(e.value ?? null)}
-                                showTime
-                                hourFormat="24"
-                                dateFormat="dd M yy"
-                                placeholder="Due date & time"
-                            />
-                        </div>
-                        <InputTextarea value={followupNotes} onChange={(e) => setFollowupNotes(e.target.value)} rows={2} placeholder="Notes (optional)" />
-                        <Button label="Schedule Follow-up" onClick={handleAddFollowup} disabled={!followupDueAt} />
-                    </div>
-                    <div className="lead-detail-list">
-                        {!followupsLoading && followups.length === 0 && <p className="lead-detail-empty">No follow-ups scheduled.</p>}
-                        {followups.map((followup) => (
-                            <div className="lead-detail-followup" key={followup.id}>
-                                <div className="lead-detail-followup-top">
-                                    <span className="lead-detail-followup-type">{followup.type}</span>
-                                    <StatusBadge label={followup.status} variant={followup.status === 'Completed' ? 'success' : 'warning'} />
-                                </div>
-                                <div className="lead-detail-followup-due">Due {new Date(followup.dueAt).toLocaleString('en-IN')}</div>
-                                {followup.notes && <div className="lead-detail-followup-notes">{followup.notes}</div>}
-                                <div className="lead-detail-followup-actions">
-                                    {followup.status === 'Pending' && (
-                                        <Button label="Mark Complete" size="small" outlined onClick={() => handleMarkComplete(followup.id)} />
-                                    )}
-                                    <button type="button" onClick={() => handleDeleteFollowup(followup.id)} title="Delete follow-up">
-                                        <HiOutlineTrash size={14} />
-                                    </button>
-                                </div>
+                {showFollowupsTab && (
+                    <TabPanel header="Follow-ups">
+                        <div className="lead-detail-add-form">
+                            <div className="lead-detail-followup-row">
+                                <Dropdown
+                                    value={followupType}
+                                    options={FOLLOWUP_TYPES.map((t) => ({ label: t, value: t }))}
+                                    onChange={(e) => setFollowupType(e.value)}
+                                    placeholder="Type"
+                                />
+                                <Calendar
+                                    value={followupDueAt}
+                                    onChange={(e) => setFollowupDueAt(e.value ?? null)}
+                                    showTime
+                                    hourFormat="24"
+                                    dateFormat="dd M yy"
+                                    placeholder="Due date & time"
+                                />
                             </div>
-                        ))}
-                    </div>
-                </TabPanel>
+                            <InputTextarea value={followupNotes} onChange={(e) => setFollowupNotes(e.target.value)} rows={2} placeholder="Notes (optional)" />
+                            <Button label="Schedule Follow-up" onClick={handleAddFollowup} disabled={!followupDueAt} />
+                        </div>
+                        <div className="lead-detail-list">
+                            {!followupsLoading && followups.length === 0 && <p className="lead-detail-empty">No follow-ups scheduled.</p>}
+                            {followups.map((followup) => (
+                                <div className="lead-detail-followup" key={followup.id}>
+                                    <div className="lead-detail-followup-top">
+                                        <span className="lead-detail-followup-type">{followup.type}</span>
+                                        <StatusBadge label={followup.status} variant={followup.status === 'Completed' ? 'success' : 'warning'} />
+                                    </div>
+                                    <div className="lead-detail-followup-due">Due {new Date(followup.dueAt).toLocaleString('en-IN')}</div>
+                                    {followup.notes && <div className="lead-detail-followup-notes">{followup.notes}</div>}
+                                    <div className="lead-detail-followup-actions">
+                                        {followup.status === 'Pending' && (
+                                            <Button label="Mark Complete" size="small" outlined onClick={() => handleMarkComplete(followup.id)} />
+                                        )}
+                                        <button type="button" onClick={() => handleDeleteFollowup(followup.id)} title="Delete follow-up">
+                                            <HiOutlineTrash size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </TabPanel>
+                )}
 
                 <TabPanel header="Activity">
                     {renderActivityFeed(activityFeed)}
@@ -602,7 +634,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab 
                             {nextFollowup.notes && <span className="lead-detail-footer-notes"> — {nextFollowup.notes}</span>}
                         </span>
                     </div>
-                    <Button label="Reschedule" outlined size="small" onClick={() => setActiveTab(2)} />
+                    {showFollowupsTab && <Button label="Reschedule" outlined size="small" onClick={() => setActiveTab(indexOfTab('followups'))} />}
                 </div>
             )}
         </Sidebar>

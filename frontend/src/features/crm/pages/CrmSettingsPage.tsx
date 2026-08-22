@@ -3,16 +3,21 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { confirmDialog } from 'primereact/confirmdialog';
 import { HiOutlinePlus } from 'react-icons/hi2';
+import { useAuthContext } from '../../../context/AuthContextDefinition';
 import { showToast } from '../../../common/commonFunctions/commonFunction';
 import { useStagesQuery, useCreateStage, useUpdateStage, useDeleteStage } from '../hooks/useStagesQuery';
 import StageFormDialog from '../components/StageFormDialog';
 import StageReorderList from '../components/StageReorderList';
-import MetaIntegrationPanel from '../components/MetaIntegrationPanel';
 import type { CrmStage, CrmStagePayload } from '../types/stage.types';
 import './CrmSettingsPage.css';
 
 const CrmSettingsPage = () => {
     const toast = useRef<Toast>(null);
+    const { user } = useAuthContext();
+    // Only Admin (or the hidden Super Admin account) may add or delete a pipeline stage -
+    // mirrors CrmLeadsPage.tsx's canManageCrm. Editing/reordering an existing stage stays
+    // available to every CRM role.
+    const canManageCrm = user?.isHidden || user?.roleId === 'Admin';
     const { data: stages = [], isLoading } = useStagesQuery();
     const createStage = useCreateStage();
     const updateStage = useUpdateStage();
@@ -94,16 +99,15 @@ const CrmSettingsPage = () => {
             <div className="crm-settings-section">
                 <div className="crm-settings-section-header">
                     <h2>Pipeline Stages</h2>
-                    <Button label="Add Stage" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />
+                    {canManageCrm && <Button label="Add Stage" icon={<HiOutlinePlus className="mr-2" />} onClick={openAddDialog} outlined />}
                 </div>
                 {isLoading ? (
                     <div className="crm-settings-empty">Loading stages...</div>
                 ) : (
-                    <StageReorderList stages={stages} onEdit={openEditDialog} onDelete={handleDelete} onMoveUp={handleMoveUp} onMoveDown={handleMoveDown} />
+                    <StageReorderList stages={stages} onEdit={openEditDialog} onDelete={canManageCrm ? handleDelete : undefined} onMoveUp={handleMoveUp} onMoveDown={handleMoveDown} />
                 )}
             </div>
             <StageFormDialog visible={dialogVisible} editing={editing} nextSortOrder={nextSortOrder} onHide={() => setDialogVisible(false)} onSave={handleSave} />
-            <MetaIntegrationPanel />
         </div>
     );
 };

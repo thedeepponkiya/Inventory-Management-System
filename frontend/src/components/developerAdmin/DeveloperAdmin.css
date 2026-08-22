@@ -20,7 +20,7 @@
     flex-shrink: 0;
     padding: 12px;
     border-radius: 12px;
-    background: #0f1b3d;
+    background: var(--sidebar-bg);
 }
 
 .developer-admin-menu-item {
@@ -44,14 +44,32 @@
 }
 
 .developer-admin-menu-item--active {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
     font-weight: 600;
 }
 
 .developer-admin-menu-item--active:hover {
-    background: #2563eb;
+    background: var(--accent-primary);
     color: #ffffff;
+}
+
+/* The "Light" sidebar background preset (see SideBarNavigation.css's identical block for the
+   full explanation) - --active is untouched since it's a solid accent-color fill with white
+   text, which reads fine against either a light or dark surrounding menu background. Also
+   needs its own border here (unlike the main sidebar rail) since this menu floats as a card
+   on the page rather than sitting flush against its edge. */
+:root[data-sidebar-theme="light"] .developer-admin-menu {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+:root[data-sidebar-theme="light"] .developer-admin-menu-item {
+    color: #475569;
+}
+
+:root[data-sidebar-theme="light"] .developer-admin-menu-item:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #0f172a;
 }
 
 .developer-admin-main {
@@ -114,6 +132,63 @@
     border: 1px solid var(--border-default);
     border-radius: 12px;
     background: var(--surface-card);
+}
+
+/* "Database Settings" groups its two independent panels (Update, then Reset) into an
+   Accordion instead of splitting them into separate menu sections or stacking them flat -
+   they're closely related but rarely-used actions, so collapsing each behind its own header
+   keeps the safe one visually distinct from the destructive one and lets either be tucked
+   away once read. Both start open (activeIndex={[0]} + multiple in the .tsx) since this is
+   an admin-only, low-traffic page where collapsed-by-default would just add an extra click. */
+.developer-admin-accordion .p-accordion-header-link {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 14px 16px;
+}
+
+.developer-admin-accordion .p-accordion-tab:not(:last-child) {
+    margin-bottom: 12px;
+}
+
+.developer-admin-accordion .p-accordion-tab-active > .p-accordion-header .p-accordion-header-link {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.developer-admin-accordion .p-accordion-content {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-top: none;
+    padding: 24px;
+}
+
+.developer-admin-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.developer-admin-accordion-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+
+.developer-admin-accordion-header-icon--info {
+    background: var(--accent-info-bg);
+    color: var(--accent-info-text);
+}
+
+.developer-admin-accordion-header-icon--danger {
+    background: var(--accent-danger-bg);
+    color: var(--accent-danger-text);
 }
 
 .developer-admin-content p {

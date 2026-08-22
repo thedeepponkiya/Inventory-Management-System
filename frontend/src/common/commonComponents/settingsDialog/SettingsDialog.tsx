@@ -1,21 +1,26 @@
-import { useContext, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
-import { SelectButton } from 'primereact/selectbutton';
 import { Toast } from 'primereact/toast';
-import { HiOutlineAdjustmentsHorizontal, HiOutlinePaintBrush, HiOutlineCheckCircle, HiOutlineBuildingOffice2, HiOutlineXMark, HiOutlineEyeSlash } from 'react-icons/hi2';
+import {
+    HiOutlinePaintBrush, HiOutlineBuildingOffice2, HiOutlineXMark, HiOutlineCog6Tooth,
+    HiOutlineCloudArrowUp, HiOutlineDocumentText, HiOutlineMapPin,
+    HiOutlineCalendarDays, HiOutlineSun, HiOutlineMoon, HiOutlineCheck,
+} from 'react-icons/hi2';
+import { FiSave } from 'react-icons/fi';
+import DialogHeader from '../dialogHeader/DialogHeader';
 import { settingsMockData } from '../../../mockData/settingsData';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../constants/commonConstant';
 import { useThemeContext } from '../../../context/ThemeContextDefinition';
+import { ACCENT_COLORS, useAccentColorContext } from '../../../context/AccentColorContextDefinition';
+import { SIDEBAR_COLORS, useSidebarColorContext } from '../../../context/SidebarColorContextDefinition';
 import { useDateFormatContext } from '../../../context/DateFormatContextDefinition';
 import { useCompanyLogoContext } from '../../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../../context/CompanySettingsContextDefinition';
-import { AppContext } from '../../../context/AppContextDefinition';
 import { formatDate, type DateFormatOption } from '../../commonFunctions/dateFormat';
-import VisibilitySettingsDialog from '../visibilitySettingsDialog/VisibilitySettingsDialog';
 import './SettingsDialog.css';
 
 const financialYears = ['2024-2025', '2025-2026', '2026-2027'];
@@ -28,11 +33,16 @@ const dateFormatOptions: { label: string; value: DateFormatOption }[] = [
 ];
 
 const tabs = [
-    { key: 'general', label: 'General', icon: HiOutlineAdjustmentsHorizontal },
-    { key: 'appearance', label: 'Appearance', icon: HiOutlinePaintBrush },
+    { key: 'general', label: 'General', subtitle: 'Company & basic settings', icon: HiOutlineBuildingOffice2 },
+    { key: 'appearance', label: 'Appearance', subtitle: 'Theme, colors & display', icon: HiOutlinePaintBrush },
 ] as const;
 
 type TabKey = (typeof tabs)[number]['key'];
+
+const themeOptions = [
+    { key: 'light', label: 'Light', subtitle: 'Clean, bright interface', icon: HiOutlineSun },
+    { key: 'dark', label: 'Dark', subtitle: 'Easier on the eyes', icon: HiOutlineMoon },
+] as const;
 
 interface SettingsDialogProps {
     visible: boolean;
@@ -44,13 +54,12 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
     const [activeTab, setActiveTab] = useState<TabKey>('general');
     const { companyName, setCompanyName, address, setAddress } = useCompanySettingsContext();
     const [gstNumber, setGstNumber] = useState(settingsMockData.gstNumber);
-    const [invoicePrefix, setInvoicePrefix] = useState(settingsMockData.invoicePrefix);
     const [financialYear, setFinancialYear] = useState(settingsMockData.financialYear);
     const { theme, setTheme } = useThemeContext();
     const { dateFormat, setDateFormat } = useDateFormatContext();
     const { companyLogo, setCompanyLogo } = useCompanyLogoContext();
-    const { fetchUiVisibility } = useContext(AppContext);
-    const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const { accentColor, accentColorHex, setAccentColor } = useAccentColorContext();
+    const { sidebarColor, setSidebarColor } = useSidebarColorContext();
 
     // Read as a base64 data: URL (not URL.createObjectURL) so the logo can be persisted to
     // localStorage and embedded directly into jsPDF documents via doc.addImage() - applied
@@ -84,15 +93,15 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
             <Dialog
                 visible={visible}
                 onHide={onHide}
-                header="Settings"
+                header={<DialogHeader icon={HiOutlineCog6Tooth} title="Settings" />}
                 className="settings-dialog"
                 style={{ width: '760px', maxWidth: '95vw' }}
                 footer={
                     <>
                         <button type="button" className="settings-dialog-cancel" onClick={onHide}>Cancel</button>
                         <button type="button" className="settings-dialog-save" onClick={handleSave}>
-                            <HiOutlineCheckCircle className="mr-2" />
-                            Save
+                            <FiSave size={15} />
+                            Save Changes
                         </button>
                     </>
                 }
@@ -106,8 +115,13 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                 className={`settings-dialog-tab${activeTab === tab.key ? ' settings-dialog-tab--active' : ''}`}
                                 onClick={() => setActiveTab(tab.key)}
                             >
-                                <tab.icon size={17} />
-                                {tab.label}
+                                <span className="settings-dialog-tab-icon">
+                                    <tab.icon size={17} />
+                                </span>
+                                <span className="settings-dialog-tab-text">
+                                    <span className="settings-dialog-tab-label">{tab.label}</span>
+                                    <span className="settings-dialog-tab-subtitle">{tab.subtitle}</span>
+                                </span>
                             </button>
                         ))}
                     </div>
@@ -117,35 +131,51 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                             <div className="settings-dialog-grid">
                                 <div className="form-field">
                                     <label>Company Name</label>
-                                    <InputText value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                                    <div className="settings-field-input">
+                                        <span className="settings-field-icon"><HiOutlineBuildingOffice2 size={14} /></span>
+                                        <InputText value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                                    </div>
                                 </div>
                                 <div className="form-field">
                                     <label>GST Number</label>
-                                    <InputText value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="Enter GST number" />
+                                    <div className="settings-field-input">
+                                        <span className="settings-field-icon"><HiOutlineDocumentText size={14} /></span>
+                                        <InputText value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="Enter GST number" />
+                                    </div>
                                 </div>
                                 <div className="form-field settings-dialog-full">
                                     <label>Address</label>
-                                    <InputTextarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="Enter company address" />
-                                </div>
-                                <div className="form-field">
-                                    <label>Invoice Prefix</label>
-                                    <InputText value={invoicePrefix} onChange={(e) => setInvoicePrefix(e.target.value)} />
+                                    <div className="settings-field-input settings-field-input--textarea">
+                                        <span className="settings-field-icon"><HiOutlineMapPin size={14} /></span>
+                                        <InputTextarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} placeholder="Enter company address" />
+                                    </div>
                                 </div>
                                 <div className="form-field">
                                     <label>Financial Year</label>
-                                    <Dropdown value={financialYear} onChange={(e) => setFinancialYear(e.value)} options={financialYears} />
+                                    <div className="settings-field-input">
+                                        <span className="settings-field-icon"><HiOutlineCalendarDays size={14} /></span>
+                                        <Dropdown value={financialYear} onChange={(e) => setFinancialYear(e.value)} options={financialYears} />
+                                    </div>
                                 </div>
                                 <div className="form-field">
                                     <label>Date Format</label>
-                                    <Dropdown value={dateFormat} onChange={(e) => setDateFormat(e.value)} options={dateFormatOptions} />
+                                    <div className="settings-field-input">
+                                        <span className="settings-field-icon"><HiOutlineCalendarDays size={14} /></span>
+                                        <Dropdown value={dateFormat} onChange={(e) => setDateFormat(e.value)} options={dateFormatOptions} />
+                                    </div>
                                 </div>
                                 <div className="form-field settings-dialog-full">
                                     <label>Company Logo</label>
-                                    <label className="settings-dialog-logo-dropzone" onDragOver={(e) => e.preventDefault()} onDrop={handleLogoDrop}>
-                                        {companyLogo ? (
+                                    <label
+                                        className={`settings-dialog-logo-dropzone${companyLogo ? ' settings-dialog-logo-dropzone--filled' : ''}`}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={handleLogoDrop}
+                                    >
+                                        {companyLogo && (
                                             <>
-                                                <img src={companyLogo} alt="Company logo preview" />
-                                                <span className="settings-dialog-logo-dropzone-hint">Drag &amp; drop or click to replace</span>
+                                                <div className="settings-dialog-logo-preview">
+                                                    <img src={companyLogo} alt="Company logo preview" />
+                                                </div>
                                                 <button
                                                     type="button"
                                                     className="settings-dialog-logo-remove"
@@ -154,12 +184,16 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                                                     <HiOutlineXMark size={12} />
                                                 </button>
                                             </>
-                                        ) : (
-                                            <div className="settings-dialog-logo-dropzone-empty">
-                                                <HiOutlineBuildingOffice2 size={26} />
-                                                <span>Drag &amp; drop logo here or click to upload</span>
-                                            </div>
                                         )}
+                                        <div className="settings-dialog-logo-dropzone-empty">
+                                            <span className="settings-dialog-logo-upload-icon">
+                                                <HiOutlineCloudArrowUp size={22} />
+                                            </span>
+                                            <span className="settings-dialog-logo-dropzone-title">
+                                                Drag &amp; drop your logo here or <span className="settings-dialog-logo-browse-link">click to browse</span>
+                                            </span>
+                                            <span className="settings-dialog-logo-dropzone-hint">PNG, JPG or SVG. Max size 2MB</span>
+                                        </div>
                                         <input type="file" accept="image/*" hidden onChange={handleLogoSelect} />
                                     </label>
                                 </div>
@@ -167,33 +201,99 @@ const SettingsDialog = ({ visible, onHide }: SettingsDialogProps) => {
                         )}
 
                         {activeTab === 'appearance' && (
-                            <div className="settings-dialog-grid">
-                                <div className="form-field">
-                                    <label>Theme</label>
-                                    <SelectButton
-                                        value={theme === 'dark' ? 'Dark' : 'Light'}
-                                        onChange={(e) => e.value && setTheme(e.value === 'Dark' ? 'dark' : 'light')}
-                                        options={['Light', 'Dark']}
-                                    />
+                            <div className="settings-appearance">
+                                <div className="settings-appearance-intro">
+                                    <span className="settings-appearance-intro-title">Appearance</span>
+                                    <span className="settings-appearance-intro-subtitle">Customize the look and feel of your workspace.</span>
                                 </div>
-                                <div className="form-field settings-dialog-full">
-                                    <label>Menu &amp; Quick Action Visibility</label>
-                                    <button type="button" className="settings-dialog-visibility-btn" onClick={() => setVisibilityDialogOpen(DEFAULT_DATA_TYPE_VALUE.TRUE)}>
-                                        <HiOutlineEyeSlash size={16} />
-                                        Manage Visibility
-                                    </button>
+
+                                <div className="settings-appearance-section">
+                                    <div className="settings-appearance-section-header">
+                                        <span className="settings-appearance-section-label">Theme</span>
+                                        <span className="settings-appearance-current">
+                                            Currently: <strong>{theme === 'dark' ? 'Dark' : 'Light'}</strong>
+                                        </span>
+                                    </div>
+                                    <div className="settings-theme-options">
+                                        {themeOptions.map((option) => {
+                                            const isSelected = theme === option.key;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={option.key}
+                                                    className={`settings-theme-card${isSelected ? ' settings-theme-card--active' : ''}`}
+                                                    onClick={() => setTheme(option.key)}
+                                                >
+                                                    {isSelected && (
+                                                        <span className="settings-theme-check" style={{ background: accentColorHex }}>
+                                                            <HiOutlineCheck size={12} />
+                                                        </span>
+                                                    )}
+                                                    <span className="settings-theme-icon">
+                                                        <option.icon size={20} />
+                                                    </span>
+                                                    <span className="settings-theme-label">{option.label}</span>
+                                                    <span className="settings-theme-subtitle">{option.subtitle}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="settings-appearance-section">
+                                    <div className="settings-appearance-section-header">
+                                        <span className="settings-appearance-section-label">Accent Color</span>
+                                    </div>
+                                    <div className="settings-accent-options">
+                                        {ACCENT_COLORS.map((option) => {
+                                            const isSelected = accentColor === option.key;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={option.key}
+                                                    className={`settings-accent-chip${isSelected ? ' settings-accent-chip--active' : ''}`}
+                                                    onClick={() => setAccentColor(option.key)}
+                                                    style={isSelected ? { borderColor: option.color, background: `${option.color}14` } : undefined}
+                                                >
+                                                    <span className="settings-accent-dot" style={{ background: option.color }}>
+                                                        {isSelected && <HiOutlineCheck size={11} />}
+                                                    </span>
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="settings-appearance-section">
+                                    <div className="settings-appearance-section-header">
+                                        <span className="settings-appearance-section-label">Sidebar Background</span>
+                                    </div>
+                                    <div className="settings-accent-options">
+                                        {SIDEBAR_COLORS.map((option) => {
+                                            const isSelected = sidebarColor === option.key;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={option.key}
+                                                    className={`settings-accent-chip${isSelected ? ' settings-accent-chip--active' : ''}`}
+                                                    onClick={() => setSidebarColor(option.key)}
+                                                    style={isSelected ? { borderColor: option.color, background: `${option.color}14` } : undefined}
+                                                >
+                                                    <span className="settings-accent-dot" style={{ background: option.color }}>
+                                                        {isSelected && <HiOutlineCheck size={11} />}
+                                                    </span>
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
             </Dialog>
-
-            <VisibilitySettingsDialog
-                visible={visibilityDialogOpen}
-                onHide={() => setVisibilityDialogOpen(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                onSaved={fetchUiVisibility}
-            />
         </>
     );
 };

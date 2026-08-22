@@ -285,8 +285,8 @@
 }
 
 .inventory-home-image-preview--active {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 1px #2563eb;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .inventory-home-image-preview img {
@@ -330,8 +330,8 @@
 }
 
 .inventory-home-image-add:hover {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
 }
 
 .inventory-home-form-grid {
@@ -372,8 +372,8 @@
 }
 
 .inventory-home-dialog-tab--active {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
 }
 
 .inventory-home-assembly-header {
@@ -515,9 +515,9 @@
     }
 
     .inventory-home-page .filter-bar-quick-action--active {
-        border: 1px solid #2563eb;
+        border: 1px solid var(--accent-primary);
         background: var(--accent-info-bg);
-        color: #2563eb;
+        color: var(--accent-primary);
     }
 
     .inventory-home-page .filter-bar-controls {
@@ -572,14 +572,14 @@
     }
 
     .inventory-home-page .filter-bar-add-btn.p-button.p-button-outlined {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--accent-primary);
+        border-color: var(--accent-primary);
         color: #ffffff;
     }
 
     .inventory-home-page .filter-bar-add-btn.p-button.p-button-outlined:hover {
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+        background: var(--accent-primary-hover);
+        border-color: var(--accent-primary-hover);
         color: #ffffff;
     }
 

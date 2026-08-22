@@ -33,6 +33,10 @@ export interface RawSku {
 }
 
 export interface RawSkuPayload {
+    // Only meaningful on create - a user-typed SKU Code (the field is editable at create
+    // time, pre-filled with a server-generated suggestion the user can overwrite). Ignored by
+    // the update endpoint, which never lets skuCode change after creation.
+    skuCode?: string;
     images: string[];
     skuName: string;
     categoryId: number | null;

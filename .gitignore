@@ -13,3 +13,8 @@ build/
 # via .gitkeep, but not the actual uploaded files.
 backend/uploads/products/*
 !backend/uploads/products/.gitkeep
+
+# pg_dump backups from the Database Update admin action (backend/src/utils/databaseBackup.util.js)
+# - keep the folder tracked via .gitkeep, never the actual dump files (can contain live data).
+backend/backups/*
+!backend/backups/.gitkeep

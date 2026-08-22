@@ -28,7 +28,7 @@ import type { Customer } from '../../services/customerService';
 import type { User } from '../../services/userService';
 import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseOrderPayment } from '../../services/purchaseOrderService';
-import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment } from '../../services/salesOrderService';
+import type { SalesOrder, SalesOrderItem, SalesOrderStatus, SalesOrderPayment, SalesOrderDispatch } from '../../services/salesOrderService';
 import type { MaterialInward, MaterialInwardItem } from '../../services/materialInwardService';
 import type { Invoice, PaymentStatus } from '../../services/invoiceService';
 import type { Bom, BomItem } from '../../services/bomService';
@@ -381,7 +381,7 @@ export const ACTIVE_INACTIVE_OPTIONS = ['Active', 'Inactive'];
 // Single source of truth for Users' Role/Department options - both the Add/Edit form
 // dropdowns (Users.tsx) and this column's filter dropdown import these, so they can never
 // drift out of sync with each other.
-export const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Accounts User'];
+export const ROLE_OPTIONS = ['Admin', 'Purchase Manager', 'Warehouse Manager', 'Production Manager', 'Sales Manager', 'Sales User', 'Accounts User'];
 export const DEPARTMENT_OPTIONS = ['Sales', 'Warehouse', 'Production', 'Accounts', 'Admin'];
 
 export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: (sku: RawSku) => void, onEditClick?: (sku: RawSku) => void): ColumnConfig<RawSkuWithStockLevel>[] => [
@@ -588,9 +588,9 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>,
     },
-    { field: 'categoryName', header: 'Category', fieldType: 'text', hideOnMobile: true },
-    { field: 'productType', header: 'Product Type', fieldType: 'text', hideOnMobile: true },
-    { field: 'barcode', header: 'Barcode', fieldType: 'text', hideOnMobile: true },
+    { field: 'categoryName', header: 'Category', fieldType: 'text' },
+    { field: 'productType', header: 'Product Type', fieldType: 'text' },
+    { field: 'barcode', header: 'Barcode', fieldType: 'text' },
     {
         field: 'quantity',
         header: 'Current Stock',
@@ -602,10 +602,9 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         // Same design as Finished SKU's Current Stock column (renderStockCell) - lowThreshold
         // here is Min Stock, since Inventory items don't have a separate Reorder Level.
         body: (row) => renderStockCell(row.quantity, row.minStock, row.maxStock, 'inventory-home-stock'),
-        hideOnMobile: true,
     },
-    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
-    { field: 'locationName', header: 'Location', fieldType: 'text', hideOnMobile: true },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    { field: 'locationName', header: 'Location', fieldType: 'text' },
     {
         field: 'status',
         header: 'Status',
@@ -621,12 +620,11 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
             )
             : undefined,
         fieldType: 'status',
-        hideOnMobile: true,
     },
-    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency', hideOnMobile: true },
-    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency', hideOnMobile: true },
-    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
-    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
+    { field: 'unitCost', header: 'Product Cost', fieldType: 'currency' },
+    { field: 'sellingCost', header: 'Selling Cost', fieldType: 'currency' },
+    { field: 'createdDate', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'assembly', header: 'Product Assembly', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' } },
 ];
 
 export interface AssemblyRow extends AssemblyLine {
@@ -681,6 +679,7 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
                 options={unitOptions}
                 placeholder="Select unit"
                 className="inventory-home-assembly-dropdown"
+                filter
             />
         ),
     },
@@ -864,6 +863,28 @@ export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption, users:
     { field: 'approvedAt', header: 'Approved At', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'remarks', header: 'Remarks', fieldType: 'text' },
     { field: 'recordedBy', header: 'Recorded By', fieldType: 'userAvatar', options: { users } },
+];
+
+// One row per Dispatch History entry (see salesOrder.controller.js's dispatchSalesOrder) -
+// read-only ledger, no action column (unlike getSalesOrderPaymentColumns, there's no
+// add/delete flow for these from the frontend - "Revert Dispatch" undoes the SO's aggregate
+// totals in one shot but deliberately never removes rows here, see the schema comment).
+export const getSalesOrderDispatchColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<SalesOrderDispatch>[] => [
+    { field: 'dispatchDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    {
+        field: 'items',
+        header: 'Items Shipped',
+        body: (row) => (
+            <div className="so-dispatch-history-items">
+                {row.items.map((item) => (
+                    <span key={item.skuId} className="so-dispatch-history-item">
+                        {item.itemName} <strong>&times;{item.shipQty}</strong> {item.unit}
+                    </span>
+                ))}
+            </div>
+        ),
+    },
+    { field: 'dispatchedBy', header: 'Dispatched By', fieldType: 'userAvatar', options: { users } },
 ];
 
 const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {

@@ -1,3 +1,13 @@
+.dashboard-location-filter.p-dropdown {
+    min-width: 130px;
+    font-size: 12px;
+}
+
+.dashboard-location-filter.p-dropdown .p-dropdown-label {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
 .dashboard-pie-chart {
     height: 340px;
     display: flex;

@@ -34,6 +34,8 @@ import {
 } from 'react-icons/hi2';
 import DataTable, { type ColumnConfig } from '../../common/commonComponents/dataTable/DataTable';
 import StatusBadge, { type StatusVariant } from '../../common/commonComponents/statusBadge/StatusBadge';
+import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
+import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import {
@@ -56,7 +58,7 @@ import type { InventoryItem } from '../../services/inventoryService';
 import type { Customer } from '../../services/customerService';
 import type { User } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getSalesOrderItemColumns, getSalesOrderPaymentColumns, getActionBodyTemplate, type SalesOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { getSalesOrderItemColumns, getSalesOrderPaymentColumns, getSalesOrderDispatchColumns, getActionBodyTemplate, type SalesOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './SalesOrderForm.css';
 
@@ -218,7 +220,7 @@ const SalesOrderForm = () => {
     const [currentSoNo, setCurrentSoNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [currentStatus, setCurrentStatus] = useState<SalesOrderType['status']>('Draft');
     const [customerName, setCustomerName] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [customerCode, setCustomerCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [customerGstNo, setCustomerGstNo] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [orderDate, setOrderDate] = useState<Date | null>(new Date());
     const [deliveryDate, setDeliveryDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [deliveryAddress, setDeliveryAddress] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
@@ -258,7 +260,7 @@ const SalesOrderForm = () => {
             setCurrentStatus(existingSo.status);
 
             setCustomerName(existingSo.customerName);
-            setCustomerCode(existingSo.customerCode ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setCustomerGstNo(existingSo.customerGstNo ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setOrderDate(new Date(existingSo.orderDate));
             setDeliveryDate(existingSo.deliveryDate ? new Date(existingSo.deliveryDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
             setDeliveryAddress(existingSo.deliveryAddress ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
@@ -498,6 +500,10 @@ const SalesOrderForm = () => {
             showToast(toast, 'error', 'Error', 'Customer and SO Date are required');
             return;
         }
+        if (!customerGstNo.trim()) {
+            showToast(toast, 'error', 'Error', 'Customer GST No is required');
+            return;
+        }
         if (!isLocked && items.length === 0) {
             showToast(toast, 'error', 'Error', 'Add at least one item');
             return;
@@ -526,8 +532,9 @@ const SalesOrderForm = () => {
         });
 
         const payload: SalesOrderPayload = {
+            soNo: isEditRoute ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : (currentSoNo.trim() || DEFAULT_DATA_TYPE_VALUE.UNDEFINED),
             customerName,
-            customerCode: customerCode || DEFAULT_DATA_TYPE_VALUE.NULL,
+            customerGstNo: customerGstNo || DEFAULT_DATA_TYPE_VALUE.NULL,
             orderDate: toIso(orderDate) ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
             deliveryDate: toIso(deliveryDate),
             deliveryAddress: deliveryAddress || DEFAULT_DATA_TYPE_VALUE.NULL,
@@ -637,15 +644,20 @@ const SalesOrderForm = () => {
     const handleRevertDispatch = () => {
         if (!existingSo) return;
         confirmDialog({
-            message: 'Revert this order back to Processing? Every shipped item will be added back onto Inventory stock.',
+            message: 'Revert this order back to Processing? Every shipped item will be added back onto Inventory stock, and its Dispatch History and auto-generated invoice(s) for this shipment will be removed.',
             header: 'Revert Dispatch',
             icon: 'pi pi-exclamation-triangle',
             accept: async () => {
                 try {
-                    await revertDispatchSalesOrder(existingSo.id);
+                    const { warning } = await revertDispatchSalesOrder(existingSo.id);
                     showToast(toast, 'success', 'Reverted', 'Sales order reverted to Processing successfully');
+                    if (warning) showToast(toast, 'warn', 'Invoice not removed', warning, 6000);
                     fetchSalesOrders();
                     fetchInventories();
+                    // Revert also deletes this order's still-unpaid auto-generated invoice(s)
+                    // server-side (see salesOrder.controller.js's revertDispatch) - refetch so
+                    // /invoices reflects that immediately.
+                    fetchInvoices();
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -685,6 +697,7 @@ const SalesOrderForm = () => {
     // PurchaseOrderForm.tsx's identical paymentActionTemplate - handleDeletePayment closes
     // over the `toast` ref.
     const paymentColumns = getSalesOrderPaymentColumns(dateFormat, users);
+    const dispatchHistoryColumns = getSalesOrderDispatchColumns(dateFormat, users);
     const paymentActionTemplate = (payment: SalesOrderPayment) => (
         <div className="data-table-actions">
             <HiOutlineTrash size={16} color="#dc2626" onClick={() => handleDeletePayment(payment)} />
@@ -799,8 +812,14 @@ const SalesOrderForm = () => {
                                         <div className="form-field">
                                             <label>SO No.</label>
                                             <div className="so-input-icon-wrapper">
-                                                <InputText className="so-input so-input--icon-right" value={isEditRoute ? `#${currentSoNo}` : DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING} placeholder="#SO-XXXXXX" disabled />
-                                                <HiOutlineLockClosed size={14} className="so-input-icon-right" />
+                                                <InputText
+                                                    className="so-input so-input--icon-right"
+                                                    value={isEditRoute ? `#${currentSoNo}` : currentSoNo}
+                                                    onChange={(e) => setCurrentSoNo(e.target.value)}
+                                                    placeholder="#SO-XXXXXX (auto if left blank)"
+                                                    disabled={isEditRoute}
+                                                />
+                                                {isEditRoute && <HiOutlineLockClosed size={14} className="so-input-icon-right" />}
                                             </div>
                                         </div>
                                         <div className="form-field">
@@ -819,18 +838,18 @@ const SalesOrderForm = () => {
                                     <div className="sales-order-form-grid">
                                         <div className="form-field">
                                             <label>Customer <span className="so-item-required">*</span></label>
-                                            <Dropdown
+                                            <QuickAddDropdown
+                                                quickAddType="customer"
                                                 value={customerName}
                                                 onChange={(e) => handleCustomerSelect(e.value)}
                                                 options={(customers as Customer[]).map((c) => c.customerName)}
                                                 placeholder="Select customer"
                                                 disabled={isLocked}
-                                                filter
                                             />
                                         </div>
                                         <div className="form-field">
-                                            <label>Customer Code</label>
-                                            <InputText value={customerCode} onChange={(e) => setCustomerCode(e.target.value)} placeholder="Enter customer code (optional)" disabled={isLocked} />
+                                            <label>Customer GST No <span className="so-item-required">*</span></label>
+                                            <InputText value={customerGstNo} onChange={(e) => setCustomerGstNo(e.target.value)} placeholder="Enter customer GST No" disabled={isLocked} />
                                         </div>
                                     </div>
                                 </div>
@@ -910,6 +929,31 @@ const SalesOrderForm = () => {
                                         filterable={false}
                                         dataKey="id"
                                         emptyMessage="No payments recorded yet."
+                                    />
+                                )}
+                            </TabPanel>
+
+                            <TabPanel header={<span className="so-tab-label"><HiOutlineTruck size={15} />Dispatch History</span>}>
+                                <div className="sales-order-items-header">
+                                    <h3>Dispatch Log</h3>
+                                </div>
+                                {!existingSo ? (
+                                    <div className="so-preview-items-empty">
+                                        <div className="so-preview-items-empty-icon">
+                                            <HiOutlineTruck size={22} />
+                                        </div>
+                                        <div className="so-preview-items-empty-title">Save the Sales Order first</div>
+                                        <div className="so-preview-items-empty-sub">Dispatch history appears here once items have been shipped.</div>
+                                    </div>
+                                ) : (
+                                    <DataTable
+                                        value={existingSo.dispatches}
+                                        columns={dispatchHistoryColumns}
+                                        rows={5}
+                                        sortable={false}
+                                        filterable={false}
+                                        dataKey="id"
+                                        emptyMessage="No dispatches recorded yet."
                                     />
                                 )}
                             </TabPanel>
@@ -1024,7 +1068,7 @@ const SalesOrderForm = () => {
             <Dialog
                 visible={itemDialogVisible}
                 onHide={() => setItemDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={editingItemRowId ? 'Edit Item' : 'Add Item'}
+                header={<DialogHeader icon={HiOutlineShoppingBag} title={editingItemRowId ? 'Edit Item' : 'Add Item'} />}
                 style={{ width: '540px', maxWidth: '95vw' }}
                 className="so-item-dialog"
                 footer={
@@ -1145,7 +1189,7 @@ const SalesOrderForm = () => {
             <Dialog
                 visible={paymentDialogVisible}
                 onHide={() => setPaymentDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header="Add Payment"
+                header={<DialogHeader icon={HiOutlineBanknotes} title="Add Payment" />}
                 style={{ width: '480px', maxWidth: '95vw' }}
                 className="so-item-dialog"
                 footer={
@@ -1225,7 +1269,7 @@ const SalesOrderForm = () => {
             <Dialog
                 visible={dispatchDialogVisible}
                 onHide={() => setDispatchDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header="Dispatch Items"
+                header={<DialogHeader icon={HiOutlineTruck} title="Dispatch Items" />}
                 style={{ width: '640px', maxWidth: '95vw' }}
                 footer={
                     <>

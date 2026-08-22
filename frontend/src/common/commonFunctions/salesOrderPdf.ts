@@ -113,11 +113,11 @@ export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null,
     doc.setTextColor(...COLOR.navy);
     doc.text(so.customerName, MARGIN, y);
     y += 5.5;
-    if (so.customerCode) {
+    if (so.customerGstNo) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(...COLOR.body);
-        doc.text(so.customerCode, MARGIN, y);
+        doc.text(so.customerGstNo, MARGIN, y);
         y += 4.6;
     }
     const leftColBottom = y;

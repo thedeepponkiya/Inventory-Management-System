@@ -42,7 +42,18 @@ async function createPurchaseOrder(req, res) {
       return res.status(400).json({ status: false, message: `This order has more than one line for the same item (${duplicateSkuId}) - combine them into a single line`, data: null });
     }
 
-    const poNo = await PurchaseOrderModel.getNextPoNo();
+    // Honors a user-typed PO No. (editable at create time) if provided and not already taken -
+    // re-checked here rather than trusted from the previewed value shown in the form, since
+    // another PO could have claimed it in the meantime. Falls back to auto-generating one,
+    // same as before, when the field was left blank.
+    let poNo = req.body.poNo ? String(req.body.poNo).trim() : '';
+    if (poNo) {
+      if (await PurchaseOrderModel.findByPoNo(poNo)) {
+        return res.status(400).json({ status: false, message: `PO No. "${poNo}" is already in use - choose a different one`, data: null });
+      }
+    } else {
+      poNo = await PurchaseOrderModel.getNextPoNo();
+    }
     const items = req.body.items || [];
     const totals = computeOrderTotals(items);
     // A brand-new PO can't have any payment transactions yet - Transaction History entries

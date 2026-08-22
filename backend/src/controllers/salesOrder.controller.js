@@ -2,7 +2,9 @@ const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const SalesOrderModel = require('../models/salesOrder.model');
 const SalesOrderPaymentModel = require('../models/salesOrderPayment.model');
+const SalesOrderDispatchModel = require('../models/salesOrderDispatch.model');
 const InventoryModel = require('../models/inventory.model');
+const InvoiceModel = require('../models/invoice.model');
 const { createInvoiceFromSalesOrder } = require('./invoice.controller');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
 
@@ -36,13 +38,27 @@ async function createSalesOrder(req, res) {
     if (!customerName || !orderDate) {
       return res.status(400).json({ status: false, message: 'customerName and orderDate are required', data: null });
     }
+    if (!req.body.customerGstNo) {
+      return res.status(400).json({ status: false, message: 'customerGstNo is required', data: null });
+    }
 
     const duplicateSkuId = findDuplicateSkuId(req.body.items || []);
     if (duplicateSkuId) {
       return res.status(400).json({ status: false, message: `This order has more than one line for the same item (${duplicateSkuId}) - combine them into a single line`, data: null });
     }
 
-    const soNo = await SalesOrderModel.getNextSoNo();
+    // Honors a user-typed SO No. (editable at create time) if provided and not already taken -
+    // re-checked here rather than trusted from the previewed value shown in the form, since
+    // another SO could have claimed it in the meantime. Falls back to auto-generating one,
+    // same as before, when the field was left blank.
+    let soNo = req.body.soNo ? String(req.body.soNo).trim() : '';
+    if (soNo) {
+      if (await SalesOrderModel.findBySoNo(soNo)) {
+        return res.status(400).json({ status: false, message: `SO No. "${soNo}" is already in use - choose a different one`, data: null });
+      }
+    } else {
+      soNo = await SalesOrderModel.getNextSoNo();
+    }
     // Every line starts fully pending - dispatchedQty only grows via the /dispatch action.
     const items = (req.body.items || []).map((item) => ({
       ...item,
@@ -56,7 +72,7 @@ async function createSalesOrder(req, res) {
     const paidAmount = 0;
     const fields = {
       customerName,
-      customerCode: req.body.customerCode || null,
+      customerGstNo: req.body.customerGstNo || null,
       orderDate,
       deliveryDate: req.body.deliveryDate || null,
       deliveryAddress: req.body.deliveryAddress || null,
@@ -108,7 +124,7 @@ async function updateSalesOrder(req, res) {
     const paidAmount = await SalesOrderPaymentModel.getSumBySoId(id);
     const fields = {
       customerName: body.customerName ?? existing.customerName,
-      customerCode: body.customerCode ?? existing.customerCode,
+      customerGstNo: body.customerGstNo ?? existing.customerGstNo,
       orderDate: body.orderDate ?? existing.orderDate,
       deliveryDate: body.deliveryDate ?? existing.deliveryDate,
       deliveryAddress: body.deliveryAddress ?? existing.deliveryAddress,
@@ -264,6 +280,27 @@ async function dispatchSalesOrder(req, res) {
       items: updatedItems,
       status: allShipped ? 'Dispatched' : 'Partially Shipped',
     }, client);
+
+    // Dispatch History ledger row for this call - only the lines/quantities actually shipped
+    // just now (shipMap), not the SO's full item list. Inserted in the same transaction as the
+    // items/status update and stock deduction above, so it can never exist without them (or
+    // vice versa) even if something later in this request fails.
+    const dispatchedLineItems = existing.items
+      .filter((item) => (shipMap.get(item.skuId) || 0) > 0)
+      .map((item) => ({
+        skuId: item.skuId,
+        skuCode: item.skuCode,
+        itemName: item.itemName,
+        unit: item.unit,
+        shipQty: shipMap.get(item.skuId),
+      }));
+    await SalesOrderDispatchModel.create({
+      soId: id,
+      dispatchDate: new Date().toISOString().slice(0, 10),
+      items: dispatchedLineItems,
+      dispatchedBy: req.user.userName,
+    }, client);
+
     await client.query('COMMIT');
 
     // Best-effort, deliberately OUTSIDE the transaction and after COMMIT - dispatch must
@@ -297,6 +334,16 @@ async function dispatchSalesOrder(req, res) {
 // dispatchedQty back to Inventory and resets it to fully pending. Does not support
 // reverting a single partial shipment out of several; only a full reset back to Processing.
 // Same transaction + locking treatment as dispatchSalesOrder.
+//
+// Because this undoes the ENTIRE shipment history, not just one batch, it also cleans up the
+// two things dispatchSalesOrder created along the way: the Dispatch History ledger rows (see
+// salesOrderDispatch.model.js) and the auto-generated Sales Invoice(s) (see
+// createInvoiceFromSalesOrder) - without this, reverting and re-dispatching the same items
+// left the old (now-undone) entries sitting alongside the new ones, looking like duplicates
+// that "keep piling up" on every revert/re-dispatch cycle. An invoice is only deleted if it's
+// still fully Unpaid - one with a recorded payment against it is left alone (deleting a paid
+// invoice would be a real accounting problem) and called out in the response's `warning`
+// instead, same pattern dispatchSalesOrder already uses for its own invoice-generation warning.
 async function revertDispatch(req, res) {
   const client = await pool.connect();
   try {
@@ -323,8 +370,23 @@ async function revertDispatch(req, res) {
     }
 
     const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Processing' }, client);
+
+    // Clean up what this order's dispatch(es) created - every history row (the whole ledger
+    // for this SO, since revert undoes all of it) and every still-Unpaid auto-generated
+    // invoice tied to it.
+    await SalesOrderDispatchModel.removeAllForSo(id, client);
+    const linkedInvoices = await InvoiceModel.findByReferenceNo(existing.soNo, 'Sales', client);
+    const unpaidInvoices = linkedInvoices.filter((inv) => Number(inv.paidAmount) === 0);
+    const paidInvoices = linkedInvoices.filter((inv) => Number(inv.paidAmount) > 0);
+    for (const invoice of unpaidInvoices) {
+      await InvoiceModel.remove(invoice.id, client);
+    }
+
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated });
+    const warning = paidInvoices.length > 0
+      ? `${paidInvoices.length} invoice(s) from this order's earlier dispatch (${paidInvoices.map((inv) => inv.invoiceNo).join(', ')}) already have a payment recorded and were left in place - cancel or credit them manually from the Invoices page if they're no longer valid.`
+      : null;
+    res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated, warning });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);
