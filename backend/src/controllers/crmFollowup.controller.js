@@ -1,5 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
-const { isCrmAdmin } = require('../utils/crmPermissions.util');
+const { isCrmAdmin, leadScopeUserId } = require('../utils/crmPermissions.util');
 const CrmFollowupModel = require('../models/crmFollowup.model');
 
 const VALID_TYPES = ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'];
@@ -8,7 +8,11 @@ const VALID_STATUSES = ['Pending', 'Completed'];
 async function getFollowups(req, res) {
   try {
     const { leadId } = req.query;
-    const followups = await CrmFollowupModel.getAll(leadId);
+    // Applies even to a specific-lead fetch (the drawer's own leadId call), not just the full
+    // list - correct either way: a Sales User's own leads list never surfaces someone else's
+    // lead to click into in the first place (see crmLead.controller.js's identical scoping),
+    // so this only ever matters if that lead's id is reached some other way.
+    const followups = await CrmFollowupModel.getAll(leadId, leadScopeUserId(req));
     res.json({ status: true, message: 'Follow-ups fetched successfully', data: followups });
   } catch (err) {
     sendServerError(res, err);

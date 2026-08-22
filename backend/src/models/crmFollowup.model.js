@@ -6,14 +6,25 @@ const SELECT_WITH_JOIN = `
   SELECT f.*, u."userName" AS "createdByName"
   FROM ${TABLE} f
   LEFT JOIN users u ON u.id = f."createdBy"
+  LEFT JOIN crm_leads l ON l.id = f."leadId"
 `;
 
-async function getAll(leadId) {
+// `assignedToUserId` scopes the result to just the follow-ups whose LEAD is assigned to that
+// user - see crmPermissions.util.js's leadScopeUserId (Sales User only ever sees follow-ups
+// for their own leads, mirroring getLeads' own scoping). Omitted/null for every other role.
+async function getAll(leadId, assignedToUserId) {
+  const conditions = [];
+  const params = [];
   if (leadId) {
-    const result = await pool.query(`${SELECT_WITH_JOIN} WHERE f."leadId" = $1 ORDER BY f."dueAt" ASC`, [leadId]);
-    return result.rows;
+    params.push(leadId);
+    conditions.push(`f."leadId" = $${params.length}`);
   }
-  const result = await pool.query(`${SELECT_WITH_JOIN} ORDER BY f."dueAt" ASC`);
+  if (assignedToUserId) {
+    params.push(assignedToUserId);
+    conditions.push(`l."assignedTo" = $${params.length}`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const result = await pool.query(`${SELECT_WITH_JOIN} ${where} ORDER BY f."dueAt" ASC`, params);
   return result.rows;
 }
 

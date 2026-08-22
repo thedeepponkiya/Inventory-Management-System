@@ -21,9 +21,6 @@ interface RolePermissionsPanelProps {
 // an empty array) keeps every switch showing ON for a never-configured role, matching what
 // that role's users actually see today instead of misleadingly showing everything OFF.
 const allModuleKeys = ROLE_MODULES.map((m) => m.key);
-// Dashboard is always reachable regardless of role - every user needs a landing page after
-// login, so its switch is locked ON rather than offered as a restrictable module.
-const DASHBOARD_KEY = '/';
 
 // ERP vs CRM, mirroring VisibilitySettingsPanel.tsx's module-card layout exactly (same icons,
 // same two-column "select a module, then manage its items" pattern) so Developer Admin's Role
@@ -71,15 +68,15 @@ const RolePermissionsPanel = ({ onSaved }: RolePermissionsPanelProps) => {
         });
     };
 
-    // "Allow entire module" master switch - checked only when every non-Dashboard item in that
-    // category is currently allowed for the selected role. Toggling it off/on bulk-edits the
-    // same underlying array, same derivation pattern as VisibilitySettingsPanel's
+    // "Allow entire module" master switch - checked only when every item in that category is
+    // currently allowed for the selected role. Toggling it off/on bulk-edits the same
+    // underlying array, same derivation pattern as VisibilitySettingsPanel's
     // isModuleFullyVisible/toggleModule.
     const isCategoryFullyAllowed = (key: ModuleCategory): boolean =>
-        categories[key].modules.every((mod) => mod.key === DASHBOARD_KEY || allowedForSelectedRole.includes(mod.key));
+        categories[key].modules.every((mod) => allowedForSelectedRole.includes(mod.key));
 
     const toggleCategory = (key: ModuleCategory) => {
-        const keys = categories[key].modules.filter((mod) => mod.key !== DASHBOARD_KEY).map((mod) => mod.key);
+        const keys = categories[key].modules.map((mod) => mod.key);
         setPermissions((prev) => {
             const current = prev[selectedRole] ?? allModuleKeys;
             const next = isCategoryFullyAllowed(key)
@@ -114,7 +111,7 @@ const RolePermissionsPanel = ({ onSaved }: RolePermissionsPanelProps) => {
 
     const renderCategoryDetail = (key: ModuleCategory) => {
         const cat = categories[key];
-        const allowedCount = cat.modules.filter((mod) => mod.key === DASHBOARD_KEY || allowedForSelectedRole.includes(mod.key)).length;
+        const allowedCount = cat.modules.filter((mod) => allowedForSelectedRole.includes(mod.key)).length;
 
         return (
             <div className="role-permissions-module-detail">
@@ -132,22 +129,19 @@ const RolePermissionsPanel = ({ onSaved }: RolePermissionsPanelProps) => {
                     </div>
                 </div>
                 <div className="role-permissions-list">
-                    {cat.modules.map((mod) => {
-                        const isDashboard = mod.key === DASHBOARD_KEY;
-                        return (
-                            <div className="role-permissions-row" key={mod.key}>
-                                <span className="role-permissions-row-label">
-                                    <span className="role-permissions-row-icon"><mod.icon size={16} /></span>
-                                    {mod.label}
-                                </span>
-                                <InputSwitch
-                                    checked={isDashboard || allowedForSelectedRole.includes(mod.key)}
-                                    onChange={() => toggleModule(mod.key)}
-                                    disabled={loading || saving || isDashboard}
-                                />
-                            </div>
-                        );
-                    })}
+                    {cat.modules.map((mod) => (
+                        <div className="role-permissions-row" key={mod.key}>
+                            <span className="role-permissions-row-label">
+                                <span className="role-permissions-row-icon"><mod.icon size={16} /></span>
+                                {mod.label}
+                            </span>
+                            <InputSwitch
+                                checked={allowedForSelectedRole.includes(mod.key)}
+                                onChange={() => toggleModule(mod.key)}
+                                disabled={loading || saving}
+                            />
+                        </div>
+                    ))}
                 </div>
             </div>
         );

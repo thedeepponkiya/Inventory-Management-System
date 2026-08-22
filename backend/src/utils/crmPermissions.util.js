@@ -20,4 +20,15 @@ function canEditLead(req) {
   return Boolean(req.user?.isHidden) || req.user?.roleId !== 'Sales User';
 }
 
-module.exports = { isCrmAdmin, canEditLead };
+// Sales User only ever sees the leads assigned to them (and, by extension, only the
+// follow-ups belonging to those leads) - every other role (Admin, Sales Manager, etc.) still
+// sees every lead, same as before. Returns the user id to filter by, or null when the caller
+// shouldn't be scoped at all (so callers can do `assignedTo ? WHERE ... : <no filter>`
+// without a separate branch).
+function leadScopeUserId(req) {
+  if (req.user?.isHidden) return null;
+  if (req.user?.roleId !== 'Sales User') return null;
+  return req.user.id;
+}
+
+module.exports = { isCrmAdmin, canEditLead, leadScopeUserId };

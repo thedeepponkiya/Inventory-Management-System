@@ -18,8 +18,13 @@ const SELECT_WITH_JOINS = `
   LEFT JOIN users u ON u.id = l."assignedTo"
 `;
 
-async function getAll() {
-  const result = await pool.query(`${SELECT_WITH_JOINS} ORDER BY l."sortOrder" ASC, l."createdAt" DESC`);
+// `assignedToUserId` scopes the result to just that user's leads - see
+// crmPermissions.util.js's leadScopeUserId (Sales User only ever sees their own leads).
+// Omitted/null for every other role, same unfiltered query as before.
+async function getAll(assignedToUserId) {
+  const where = assignedToUserId ? `WHERE l."assignedTo" = $1` : '';
+  const params = assignedToUserId ? [assignedToUserId] : [];
+  const result = await pool.query(`${SELECT_WITH_JOINS} ${where} ORDER BY l."sortOrder" ASC, l."createdAt" DESC`, params);
   return result.rows;
 }
 

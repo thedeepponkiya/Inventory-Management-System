@@ -1,5 +1,5 @@
 const { sendServerError } = require('../utils/errorResponse');
-const { isCrmAdmin, canEditLead } = require('../utils/crmPermissions.util');
+const { isCrmAdmin, canEditLead, leadScopeUserId } = require('../utils/crmPermissions.util');
 const CrmLeadModel = require('../models/crmLead.model');
 
 const VALID_STATUSES = ['Active', 'Archived'];
@@ -7,7 +7,7 @@ const VALID_PRIORITIES = ['High', 'Medium', 'Low'];
 
 async function getLeads(req, res) {
   try {
-    const leads = await CrmLeadModel.getAll();
+    const leads = await CrmLeadModel.getAll(leadScopeUserId(req));
     res.json({ status: true, message: 'Leads fetched successfully', data: leads });
   } catch (err) {
     sendServerError(res, err);
