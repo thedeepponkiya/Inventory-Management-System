@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const bcrypt = require('bcryptjs');
 const UserModel = require('../models/user.model');
+const CustomFieldService = require('../services/customField.service');
 
 const SALT_ROUNDS = 10;
 
@@ -35,7 +36,12 @@ function isCallerAdmin(req) {
 async function getUsers(req, res) {
   try {
     const users = await UserModel.getAll();
-    res.json({ status: true, message: 'Users fetched successfully', data: users });
+    // UserModel.getAll() reads through the same safe explicit column list as findById (see
+    // createUser/updateUser's identical merge) - never picks up new `cf_*` columns on its
+    // own, so they're fetched separately and merged in here per row.
+    const customFieldValuesById = await CustomFieldService.getCustomFieldValuesMap('user');
+    const withCustomFields = users.map((user) => ({ ...user, ...(customFieldValuesById.get(String(user.id)) ?? {}) }));
+    res.json({ status: true, message: 'Users fetched successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -76,7 +82,9 @@ async function createUser(req, res) {
       // session - not trusted from the request body.
       createdBy: req.user.userName,
     });
-    res.status(201).json({ status: true, message: 'User created successfully', data: created });
+    await CustomFieldService.saveValues('user', created.id, req.body.customFields);
+    const customFieldValues = await CustomFieldService.getCustomFieldValues('user', created.id);
+    res.status(201).json({ status: true, message: 'User created successfully', data: { ...created, ...customFieldValues } });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -122,7 +130,9 @@ async function updateUser(req, res) {
       await UserModel.updatePasswordHash(id, passwordHash);
     }
 
-    res.json({ status: true, message: 'User updated successfully', data: updated });
+    await CustomFieldService.saveValues('user', id, req.body.customFields);
+    const customFieldValues = await CustomFieldService.getCustomFieldValues('user', id);
+    res.json({ status: true, message: 'User updated successfully', data: { ...updated, ...customFieldValues } });
   } catch (err) {
     sendServerError(res, err);
   }

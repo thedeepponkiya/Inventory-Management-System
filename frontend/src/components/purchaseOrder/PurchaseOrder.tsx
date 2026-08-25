@@ -16,6 +16,7 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getPurchaseOrderColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { exportPurchaseOrderPdf } from '../../common/commonFunctions/purchaseOrderPdf';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import './PurchaseOrder.css';
 
 const PurchaseOrder = () => {
@@ -39,7 +40,8 @@ const PurchaseOrder = () => {
         });
     }, [purchaseOrders, filters]);
 
-    const columns = getPurchaseOrderColumns(dateFormat, users, (po) => navigate(`/purchase-order/${po.id}`));
+    const customFieldColumns = useCustomFieldColumns<PurchaseOrderType>('purchaseOrder');
+    const columns = [...getPurchaseOrderColumns(dateFormat, users, (po) => navigate(`/purchase-order/${po.id}`)), ...customFieldColumns];
 
     const actionTemplate = getActionBodyTemplate<PurchaseOrderType>({
         icons: [{

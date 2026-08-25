@@ -60,6 +60,7 @@ import type { User } from '../../services/userService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getSalesOrderItemColumns, getSalesOrderPaymentColumns, getSalesOrderDispatchColumns, getActionBodyTemplate, type SalesOrderItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './SalesOrderForm.css';
 
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
@@ -227,6 +228,7 @@ const SalesOrderForm = () => {
     const [purchaseOrderRef, setPurchaseOrderRef] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [remarks, setRemarks] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [items, setItems] = useState<SalesOrderItemRow[]>([]);
+    const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -267,6 +269,7 @@ const SalesOrderForm = () => {
             setPurchaseOrderRef(existingSo.purchaseOrderRef ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setRemarks(existingSo.remarks ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
             setItems(existingSo.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
+            setCustomFields(existingSo.customFields ?? {});
             setLoadedForId(existingSo.id);
         }
     }, [existingSo, loadedForId]);
@@ -550,6 +553,7 @@ const SalesOrderForm = () => {
             grandTotal: totals.grandTotal,
             remarks,
             createdBy: 'Admin User',
+            customFields,
         };
 
         try {
@@ -877,6 +881,13 @@ const SalesOrderForm = () => {
                                             </div>
                                         </div>
                                     </div>
+
+                                    <CustomFieldsSection
+                                        entityKey="salesOrder"
+                                        values={customFields}
+                                        onChange={(columnName, value) => setCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                                        disabled={isLocked}
+                                    />
                                 </div>
                             </TabPanel>
 

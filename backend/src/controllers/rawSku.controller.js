@@ -61,6 +61,7 @@ async function createRawSku(req, res) {
       // purchaseOrder.controller.js's identical fix for why.
       createdBy: req.user.userName,
       images: req.body.images || [],
+      material: req.body.material || null,
     };
 
     const created = await RawSkuModel.create(skuCode, fields);
@@ -103,6 +104,7 @@ async function updateRawSku(req, res) {
       status: body.status ?? existing.status,
       createdBy: body.createdBy ?? existing.createdBy,
       images: body.images ?? existing.images,
+      material: body.material ?? existing.material,
     };
 
     const updated = await RawSkuModel.update(id, fields);

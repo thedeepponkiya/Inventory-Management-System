@@ -2,6 +2,7 @@ const { sendServerError } = require('../utils/errorResponse');
 const InvoiceModel = require('../models/invoice.model');
 const LocationModel = require('../models/location.model');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
+const CustomFieldService = require('../services/customField.service');
 
 function round2(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
@@ -155,7 +156,9 @@ async function createInvoice(req, res) {
     };
 
     const created = await InvoiceModel.create(invoiceNo, fields);
-    res.status(201).json({ status: true, message: 'Invoice created successfully', data: created });
+    await CustomFieldService.saveValues('invoice', created.id, req.body.customFields);
+    const withCustomFields = await InvoiceModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Invoice created successfully', data: withCustomFields });
   } catch (err) {
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
   }
@@ -201,8 +204,10 @@ async function updateInvoice(req, res) {
       createdBy: body.createdBy ?? existing.createdBy,
     };
 
-    const updated = await InvoiceModel.update(id, fields);
-    res.json({ status: true, message: 'Invoice updated successfully', data: updated });
+    await InvoiceModel.update(id, fields);
+    await CustomFieldService.saveValues('invoice', id, body.customFields);
+    const withCustomFields = await InvoiceModel.findById(id);
+    res.json({ status: true, message: 'Invoice updated successfully', data: withCustomFields });
   } catch (err) {
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
   }

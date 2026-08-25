@@ -11,6 +11,7 @@ import { deleteInvoice, type Invoice } from '../../services/invoiceService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInvoiceColumns } from '../../common/commonFunctions/CommonUtilities';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import './Invoices.css';
 
 const Invoices = () => {
@@ -36,7 +37,8 @@ const Invoices = () => {
         });
     }, [invoices, filters]);
 
-    const columns = getInvoiceColumns(dateFormat, (invoice) => navigate(`/invoices/${invoice.id}`));
+    const customFieldColumns = useCustomFieldColumns<Invoice>('invoice');
+    const columns = [...getInvoiceColumns(dateFormat, (invoice) => navigate(`/invoices/${invoice.id}`)), ...customFieldColumns];
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<Invoice>({
         getId: (row) => row.id,

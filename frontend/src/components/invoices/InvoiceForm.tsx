@@ -19,6 +19,7 @@ import {
 } from '../../services/invoiceService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './InvoiceForm.css';
 
 const invoiceTypeOptions: InvoiceTypeEnum[] = ['Purchase', 'Sales'];
@@ -62,6 +63,7 @@ const InvoiceForm = () => {
     const [unitPrice, setUnitPrice] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [discountPercent, setDiscountPercent] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [gstPercent, setGstPercent] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
     useEffect(() => {
         if (existingInvoice && loadedForId !== existingInvoice.id) {
@@ -89,6 +91,7 @@ const InvoiceForm = () => {
             setUnitPrice(existingInvoice.unitPrice);
             setDiscountPercent(existingInvoice.discountPercent);
             setGstPercent(existingInvoice.gstPercent);
+            setCustomFields(existingInvoice.customFields ?? {});
             setLoadedForId(existingInvoice.id);
         }
     }, [existingInvoice, loadedForId]);
@@ -143,6 +146,7 @@ const InvoiceForm = () => {
             paymentStatus,
             remarks: remarks || DEFAULT_DATA_TYPE_VALUE.NULL,
             createdBy: createdBy || 'Admin User',
+            customFields,
         };
 
         try {
@@ -281,6 +285,12 @@ const InvoiceForm = () => {
                             <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" />
                         </div>
                     </div>
+
+                    <CustomFieldsSection
+                        entityKey="invoice"
+                        values={customFields}
+                        onChange={(columnName, value) => setCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                    />
                 </div>
 
                 <div className="inv-preview-panel">

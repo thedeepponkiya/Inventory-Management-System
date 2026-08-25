@@ -10,6 +10,7 @@ import { deleteMaterialInward, type MaterialInward as MaterialInwardType } from 
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardColumns } from '../../common/commonFunctions/CommonUtilities';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import MaterialInwardForm from './MaterialInwardForm';
 import './MaterialInward.css';
 
@@ -43,7 +44,8 @@ const MaterialInward = () => {
         setDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
-    const columns = getMaterialInwardColumns(dateFormat, users, openEditDialog);
+    const customFieldColumns = useCustomFieldColumns<MaterialInwardType>('materialInward');
+    const columns = [...getMaterialInwardColumns(dateFormat, users, openEditDialog), ...customFieldColumns];
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<MaterialInwardType>({
         getId: (row) => row.id,

@@ -162,12 +162,33 @@
     font-size: 14px;
 }
 
+/* Extra right padding so typed text never runs under the show/hide eye icon (see
+   `.login-password-field .p-password-show-icon`/`.p-password-hide-icon` below). */
+.login-password-input {
+    padding-right: 40px !important;
+}
+
+/* Shared by both icon spans (email's left one and the password toggle's right one below).
+   Lara's own `.p-icon-field > .p-input-icon { top: 50%; margin-top: -0.5rem }` centers this
+   span assuming it's exactly 16px tall to match the icon inside it - but a bare <span> takes
+   its height from the ambient line-height instead (renders ~24px here), so that -0.5rem
+   undershoots by a few px. Pinning the height to the icon's real size fixes Lara's own math,
+   and flexbox centers the icon within it without depending on inline vertical-align/baseline
+   metrics at all. */
 .login-form .p-input-icon {
-    position: absolute;
-    color: #9ca3af;
-    left: 14px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    height: 16px;
+}
+
+/* Scoped to the email field's own left-icon wrapper only - Password's toggleMask icon
+   renders through this same `.p-input-icon` span internally, so a blanket left/color rule
+   here would leak onto it too (see the password-specific rule further down for that icon's
+   own positioning). */
+.login-form .p-icon-field-left .p-input-icon {
+    left: 14px;
+    color: #9ca3af;
 }
 
 .login-password-wrapper {
@@ -191,18 +212,16 @@
     align-items: center;
 }
 
-.login-password-field .p-icon-field {
-    flex: 1 1 auto;
-    width: 100%;
-}
-
-.login-password-field .p-input-icon {
-    top: 50%;
-    margin-top: 0;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* PrimeReact's Password (with toggleMask) renders through the same IconField/InputIcon
+   internals as the email field above (`.p-icon-field.p-icon-field-right` > `.p-input-icon`
+   span > the actual eye svg) - only `right`/`color` need overriding here to match this
+   page's own icon color instead of the theme default (vertical centering is handled by the
+   shared rule above). Matching the theme's own selector shape (down to :last-of-type) keeps
+   this at equal-or-higher specificity so it reliably wins regardless of stylesheet order. */
+.login-password-field .p-icon-field-right > .p-input-icon:last-of-type {
+    right: 14px;
+    color: #9ca3af;
+    cursor: pointer;
 }
 
 .login-row {

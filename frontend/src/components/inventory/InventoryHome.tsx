@@ -38,6 +38,8 @@ import type { Location as LocationRecord } from '../../services/locationService'
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, getStockLevel, type AssemblyRow, type InventoryItemWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './InventoryHome.css';
 
 let nextAssemblyRowId = 1;
@@ -45,7 +47,7 @@ const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCo
 const rowsFromAssembly = (assembly: AssemblyLine[]): AssemblyRow[] => assembly.map((line) => ({ ...line, rowId: nextAssemblyRowId++ }));
 
 const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'> = {
-    images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO, sellingCost: DEFAULT_DATA_TYPE_VALUE.ZERO, minStock: DEFAULT_DATA_TYPE_VALUE.ZERO, maxStock: DEFAULT_DATA_TYPE_VALUE.ZERO, openingStock: DEFAULT_DATA_TYPE_VALUE.ZERO,
+    images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO, sellingCost: DEFAULT_DATA_TYPE_VALUE.ZERO, minStock: DEFAULT_DATA_TYPE_VALUE.ZERO, maxStock: DEFAULT_DATA_TYPE_VALUE.ZERO, openingStock: DEFAULT_DATA_TYPE_VALUE.ZERO, customFields: {},
 };
 
 const InventoryHome = () => {
@@ -169,6 +171,7 @@ const InventoryHome = () => {
             minStock: item.minStock,
             maxStock: item.maxStock,
             openingStock: item.openingStock,
+            customFields: item.customFields ?? {},
         });
         setAssemblyRows(rowsFromAssembly(item.assembly));
         setActiveDialogTab('details');
@@ -218,9 +221,10 @@ const InventoryHome = () => {
         showToast(toast, 'success', 'Updated', 'Inventory item status updated successfully');
     };
 
+    const customFieldColumns = useCustomFieldColumns<InventoryItemWithStockLevel>('inventory');
     // toast.current is only read inside handleToggleStatus's own async callback, never during render
     // eslint-disable-next-line react-hooks/refs
-    const columns = getInventoryHomeColumns(dateFormat, handleToggleStatus, openEditDialog);
+    const columns = [...getInventoryHomeColumns(dateFormat, handleToggleStatus, openEditDialog), ...customFieldColumns];
 
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow, (units as Unit[]).map((u) => u.unit));
 
@@ -480,6 +484,12 @@ const InventoryHome = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                <CustomFieldsSection
+                                    entityKey="inventory"
+                                    values={form.customFields}
+                                    onChange={(columnName, value) => setForm((prev) => ({ ...prev, customFields: { ...prev.customFields, [columnName]: value } }))}
+                                />
                             </div>
 
                             <div className="inventory-home-form-side">

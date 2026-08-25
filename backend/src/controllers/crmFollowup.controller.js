@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const { isCrmAdmin, leadScopeUserId } = require('../utils/crmPermissions.util');
 const CrmFollowupModel = require('../models/crmFollowup.model');
+const CustomFieldService = require('../services/customField.service');
 
 const VALID_TYPES = ['Call', 'Email', 'WhatsApp', 'Meeting', 'Other'];
 const VALID_STATUSES = ['Pending', 'Completed'];
@@ -38,7 +39,9 @@ async function createFollowup(req, res) {
       notes: req.body.notes || null,
       createdBy: null,
     });
-    res.status(201).json({ status: true, message: 'Follow-up created successfully', data: created });
+    await CustomFieldService.saveValues('crmFollowup', created.id, req.body.customFields);
+    const withCustomFields = await CrmFollowupModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Follow-up created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -68,14 +71,16 @@ async function updateFollowup(req, res) {
       completedAt = null;
     }
 
-    const updated = await CrmFollowupModel.update(id, {
+    await CrmFollowupModel.update(id, {
       dueAt: body.dueAt ?? existing.dueAt,
       type: body.type ?? existing.type,
       notes: body.notes ?? existing.notes,
       status,
       completedAt,
     });
-    res.json({ status: true, message: 'Follow-up updated successfully', data: updated });
+    await CustomFieldService.saveValues('crmFollowup', id, body.customFields);
+    const withCustomFields = await CrmFollowupModel.findById(id);
+    res.json({ status: true, message: 'Follow-up updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

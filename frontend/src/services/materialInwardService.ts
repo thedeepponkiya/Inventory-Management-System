@@ -1,5 +1,6 @@
 import { authFetch } from './httpClient';
 import { API_BASE_URL } from './apiConfig';
+import { extractCustomFields } from './customFieldService';
 
 export interface MaterialInwardItem {
     skuId: string;
@@ -49,6 +50,9 @@ export interface MaterialInward {
     receivedBy: string;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on ims_material_inward right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface MaterialInwardPayload {
@@ -73,6 +77,8 @@ export interface MaterialInwardPayload {
     grandTotal: number;
     remarks: string | null;
     receivedBy: string;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 interface ApiResponse<T> {
@@ -114,6 +120,7 @@ function normalizeMaterialInward(mi: MaterialInward): MaterialInward {
         freightCharge: Number(mi.freightCharge),
         otherCharges: Number(mi.otherCharges),
         grandTotal: Number(mi.grandTotal),
+        customFields: extractCustomFields(mi as unknown as Record<string, unknown>),
     };
 }
 

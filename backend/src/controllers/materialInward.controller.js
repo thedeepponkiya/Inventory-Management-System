@@ -5,6 +5,7 @@ const PurchaseOrderModel = require('../models/purchaseOrder.model');
 const RawSkuModel = require('../models/rawSku.model');
 const { createInvoiceFromMaterialInward } = require('./invoice.controller');
 const { computeOrderTotals } = require('../utils/orderTotals');
+const CustomFieldService = require('../services/customField.service');
 
 // computeOrderTotals's grandTotal (subTotal - discount + gst) doesn't know about Material
 // Inward's own freightCharge/otherCharges, which aren't derived from items - they're real
@@ -198,6 +199,8 @@ async function createMaterialInward(req, res) {
     const created = await MaterialInwardModel.create(inwardNo, fields, client);
     await applyStockForItems(created.items, 1, client);
     await resyncPurchaseOrderTotals(created.purchaseOrderId, client);
+    await CustomFieldService.saveValues('materialInward', created.id, req.body.customFields, client);
+    const withCustomFields = await MaterialInwardModel.findById(created.id, client);
 
     await client.query('COMMIT');
 
@@ -212,7 +215,7 @@ async function createMaterialInward(req, res) {
       console.error('Failed to auto-generate invoice for material inward', created.id, invoiceErr);
       invoiceWarning = 'Material inward saved, but its Purchase Invoice could not be auto-generated. Please create it manually from the Invoices page.';
     }
-    res.status(201).json({ status: true, message: 'Material inward created successfully', data: created, warning: invoiceWarning });
+    res.status(201).json({ status: true, message: 'Material inward created successfully', data: withCustomFields, warning: invoiceWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
@@ -271,9 +274,11 @@ async function updateMaterialInward(req, res) {
     if (existing.purchaseOrderId && existing.purchaseOrderId !== updated.purchaseOrderId) {
       await resyncPurchaseOrderTotals(existing.purchaseOrderId, client);
     }
+    await CustomFieldService.saveValues('materialInward', id, body.customFields, client);
+    const withCustomFields = await MaterialInwardModel.findById(id, client);
 
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Material inward updated successfully', data: updated });
+    res.json({ status: true, message: 'Material inward updated successfully', data: withCustomFields });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });

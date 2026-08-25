@@ -3,6 +3,7 @@ const PurchaseOrderModel = require('../models/purchaseOrder.model');
 const PurchaseOrderPaymentModel = require('../models/purchaseOrderPayment.model');
 const MaterialInwardModel = require('../models/materialInward.model');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
+const CustomFieldService = require('../services/customField.service');
 
 const VALID_STATUSES = ['Draft', 'Sent', 'Received', 'Cancelled'];
 
@@ -79,7 +80,9 @@ async function createPurchaseOrder(req, res) {
     };
 
     const created = await PurchaseOrderModel.create(poNo, fields);
-    res.status(201).json({ status: true, message: 'Purchase order created successfully', data: created });
+    await CustomFieldService.saveValues('purchaseOrder', created.id, req.body.customFields);
+    const withCustomFields = await PurchaseOrderModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Purchase order created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -133,8 +136,10 @@ async function updatePurchaseOrder(req, res) {
       createdBy: body.createdBy ?? existing.createdBy,
     };
 
-    const updated = await PurchaseOrderModel.update(id, fields);
-    res.json({ status: true, message: 'Purchase order updated successfully', data: updated });
+    await PurchaseOrderModel.update(id, fields);
+    await CustomFieldService.saveValues('purchaseOrder', id, body.customFields);
+    const withCustomFields = await PurchaseOrderModel.findById(id);
+    res.json({ status: true, message: 'Purchase order updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

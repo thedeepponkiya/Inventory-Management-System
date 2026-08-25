@@ -37,6 +37,7 @@ import type { CrmLead } from '../types/lead.types';
 import type { CrmFollowup, CrmFollowupType } from '../types/followup.types';
 import type { CrmNote } from '../types/note.types';
 import type { CrmStage } from '../types/stage.types';
+import CustomFieldsSection from '../../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './LeadDetailDrawer.css';
 
 interface LeadDetailDrawerProps {
@@ -211,6 +212,7 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab,
     const [followupType, setFollowupType] = useState<CrmFollowupType>('Call');
     const [followupDueAt, setFollowupDueAt] = useState<Date | null>(null);
     const [followupNotes, setFollowupNotes] = useState('');
+    const [followupCustomFields, setFollowupCustomFields] = useState<Record<string, unknown>>({});
 
     const { dateFormat } = useDateFormatContext();
     const leadId = lead?.id;
@@ -260,12 +262,13 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab,
     const handleAddFollowup = () => {
         if (!followupDueAt) return;
         createFollowup.mutate(
-            { leadId: lead.id, dueAt: followupDueAt.toISOString(), type: followupType, notes: followupNotes.trim() || null },
+            { leadId: lead.id, dueAt: followupDueAt.toISOString(), type: followupType, notes: followupNotes.trim() || null, customFields: followupCustomFields },
             {
                 onSuccess: () => {
                     setFollowupDueAt(null);
                     setFollowupNotes('');
                     setFollowupType('Call');
+                    setFollowupCustomFields({});
                     showToast(toast, 'success', 'Added', 'Follow-up scheduled successfully');
                 },
                 onError: (err) => showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong'),
@@ -594,6 +597,11 @@ const LeadDetailDrawer = ({ visible, lead, onHide, onEdit, onDelete, initialTab,
                                 />
                             </div>
                             <InputTextarea value={followupNotes} onChange={(e) => setFollowupNotes(e.target.value)} rows={2} placeholder="Notes (optional)" />
+                            <CustomFieldsSection
+                                entityKey="crmFollowup"
+                                values={followupCustomFields}
+                                onChange={(columnName, value) => setFollowupCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                            />
                             <Button label="Schedule Follow-up" onClick={handleAddFollowup} disabled={!followupDueAt} />
                         </div>
                         <div className="lead-detail-list">

@@ -33,6 +33,8 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getUsersColumns, ROLE_OPTIONS, DEPARTMENT_OPTIONS } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './Users.css';
 
 interface UserFormState {
@@ -44,6 +46,7 @@ interface UserFormState {
     departmentId: string | null;
     profileImage: string | null;
     status: 'Active' | 'Inactive';
+    customFields: Record<string, unknown>;
 }
 
 const emptyForm: UserFormState = {
@@ -55,6 +58,7 @@ const emptyForm: UserFormState = {
     departmentId: DEFAULT_DATA_TYPE_VALUE.NULL,
     profileImage: DEFAULT_DATA_TYPE_VALUE.NULL,
     status: 'Active',
+    customFields: {},
 };
 
 const Users = () => {
@@ -104,6 +108,7 @@ const Users = () => {
             departmentId: user.departmentId,
             profileImage: user.profileImage,
             status: user.status,
+            customFields: user.customFields ?? {},
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
@@ -133,6 +138,7 @@ const Users = () => {
                 departmentId: form.departmentId,
                 profileImage: form.profileImage,
                 status: form.status,
+                customFields: form.customFields,
             };
             // Password is only sent when the field is actually filled in - on create it's
             // required, on edit leaving it blank keeps the existing password unchanged.
@@ -160,7 +166,8 @@ const Users = () => {
         }
     };
 
-    const columns = getUsersColumns(dateFormat, openEditDialog);
+    const customFieldColumns = useCustomFieldColumns<User>('user');
+    const columns = [...getUsersColumns(dateFormat, openEditDialog), ...customFieldColumns];
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<User>({
         getId: (row) => row.id,
@@ -345,6 +352,12 @@ const Users = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <CustomFieldsSection
+                            entityKey="user"
+                            values={form.customFields}
+                            onChange={(columnName, value) => setForm((prev) => ({ ...prev, customFields: { ...prev.customFields, [columnName]: value } }))}
+                        />
                     </div>
                 </div>
 

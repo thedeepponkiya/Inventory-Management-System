@@ -1,5 +1,6 @@
 import { authFetch } from './httpClient';
 import { API_BASE_URL } from './apiConfig';
+import { extractCustomFields } from './customFieldService';
 
 export type InvoiceType = 'Purchase' | 'Sales';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -32,6 +33,9 @@ export interface Invoice {
     createdBy: string | null;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on ims_invoices right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface InvoicePayload {
@@ -58,6 +62,8 @@ export interface InvoicePayload {
     paymentStatus: PaymentStatus;
     remarks: string | null;
     createdBy: string;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 interface ApiResponse<T> {
@@ -92,6 +98,7 @@ function normalizeInvoice(invoice: Invoice): Invoice {
         grandTotal: Number(invoice.grandTotal),
         paidAmount: Number(invoice.paidAmount),
         dueAmount: Number(invoice.dueAmount),
+        customFields: extractCustomFields(invoice as unknown as Record<string, unknown>),
     };
 }
 

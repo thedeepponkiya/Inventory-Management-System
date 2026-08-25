@@ -24,6 +24,9 @@ export interface CrmLead {
     stageColor: string | null;
     sourceName: string | null;
     assignedToName: string | null;
+    // Populated from whatever "cf_*" columns exist on crm_leads right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface CrmLeadPayload {
@@ -38,4 +41,6 @@ export interface CrmLeadPayload {
     status: CrmLeadStatus;
     priority: CrmLeadPriority;
     isStarred: boolean;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }

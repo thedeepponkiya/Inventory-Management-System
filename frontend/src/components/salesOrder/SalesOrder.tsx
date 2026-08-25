@@ -15,6 +15,7 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getSalesOrderColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { exportSalesOrderPdf } from '../../common/commonFunctions/salesOrderPdf';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import './SalesOrder.css';
 
 const SalesOrder = () => {
@@ -38,7 +39,8 @@ const SalesOrder = () => {
         });
     }, [salesOrders, filters]);
 
-    const columns = getSalesOrderColumns(dateFormat, users, (so) => navigate(`/sales-order/${so.id}`));
+    const customFieldColumns = useCustomFieldColumns<SalesOrderType>('salesOrder');
+    const columns = [...getSalesOrderColumns(dateFormat, users, (so) => navigate(`/sales-order/${so.id}`)), ...customFieldColumns];
 
     const actionTemplate = getActionBodyTemplate<SalesOrderType>({
         icons: [{

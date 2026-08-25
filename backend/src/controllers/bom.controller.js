@@ -3,6 +3,7 @@ const pool = require('../config/db');
 const BomModel = require('../models/bom.model');
 const RawSkuModel = require('../models/rawSku.model');
 const InventoryModel = require('../models/inventory.model');
+const CustomFieldService = require('../services/customField.service');
 
 // Total needed for a production run of outputQty units - same formula as the frontend's
 // live "Qty Needed" preview (CommonUtilities.tsx / bomPdf.ts).
@@ -58,7 +59,11 @@ async function createBom(req, res) {
     };
 
     const created = await BomModel.create(bomCode, fields);
-    res.status(201).json({ status: true, message: 'BOM created successfully', data: created });
+    // Best-effort - a BOM's custom field values are supplementary, so a bad customFields
+    // payload still leaves the BOM itself created rather than rejecting the whole request.
+    await CustomFieldService.saveValues('bom', created.id, req.body.customFields);
+    const withCustomFields = await BomModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'BOM created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -103,8 +108,10 @@ async function updateBom(req, res) {
       reversedQty: existing.reversedQty,
     };
 
-    const updated = await BomModel.update(id, fields);
-    res.json({ status: true, message: 'BOM updated successfully', data: updated });
+    await BomModel.update(id, fields);
+    await CustomFieldService.saveValues('bom', id, body.customFields);
+    const withCustomFields = await BomModel.findById(id);
+    res.json({ status: true, message: 'BOM updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

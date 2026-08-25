@@ -1,5 +1,6 @@
 import { authFetch } from './httpClient';
 import { API_BASE_URL } from './apiConfig';
+import { extractCustomFields } from './customFieldService';
 
 export type SalesOrderStatus = 'Draft' | 'Confirmed' | 'Processing' | 'Partially Shipped' | 'Dispatched' | 'Cancelled';
 export type SalesOrderPaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -95,6 +96,9 @@ export interface SalesOrder {
     createdBy: string;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on ims_sales_order right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface SalesOrderPayload {
@@ -119,6 +123,8 @@ export interface SalesOrderPayload {
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 export interface DispatchShipment {
@@ -182,6 +188,7 @@ function normalizeSalesOrder(so: SalesOrder): SalesOrder {
             gstAmount: Number(item.gstAmount),
             lineTotal: Number(item.lineTotal),
         })),
+        customFields: extractCustomFields(so as unknown as Record<string, unknown>),
     };
 }
 

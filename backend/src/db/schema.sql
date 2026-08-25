@@ -156,6 +156,9 @@ ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "productTypeId" INTEGER REFEREN
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS "locationId" INTEGER REFERENCES ims_location(id);
 -- "images" is a JSONB array of image URLs (same shape/upload backing as ims_inventories.images).
 ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
+-- Free-text material composition (e.g. "Cotton", "Steel", "Plastic") - not a master list like
+-- Category/Unit, just a plain descriptive field shown on the SKU form and table.
+ALTER TABLE ims_raw_sku ADD COLUMN IF NOT EXISTS material VARCHAR(100);
 
 -- Purchase orders, backing /api/v1/purchase-orders CRUD.
 -- "items" is a JSONB array of raw-material lines, each shaped like:
@@ -710,3 +713,29 @@ CREATE TABLE IF NOT EXISTS ims_developer_admin_settings (
     "settingValue" JSONB NOT NULL DEFAULT '{}',
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Developer Admin's Custom Fields feature - metadata only. "entityKey" is validated
+-- server-side against a fixed whitelist (customFieldEntities.util.js, e.g. 'purchaseOrder' ->
+-- table ims_purchase_order), never trusted as a raw table name. "columnName" is the real,
+-- already-created column on that entity's table (see customField.service.js - it both derives
+-- this name from the label AND runs the actual `ALTER TABLE ... ADD COLUMN` at creation time),
+-- so this row is a description of a column that genuinely exists, not just a display label.
+-- "fieldType" is one of a fixed whitelist too (customFieldTypes.util.js), each mapped to
+-- exactly one safe SQL column type - never a user-supplied SQL type string. "options" is only
+-- populated for fieldType = 'dropdown' (its own choice list). The unique index prevents two
+-- fields on the same entity ever fighting over one physical column.
+CREATE TABLE IF NOT EXISTS custom_field_definitions (
+    id SERIAL PRIMARY KEY,
+    "entityKey" VARCHAR(50) NOT NULL,
+    "columnName" VARCHAR(63) NOT NULL,
+    label VARCHAR(150) NOT NULL,
+    "fieldType" VARCHAR(20) NOT NULL,
+    options JSONB,
+    required BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" VARCHAR(150),
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS custom_field_definitions_entity_column_idx ON custom_field_definitions ("entityKey", "columnName");

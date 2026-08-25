@@ -28,6 +28,7 @@ import type { RawSku } from '../../services/rawSkuService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getMaterialInwardItemColumns, type MaterialInwardItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './MaterialInwardForm.css';
 
 let nextItemRowId = 1;
@@ -97,6 +98,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
     const [freightCharge, setFreightCharge] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [otherCharges, setOtherCharges] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [items, setItems] = useState<MaterialInwardItemRow[]>([]);
+    const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
@@ -121,6 +123,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             setFreightCharge(existingMi.freightCharge);
             setOtherCharges(existingMi.otherCharges);
             setItems(existingMi.items.map((item) => ({ ...item, rowId: nextItemRowId++ })));
+            setCustomFields(existingMi.customFields ?? {});
             setLoadedForId(existingMi.id);
         }
     }, [existingMi, loadedForId]);
@@ -369,6 +372,7 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             grandTotal: totals.grandTotal,
             remarks: remarks || DEFAULT_DATA_TYPE_VALUE.NULL,
             receivedBy: 'Admin User',
+            customFields,
         };
 
         try {
@@ -478,6 +482,12 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
                             <InputTextarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Enter remarks (optional)" />
                         </div>
                     </div>
+
+                    <CustomFieldsSection
+                        entityKey="materialInward"
+                        values={customFields}
+                        onChange={(columnName, value) => setCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                    />
                 </TabPanel>
 
                 <TabPanel header="Items & Charges">

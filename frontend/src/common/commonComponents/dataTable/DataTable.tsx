@@ -175,6 +175,12 @@ function DataTableInner<T extends object>({ value, columns, actionBodyTemplate, 
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
             selectionMode={selectable ? 'checkbox' : null}
+            // Without this, the header "select all" checkbox selects every row in `value`
+            // (i.e. the whole filtered dataset across all pages) since PrimeReact's default
+            // header-checkbox behavior ignores pagination entirely - only the per-page rows
+            // are meant to toggle here, matching what a paginated table's header checkbox
+            // should do.
+            selectionPageOnly={paginator}
             // PrimeReact's own DataTable generic is keyed off its `value` prop's element type,
             // which our T-generic wrapper can't propagate through cleanly - same class of
             // library-type mismatch as e.g. salesOrderInvoicePdf.ts's `(doc as any).lastAutoTable`.

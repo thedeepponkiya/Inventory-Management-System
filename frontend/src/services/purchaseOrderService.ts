@@ -1,5 +1,6 @@
 import { authFetch } from './httpClient';
 import { API_BASE_URL } from './apiConfig';
+import { extractCustomFields } from './customFieldService';
 
 export type PurchaseOrderStatus = 'Draft' | 'Sent' | 'Received' | 'Cancelled';
 export type PurchaseOrderPaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -75,6 +76,9 @@ export interface PurchaseOrder {
     createdBy: string;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on ims_purchase_order right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface PurchaseOrderPayload {
@@ -99,6 +103,8 @@ export interface PurchaseOrderPayload {
     grandTotal: number;
     remarks: string | null;
     createdBy: string;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 interface ApiResponse<T> {
@@ -132,6 +138,7 @@ function normalizePurchaseOrder(po: PurchaseOrder): PurchaseOrder {
         // predates this field; each entry's amount gets the same NUMERIC-comes-back-as-string
         // coercion as the PO's own totals above.
         payments: (po.payments ?? []).map((payment) => ({ ...payment, amount: Number(payment.amount) })),
+        customFields: extractCustomFields(po as unknown as Record<string, unknown>),
     };
 }
 

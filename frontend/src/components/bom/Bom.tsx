@@ -30,6 +30,7 @@ import FilterBar, { type FilterField } from '../../common/commonComponents/filte
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
 import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
+import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
@@ -42,6 +43,8 @@ import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
 import { getBomColumns, getBomItemColumns, type BomItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
+import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
+import { useFieldLabels } from '../../common/commonFunctions/useFieldLabels';
 import { downloadBomPdf, printBomPdf } from '../../common/commonFunctions/bomPdf';
 import './Bom.css';
 
@@ -55,6 +58,7 @@ interface BomForm {
     outputQty: number;
     unit: string;
     status: 'Process' | 'Completed';
+    customFields: Record<string, unknown>;
 }
 
 // Category is still captured (auto-derived from the selected Product) and Version stays
@@ -75,6 +79,7 @@ const emptyForm: BomForm = {
     outputQty: 1,
     unit: 'PCS',
     status: 'Process',
+    customFields: {},
 };
 
 const Bom = () => {
@@ -134,6 +139,7 @@ const Bom = () => {
             outputQty: bom.outputQty,
             unit: bom.unit,
             status: bom.status,
+            customFields: bom.customFields ?? {},
         });
         setItems(rowsFromItems(bom.items));
         setStockErrors([]);
@@ -190,6 +196,7 @@ const Bom = () => {
                 remarks,
             })),
             createdBy: 'Admin User',
+            customFields: form.customFields,
         };
 
         try {
@@ -261,7 +268,9 @@ const Bom = () => {
         { label: 'Download', icon: <FaRegFilePdf />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
     ];
 
-    const columns = getBomColumns(dateFormat, openEditDialog);
+    const customFieldColumns = useCustomFieldColumns<BomType>('bom');
+    const { label: fieldLabel } = useFieldLabels('bom');
+    const columns = [...getBomColumns(dateFormat, openEditDialog, fieldLabel), ...customFieldColumns];
 
     // Forces the Print/Download popup to always open below the trigger icon. PrimeReact's
     // own alignOverlay logic auto-flips the menu above the target when there isn't enough
@@ -386,11 +395,11 @@ const Bom = () => {
                         <h3 className="bom-form-section-title">Basic Information</h3>
                         <div className="bom-dialog-grid">
                             <div className="form-field">
-                                <label>BOM Code</label>
+                                <label>{fieldLabel('bomCode', 'BOM Code')}</label>
                                 <InputText value={editingId ? editingBomCode : (previewBomCode || 'Generating...')} disabled />
                             </div>
                             <div className="form-field">
-                                <label>Product *</label>
+                                <label>{fieldLabel('productName', 'Product')} *</label>
                                 <Dropdown
                                     value={form.productSku || DEFAULT_DATA_TYPE_VALUE.NULL}
                                     onChange={(e) => {
@@ -423,11 +432,11 @@ const Bom = () => {
                                 />
                             </div>
                             <div className="form-field">
-                                <label>Output Qty</label>
+                                <label>{fieldLabel('outputQty', 'Output Qty')}</label>
                                 <InputNumber value={form.outputQty} onValueChange={(e) => setForm({ ...form, outputQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} min={0} />
                             </div>
                             <div className="form-field">
-                                <label>Unit</label>
+                                <label>{fieldLabel('unit', 'Unit')}</label>
                                 <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                             </div>
                         </div>
@@ -436,7 +445,7 @@ const Bom = () => {
                     <div className="bom-form-section">
                         <div className="bom-items-header">
                             <div>
-                                <h3 className="bom-form-section-title">Components</h3>
+                                <h3 className="bom-form-section-title">{fieldLabel('items', 'Components')}</h3>
                                 <span className="bom-items-subtitle">Finished SKUs required to produce {form.outputQty || 0} {form.unit} of this product - Qty Needed scales automatically.</span>
                             </div>
                         </div>
@@ -456,6 +465,12 @@ const Bom = () => {
                             emptyMessage="No components added yet."
                         />
                     </div>
+
+                    <CustomFieldsSection
+                        entityKey="bom"
+                        values={form.customFields}
+                        onChange={(columnName, value) => setForm((prev) => ({ ...prev, customFields: { ...prev.customFields, [columnName]: value } }))}
+                    />
                 </div>
             </Dialog>
 

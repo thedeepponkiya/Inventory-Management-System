@@ -23,6 +23,7 @@ import { useSourcesQuery } from '../hooks/useSourcesQuery';
 import { useAssignableUsersQuery } from '../hooks/useLeadsQuery';
 import { getNextLeadCode } from '../api/leads.api';
 import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
+import CustomFieldsSection from '../../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import './LeadFormDialog.css';
 
 const emptyForm: CrmLeadPayload = {
@@ -66,6 +67,7 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
     const { data: users = [] } = useAssignableUsersQuery();
     const [previewLeadCode, setPreviewLeadCode] = useState('');
     const [notes, setNotes] = useState('');
+    const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
     const { control, handleSubmit, reset, formState: { errors } } = useForm<CrmLeadPayload>({ defaultValues: emptyForm });
 
@@ -97,17 +99,23 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
                 priority: editing.priority,
                 isStarred: editing.isStarred,
             });
+            // One-time sync of local (non-react-hook-form) customFields state whenever the
+            // dialog opens for a given lead - same "sync on open" pattern as reset() above,
+            // just for the one field react-hook-form doesn't own.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setCustomFields(editing.customFields ?? {});
         } else {
             // Default to the passed-in column's stage (when opened from the Kanban board),
             // otherwise the lowest-sortOrder stage ("New Lead") as a UX nicety - stageId
             // stays nullable in the schema regardless.
             const fallbackStageId = stages.length > 0 ? [...stages].sort((a, b) => a.sortOrder - b.sortOrder)[0].id : null;
             reset({ ...emptyForm, stageId: defaultStageId ?? fallbackStageId });
+            setCustomFields({});
             getNextLeadCode().then(setPreviewLeadCode).catch(() => setPreviewLeadCode(''));
         }
     }, [visible, editing, stages, reset, defaultStageId]);
 
-    const submit = handleSubmit((payload) => onSave(payload, notes.trim()));
+    const submit = handleSubmit((payload) => onSave({ ...payload, customFields }, notes.trim()));
 
     return (
         <Dialog
@@ -316,6 +324,12 @@ const LeadFormDialog = ({ visible, editing, onHide, onSave, defaultStageId }: Le
                         <span className="lead-form-helper">Add any additional notes or details about this lead</span>
                     </div>
                 </div>
+
+                <CustomFieldsSection
+                    entityKey="crmLead"
+                    values={customFields}
+                    onChange={(columnName, value) => setCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                />
             </div>
         </Dialog>
     );

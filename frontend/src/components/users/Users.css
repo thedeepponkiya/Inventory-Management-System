@@ -166,6 +166,7 @@
    explicit width, plus stretching the inner wrapper and input, fixes it without that trade-off. */
 .user-form-password.p-password {
     width: 100%;
+    position: relative;
 }
 
 .user-form-password .p-icon-field {
@@ -175,17 +176,31 @@
 .user-form-password .p-password-input {
     width: 100%;
     padding-left: 34px;
+    /* Room on the right so typed text never runs under the show/hide icon pinned below. */
+    padding-right: 34px;
 }
 
-/* The theme centers this eye toggle icon via `top: 50%; margin-top: -0.5rem`, which assumes
-   a fixed ~1rem icon height - a mismatch with its actual rendered size here throws off the
-   centering. translate(-50%) self-adjusts to the icon's real height instead of guessing it. */
+/* PrimeReact's Password (with toggleMask) renders its eye icon through IconField/InputIcon
+   internals (`.p-icon-field.p-icon-field-right` > `.p-input-icon` span > the actual svg).
+   Lara's own `.p-icon-field > .p-input-icon { top: 50%; margin-top: -0.5rem }` (see
+   lara-*-blue/theme.css) assumes that span is exactly 16px tall to match the icon inside it,
+   but a bare <span> takes its height from the ambient line-height instead (renders ~24px
+   here), undershooting the centering by a few px. Pinning the height to the icon's real size
+   fixes Lara's own math, and flexbox centers the icon within it without depending on inline
+   vertical-align/baseline metrics. Matching the theme's own selector shape (down to
+   :last-of-type) keeps `right`/`color` at equal-or-higher specificity so they reliably win
+   regardless of stylesheet order. */
 .user-form-password .p-input-icon {
-    top: 50%;
-    margin-top: 0;
-    transform: translateY(-50%);
     display: flex;
     align-items: center;
+    justify-content: center;
+    height: 16px;
+}
+
+.user-form-password .p-icon-field-right > .p-input-icon:last-of-type {
+    right: 12px;
+    color: var(--text-subtle);
+    cursor: pointer;
 }
 
 .user-form-dropdown {

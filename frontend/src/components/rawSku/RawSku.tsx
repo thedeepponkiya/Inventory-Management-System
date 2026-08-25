@@ -33,6 +33,7 @@ interface RawSkuForm {
     productTypeId: number | null;
     locationId: number | null;
     unit: string;
+    material: string;
     minStock: number;
     maxStock: number;
     reorderLevel: number;
@@ -49,6 +50,7 @@ const emptyForm: RawSkuForm = {
     productTypeId: DEFAULT_DATA_TYPE_VALUE.NULL,
     locationId: DEFAULT_DATA_TYPE_VALUE.NULL,
     unit: 'PCS',
+    material: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     minStock: DEFAULT_DATA_TYPE_VALUE.ZERO,
     maxStock: DEFAULT_DATA_TYPE_VALUE.ZERO,
     reorderLevel: DEFAULT_DATA_TYPE_VALUE.ZERO,
@@ -151,6 +153,7 @@ const RawSku = () => {
             productTypeId: sku.productTypeId,
             locationId: sku.locationId,
             unit: sku.unit,
+            material: sku.material ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
             minStock: sku.minStock,
             maxStock: sku.maxStock,
             reorderLevel: sku.reorderLevel,
@@ -177,6 +180,7 @@ const RawSku = () => {
             productTypeId: form.productTypeId,
             locationId: form.locationId,
             unit: form.unit,
+            material: form.material || DEFAULT_DATA_TYPE_VALUE.NULL,
             // These are no longer surfaced in the UI (see RawSku.tsx history) - inertly
             // default them since RawSkuPayload still requires them and no automation reads
             // any of these fields today (same Tier-1 scoping as when they were first added).
@@ -330,6 +334,10 @@ const RawSku = () => {
                             <div className="form-field">
                                 <label>Unit</label>
                                 <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
+                            </div>
+                            <div className="form-field">
+                                <label>Material</label>
+                                <InputText value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} placeholder="e.g. Cotton, Steel, Plastic" />
                             </div>
                             <div className="form-field">
                                 <label>Location</label>
