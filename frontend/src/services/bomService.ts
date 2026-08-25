@@ -26,6 +26,11 @@ export interface Bom {
     createdBy: string | null;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on ims_bom right now (see
+    // customField.service.js) - the backend returns them as flat top-level keys (a plain
+    // `SELECT *`), normalizeBom below nests them here so callers never need to know which
+    // custom fields exist to type against them.
+    customFields: Record<string, unknown>;
 }
 
 export interface BomPayload {
@@ -41,6 +46,8 @@ export interface BomPayload {
     status: 'Process' | 'Completed';
     items: BomItem[];
     createdBy: string;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 interface ApiResponse<T> {
@@ -61,6 +68,14 @@ async function parseResponse<T>(response: Response): Promise<T> {
 // every other table this session) - coerce right after the fetch so every consumer gets
 // real numbers instead of risking string-concatenation bugs in scaled-quantity math.
 function normalizeBom(bom: Bom): Bom {
+    // Any "cf_*" key the backend's flat SELECT * included - pulled out into their own object
+    // (see the Bom interface's customFields comment) rather than left scattered as top-level
+    // properties nothing here declares a type for.
+    const customFields: Record<string, unknown> = {};
+    const raw = bom as unknown as Record<string, unknown>;
+    for (const key of Object.keys(raw)) {
+        if (key.startsWith('cf_')) customFields[key] = raw[key];
+    }
     return {
         ...bom,
         outputQty: Number(bom.outputQty),
@@ -69,6 +84,7 @@ function normalizeBom(bom: Bom): Bom {
             ...item,
             requiredQty: Number(item.requiredQty),
         })),
+        customFields,
     };
 }
 

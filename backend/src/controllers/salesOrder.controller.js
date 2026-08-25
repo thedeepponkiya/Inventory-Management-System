@@ -7,6 +7,7 @@ const InventoryModel = require('../models/inventory.model');
 const InvoiceModel = require('../models/invoice.model');
 const { createInvoiceFromSalesOrder } = require('./invoice.controller');
 const { computeOrderTotals, derivePaymentStatus } = require('../utils/orderTotals');
+const CustomFieldService = require('../services/customField.service');
 
 // Dispatch (below) tracks ship quantity per line keyed by skuId, both in this controller's
 // own shipMap and in the frontend's dispatch dialog - two lines sharing a SKU would silently
@@ -89,7 +90,9 @@ async function createSalesOrder(req, res) {
     };
 
     const created = await SalesOrderModel.create(soNo, fields);
-    res.status(201).json({ status: true, message: 'Sales order created successfully', data: created });
+    await CustomFieldService.saveValues('salesOrder', created.id, req.body.customFields);
+    const withCustomFields = await SalesOrderModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Sales order created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -139,8 +142,10 @@ async function updateSalesOrder(req, res) {
       createdBy: body.createdBy ?? existing.createdBy,
     };
 
-    const updated = await SalesOrderModel.update(id, fields);
-    res.json({ status: true, message: 'Sales order updated successfully', data: updated });
+    await SalesOrderModel.update(id, fields);
+    await CustomFieldService.saveValues('salesOrder', id, body.customFields);
+    const withCustomFields = await SalesOrderModel.findById(id);
+    res.json({ status: true, message: 'Sales order updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

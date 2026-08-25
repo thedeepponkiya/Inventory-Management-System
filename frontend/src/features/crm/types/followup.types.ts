@@ -13,6 +13,9 @@ export interface CrmFollowup {
     createdByName: string | null;
     createdAt: string;
     updatedAt: string;
+    // Populated from whatever "cf_*" columns exist on crm_followups right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface CrmFollowupPayload {
@@ -20,4 +23,6 @@ export interface CrmFollowupPayload {
     dueAt: string;
     type: CrmFollowupType;
     notes: string | null;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }

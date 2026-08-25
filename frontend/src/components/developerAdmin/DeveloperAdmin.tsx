@@ -30,6 +30,7 @@ import VisibilitySettingsPanel, { type VisibilitySettingsPanelHandle } from '../
 import DatabaseResetPanel from '../../common/commonComponents/databaseResetPanel/DatabaseResetPanel';
 import DatabaseUpdatePanel from '../../common/commonComponents/databaseUpdatePanel/DatabaseUpdatePanel';
 import RolePermissionsPanel from '../../common/commonComponents/rolePermissionsPanel/RolePermissionsPanel';
+import CustomFieldsPanel from '../../common/commonComponents/customFieldsPanel/CustomFieldsPanel';
 import './DeveloperAdmin.css';
 
 const devAdminMenu = [
@@ -116,6 +117,10 @@ const DeveloperAdmin = () => {
                 ) : activeSection === 'role-permissions' ? (
                     <div className="developer-admin-content developer-admin-content--panel">
                         <RolePermissionsPanel onSaved={fetchRolePermissions} />
+                    </div>
+                ) : activeSection === 'custom-fields' ? (
+                    <div className="developer-admin-content developer-admin-content--panel">
+                        <CustomFieldsPanel />
                     </div>
                 ) : activeSection === 'database-settings' ? (
                     <div className="developer-admin-content developer-admin-content--panel">

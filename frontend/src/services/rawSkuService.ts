@@ -20,6 +20,7 @@ export interface RawSku {
     sourceType: SourceType;
     rawMaterialId: number | null;
     rawMaterialName: string | null;
+    material: string | null;
     minStock: number;
     maxStock: number;
     reorderLevel: number;
@@ -46,6 +47,7 @@ export interface RawSkuPayload {
     inventoryEntryMode: InventoryEntryMode;
     sourceType: SourceType;
     rawMaterialId: number | null;
+    material: string | null;
     minStock: number;
     maxStock: number;
     reorderLevel: number;

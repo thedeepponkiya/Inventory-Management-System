@@ -414,6 +414,7 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
         hideOnMobile: true,
     },
     { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
+    { field: 'material', header: 'Material', fieldType: 'text', hideOnMobile: true },
     { field: 'locationName', header: 'Location', fieldType: 'text', hideOnMobile: true },
     { field: 'reorderLevel', header: 'Reorder Level', fieldType: 'text', hideOnMobile: true },
     { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
@@ -987,10 +988,18 @@ export const getSalesOrderItemColumns = (items: SalesOrderItemRow[], inventories
 // the dedicated Complete/Revert actions in Bom.tsx (real stock-deduction side effects, so
 // it's deliberately not a one-click switch). Completed is terminal - Sales Order owns the
 // "shipped to customer" concept now, not this Order lifecycle.
-export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: Bom) => void): ColumnConfig<Bom>[] => [
+// `getLabel` resolves a column's header through Developer Admin's built-in-field label
+// overrides (see useFieldLabels.ts) - defaults to the hardcoded string here when the caller
+// doesn't pass one (or hasn't wired this form up to the label-override feature yet), so every
+// existing call site keeps working unchanged.
+export const getBomColumns = (
+    dateFormat: DateFormatOption,
+    onEditClick?: (bom: Bom) => void,
+    getLabel: (fieldKey: string, defaultLabel: string) => string = (_key, defaultLabel) => defaultLabel
+): ColumnConfig<Bom>[] => [
     {
         field: 'bomCode',
-        header: 'BOM Code',
+        header: getLabel('bomCode', 'BOM Code'),
         fieldType: 'text',
         // Only clickable while Process - editing a Completed order (stock already moved) is
         // blocked the same way the old pencil icon was hidden (see Bom.tsx's action column).
@@ -1000,19 +1009,19 @@ export const getBomColumns = (dateFormat: DateFormatOption, onEditClick?: (bom: 
     },
     {
         field: 'productName',
-        header: 'Product Name',
+        header: getLabel('productName', 'Product Name'),
         fieldType: 'text',
         // Same Process-only click-to-edit rule as the BOM Code column above.
         body: (row) => (row.status === 'Process'
             ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>
             : <span>{row.productName}</span>),
     },
-    { field: 'productSku', header: 'Product SKU', fieldType: 'text', hideOnMobile: true },
-    { field: 'outputQty', header: 'Output Qty', fieldType: 'text', hideOnMobile: true },
-    { field: 'unit', header: 'Unit', fieldType: 'text', hideOnMobile: true },
-    { field: 'items', header: 'Components', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
-    { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
-    { field: 'status', header: 'Status', fieldType: 'status', options: { variantMap: { Process: 'info', Completed: 'success' } }, filterType: 'dropdown', filterOptions: ['Process', 'Completed'] },
+    { field: 'productSku', header: getLabel('productSku', 'Product SKU'), fieldType: 'text', hideOnMobile: true },
+    { field: 'outputQty', header: getLabel('outputQty', 'Output Qty'), fieldType: 'text', hideOnMobile: true },
+    { field: 'unit', header: getLabel('unit', 'Unit'), fieldType: 'text', hideOnMobile: true },
+    { field: 'items', header: getLabel('items', 'Components'), filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
+    { field: 'createdAt', header: getLabel('createdAt', 'Created Date'), fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+    { field: 'status', header: getLabel('status', 'Status'), fieldType: 'status', options: { variantMap: { Process: 'info', Completed: 'success' } }, filterType: 'dropdown', filterOptions: ['Process', 'Completed'] },
 ];
 
 export interface BomItemRow extends BomItem {

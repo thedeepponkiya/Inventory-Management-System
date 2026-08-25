@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const InventoryModel = require('../models/inventory.model');
 const { deleteAllImages, deleteRemovedImages } = require('../utils/imageCleanup.util');
+const CustomFieldService = require('../services/customField.service');
 
 async function getInventories(req, res) {
   try {
@@ -59,7 +60,9 @@ async function createInventory(req, res) {
     };
 
     const created = await InventoryModel.create(skuId, fields);
-    res.status(201).json({ status: true, message: 'Inventory item created successfully', data: created });
+    await CustomFieldService.saveValues('inventory', created.id, req.body.customFields);
+    const withCustomFields = await InventoryModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Inventory item created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -97,9 +100,11 @@ async function updateInventory(req, res) {
       openingStock: body.openingStock ?? existing.openingStock,
     };
 
-    const updated = await InventoryModel.update(id, fields);
+    await InventoryModel.update(id, fields);
     deleteRemovedImages(existing.images, fields.images);
-    res.json({ status: true, message: 'Inventory item updated successfully', data: updated });
+    await CustomFieldService.saveValues('inventory', id, req.body.customFields);
+    const withCustomFields = await InventoryModel.findById(id);
+    res.json({ status: true, message: 'Inventory item updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

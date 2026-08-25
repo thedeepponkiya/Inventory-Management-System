@@ -1,5 +1,6 @@
 import crmAxiosClient from './crmAxiosClient';
 import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
+import { extractCustomFields } from '../../../services/customFieldService';
 
 interface ApiResponse<T> {
     status: boolean;
@@ -11,7 +12,7 @@ interface ApiResponse<T> {
 // coercion every other service in this app already applies for its own NUMERIC columns
 // (e.g. rawSkuService.ts, purchaseOrderService.ts).
 function normalizeLead(lead: CrmLead): CrmLead {
-    return { ...lead, value: Number(lead.value) };
+    return { ...lead, value: Number(lead.value), customFields: extractCustomFields(lead as unknown as Record<string, unknown>) };
 }
 
 export async function getLeads(): Promise<CrmLead[]> {

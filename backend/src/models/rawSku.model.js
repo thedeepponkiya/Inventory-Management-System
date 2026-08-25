@@ -47,8 +47,8 @@ async function create(skuCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
       "skuCode", "skuName", "categoryId", "productTypeId", "locationId", unit, "inventoryEntryMode", "sourceType", "rawMaterialId",
-      "minStock", "maxStock", "reorderLevel", "openingStock", "currentStock", description, status, "createdBy", images
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      "minStock", "maxStock", "reorderLevel", "openingStock", "currentStock", description, status, "createdBy", images, material
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *`,
     [
       skuCode,
@@ -69,6 +69,7 @@ async function create(skuCode, fields) {
       fields.status,
       fields.createdBy,
       JSON.stringify(fields.images),
+      fields.material,
     ]
   );
   return findById(result.rows[0].id);
@@ -79,8 +80,8 @@ async function update(id, fields) {
     `UPDATE ${TABLE} SET
       "skuName" = $1, "categoryId" = $2, "productTypeId" = $3, "locationId" = $4, unit = $5, "inventoryEntryMode" = $6, "sourceType" = $7,
       "rawMaterialId" = $8, "minStock" = $9, "maxStock" = $10, "reorderLevel" = $11, "openingStock" = $12,
-      "currentStock" = COALESCE($13, "currentStock"), description = $14, status = $15, "createdBy" = $16, images = $17, "updatedAt" = now()
-    WHERE id = $18
+      "currentStock" = COALESCE($13, "currentStock"), description = $14, status = $15, "createdBy" = $16, images = $17, material = $18, "updatedAt" = now()
+    WHERE id = $19
     RETURNING *`,
     [
       fields.skuName,
@@ -100,6 +101,7 @@ async function update(id, fields) {
       fields.status,
       fields.createdBy,
       JSON.stringify(fields.images),
+      fields.material,
       id,
     ]
   );

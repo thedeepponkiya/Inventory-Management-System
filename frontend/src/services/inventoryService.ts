@@ -1,5 +1,6 @@
 import { authFetch } from './httpClient';
 import { API_BASE_URL } from './apiConfig';
+import { extractCustomFields } from './customFieldService';
 
 export interface AssemblyLine {
     skuCode: string;
@@ -27,6 +28,9 @@ export interface InventoryItem {
     minStock: number;
     maxStock: number;
     openingStock: number;
+    // Populated from whatever "cf_*" columns exist on ims_inventories right now - see
+    // bomService.ts's identical Bom.customFields comment for the full explanation.
+    customFields: Record<string, unknown>;
 }
 
 export interface InventoryPayload {
@@ -49,6 +53,8 @@ export interface InventoryPayload {
     minStock: number;
     maxStock: number;
     openingStock: number;
+    // Keyed by columnName (e.g. "cf_warrantyPeriod") - see CustomFieldsSection.tsx.
+    customFields?: Record<string, unknown>;
 }
 
 interface ApiResponse<T> {
@@ -78,6 +84,7 @@ function normalizeInventoryItem(item: InventoryItem): InventoryItem {
         maxStock: Number(item.maxStock),
         openingStock: Number(item.openingStock),
         assembly: item.assembly.map((line) => ({ ...line, quantity: Number(line.quantity) })),
+        customFields: extractCustomFields(item as unknown as Record<string, unknown>),
     };
 }
 

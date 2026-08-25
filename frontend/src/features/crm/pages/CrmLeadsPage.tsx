@@ -36,6 +36,7 @@ import { LeadKanbanCardOverlay } from '../components/LeadKanbanCard';
 import { crmQuickActions } from '../crmQuickActions';
 import { PERIOD_OPTIONS, getPeriodRange } from '../utils/period';
 import type { CrmLead, CrmLeadPayload } from '../types/lead.types';
+import { useCustomFieldColumns } from '../../../common/commonFunctions/useCustomFieldColumns';
 import './CrmLeadsPage.css';
 
 const emptyFilters = { search: '', sourceId: null, assignedTo: null, period: null };
@@ -288,6 +289,7 @@ const CrmLeadsPage = () => {
     // own delete button / quick-action links / edit-on-click.
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+    const customFieldColumns = useCustomFieldColumns<CrmLead>('crmLead');
     const columns: ColumnConfig<CrmLead>[] = [
         { field: 'leadCode', header: 'Lead Code', body: (row) => <span className="common-table-id-link" onClick={() => openDrawer(row)}>#{row.leadCode}</span> },
         { field: 'name', header: 'Name', body: (row) => <span className="common-table-id-link" onClick={() => openDrawer(row)}>{row.name}</span> },
@@ -332,6 +334,7 @@ const CrmLeadsPage = () => {
             filterOptions: ['Active', 'Archived'],
             body: (row) => <StatusBadge label={row.status} variant={row.status === 'Active' ? 'success' : 'neutral'} />,
         },
+        ...customFieldColumns,
     ];
 
     const actionTemplate = (row: CrmLead) => (

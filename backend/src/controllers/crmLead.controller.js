@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const { isCrmAdmin, canEditLead, leadScopeUserId } = require('../utils/crmPermissions.util');
 const CrmLeadModel = require('../models/crmLead.model');
+const CustomFieldService = require('../services/customField.service');
 
 const VALID_STATUSES = ['Active', 'Archived'];
 const VALID_PRIORITIES = ['High', 'Medium', 'Low'];
@@ -60,7 +61,9 @@ async function createLead(req, res) {
       isStarred: req.body.isStarred ?? false,
       sortOrder,
     });
-    res.status(201).json({ status: true, message: 'Lead created successfully', data: created });
+    await CustomFieldService.saveValues('crmLead', created.id, req.body.customFields);
+    const withCustomFields = await CrmLeadModel.findById(created.id);
+    res.status(201).json({ status: true, message: 'Lead created successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }
@@ -89,7 +92,7 @@ async function updateLead(req, res) {
     // submission can legitimately send an explicit `null` to clear a showClear dropdown,
     // which `??` would otherwise silently discard by falling back to the existing value.
     // Fields never explicitly nulled by the UI keep `??`.
-    const updated = await CrmLeadModel.update(id, {
+    await CrmLeadModel.update(id, {
       name: body.name ?? existing.name,
       phone: body.phone ?? existing.phone,
       email: body.email ?? existing.email,
@@ -102,7 +105,9 @@ async function updateLead(req, res) {
       priority: body.priority ?? existing.priority,
       isStarred: body.isStarred ?? existing.isStarred,
     });
-    res.json({ status: true, message: 'Lead updated successfully', data: updated });
+    await CustomFieldService.saveValues('crmLead', id, body.customFields);
+    const withCustomFields = await CrmLeadModel.findById(id);
+    res.json({ status: true, message: 'Lead updated successfully', data: withCustomFields });
   } catch (err) {
     sendServerError(res, err);
   }

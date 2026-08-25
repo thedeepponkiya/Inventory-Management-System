@@ -1,0 +1,58 @@
+.custom-fields-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    margin-top: 4px;
+    border-top: 1px dashed var(--border-default);
+}
+
+.custom-fields-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+}
+
+.custom-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.custom-fields-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.custom-fields-field--checkbox {
+    justify-content: flex-end;
+}
+
+.custom-fields-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.custom-fields-required {
+    color: var(--accent-danger-text);
+    margin-left: 2px;
+}
+
+.custom-fields-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .custom-fields-grid {
+        grid-template-columns: 1fr;
+    }
+}
