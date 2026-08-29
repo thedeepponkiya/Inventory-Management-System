@@ -4,7 +4,7 @@ const pool = require('../config/db');
 
 const SCHEMA_PATH = path.join(__dirname, '../db/schema.sql');
 
-// Regex-extracted (not a real SQL parser) - schema.sql only ever uses these six DDL shapes,
+// Regex-extracted (not a real SQL parser) - schema.sql only ever uses these seven DDL shapes,
 // each on a single logical statement, so this is reliable for this one file without pulling
 // in a full SQL parser dependency. See schema.sql's own house style for why every one of
 // these is written IF [NOT] EXISTS in the first place (idempotent, safe to re-run).
@@ -15,6 +15,12 @@ const PATTERNS = {
     dropColumn: /ALTER TABLE\s+"?(\w+)"?\s+DROP COLUMN IF EXISTS\s+"?(\w+)"?/gi,
     renameColumn: /ALTER TABLE\s+"?(\w+)"?\s+RENAME COLUMN\s+"?(\w+)"?\s+TO\s+"?(\w+)"?/gi,
     newIndex: /CREATE (?:UNIQUE )?INDEX IF NOT EXISTS\s+"?(\w+)"?\s+ON\s+"?(\w+)"?/gi,
+    // Not idempotent-guarded like the others (Postgres has no "DROP NOT NULL IF EXISTS") - safe
+    // to re-run anyway since dropping a constraint that's already dropped is a no-op, not an
+    // error. Purely additive in effect (a column that used to require a value no longer does,
+    // nothing existing is touched) - see ims_bom's own migration comment in schema.sql for the
+    // motivating case (a BOM item no longer has one shared Output Product of its own).
+    dropNotNull: /ALTER TABLE\s+"?(\w+)"?\s+ALTER COLUMN\s+"?(\w+)"?\s+DROP NOT NULL/gi,
 };
 
 async function tableExists(tableName) {
@@ -28,6 +34,17 @@ async function columnExists(tableName, columnName) {
         [tableName, columnName]
     );
     return result.rowCount > 0;
+}
+
+// True if the column exists AND is currently NOT NULL - a column schema.sql wants to drop the
+// constraint from, but that's already nullable (or doesn't exist) on this database, is not a
+// pending change.
+async function columnIsNotNull(tableName, columnName) {
+    const result = await pool.query(
+        `SELECT is_nullable FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+        [tableName, columnName]
+    );
+    return result.rowCount > 0 && result.rows[0].is_nullable === 'NO';
 }
 
 // Diffs schema.sql against the live database WITHOUT applying anything - pure information_schema
@@ -105,11 +122,22 @@ async function getPendingSchemaChanges() {
         }
     }
 
+    const pendingNullableColumns = [];
+    for (const m of sql.matchAll(PATTERNS.dropNotNull)) {
+        const [, table, column] = m;
+        if (pendingNewTableSet.has(table)) continue;
+        // eslint-disable-next-line no-await-in-loop
+        if (await columnIsNotNull(table, column)) {
+            pendingNullableColumns.push({ table, column });
+        }
+    }
+
     return {
         newTables: pendingNewTables,
         droppedTables: pendingDroppedTables,
         newColumns: pendingNewColumns,
         removedColumns: pendingRemovedColumns,
+        nullableColumns: pendingNullableColumns,
         renamedColumns: pendingRenamedColumns,
         newIndexes: pendingNewIndexes,
     };

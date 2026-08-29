@@ -454,16 +454,14 @@ ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "openingStock" NUMERIC NOT 
 -- reporting needs both, not just one overwriting the other.
 ALTER TABLE ims_inventories ADD COLUMN IF NOT EXISTS "sellingCost" NUMERIC(12,2) NOT NULL DEFAULT 0;
 
--- Bill of Materials, backing /api/v1/boms CRUD.
--- "productSku"/"productName"/"categoryName" are stored directly (denormalized strings set
--- by the frontend when a finished-good Product is picked from Inventory Home), same
--- "schema was specified that way" approach already used by ims_material_inward's
--- vendorName/purchaseOrderNo and ims_inventories' own categoryName/locationName.
--- "items" is a JSONB array of raw-material lines, each shaped like:
--- { rawSkuCode, rawSkuName, requiredQty, unit, remarks }
--- The scaled "quantity needed" for a given production run (requiredQty * outputQty) is
--- computed client-side from "items" + "outputQty" and never persisted - same trust model
--- as every other computed total in this app.
+-- Bill of Materials, backing /api/v1/boms CRUD. A BOM is just a code plus a list of Inventory
+-- items to produce - see the migration block below (after the old Active/Inactive/Dispatch
+-- status history) for how this evolved away from a single shared "Output Product" per BOM.
+-- "items" is a JSONB array of lines, each shaped like:
+-- { skuId, productName, requiredQty, unit, remarks, status } - skuId matches
+-- ims_inventories.skuId, requiredQty is the absolute quantity of that Inventory item to
+-- produce, and status ('Pending' | 'Completed') tracks that one line's own completion
+-- independently of every other line in the same BOM.
 CREATE TABLE IF NOT EXISTS ims_bom (
     id SERIAL PRIMARY KEY,
     "bomCode" VARCHAR(50) NOT NULL UNIQUE,
@@ -511,6 +509,25 @@ FROM (
 ) sub
 WHERE inv."skuId" = sub."productSku";
 UPDATE ims_bom SET status = 'Completed' WHERE status = 'Dispatch';
+
+-- BOM dropped the single "Output Product" concept entirely - there is no longer one product
+-- this whole BOM produces with one shared Output Qty. Instead each line in "items" is itself
+-- an Inventory item to be produced, completed independently (see bom.controller.js's
+-- completeBomItem/revertBomItem): completing a line deducts that Inventory item's own
+-- Finished SKU assembly (ims_inventories.assembly, scaled by that line's own requiredQty)
+-- from ims_raw_sku."currentStock", and credits requiredQty onto that same Inventory item's
+-- own quantity - the "component consumes to produce something else" model is gone, replaced
+-- by "each line is its own producible target". "status" is now derived server-side from the
+-- items' own per-line status (added to each item object: 'Pending' | 'Completed') every time
+-- items change - Process (none completed) / "Partially Completed" (some) / Completed (all).
+-- "outputQty"/"reversedQty" (the old whole-BOM batch-size and partial-revert-tracking
+-- columns) and "productSku"/"productName"/"categoryName" (the old single output product)
+-- are no longer written by the app - left in place (nullable) rather than dropped, since
+-- existing rows still have real values in them and nothing here needs a hard migration.
+ALTER TABLE ims_bom ALTER COLUMN "productSku" DROP NOT NULL;
+ALTER TABLE ims_bom ALTER COLUMN "productName" DROP NOT NULL;
+ALTER TABLE ims_bom ALTER COLUMN "outputQty" DROP NOT NULL;
+ALTER TABLE ims_bom ALTER COLUMN unit DROP NOT NULL;
 
 -- =====================================================================
 -- CRM module (crm_*) - Module 1: full schema defined up front since all

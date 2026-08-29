@@ -13,34 +13,25 @@ import {
     HiOutlineCheckCircle,
     HiOutlinePrinter,
     HiOutlineTrash,
-    HiOutlineArrowUturnLeft,
-    HiOutlineExclamationTriangle,
-    HiOutlineCheckBadge,
+    HiOutlinePencilSquare,
     HiOutlineArrowPath,
-    HiCube,
-    HiOutlineClipboardDocumentList,
-    HiOutlineXCircle,
-    HiOutlineChevronUp,
-    HiOutlineChevronDown,
     HiOutlineSquare3Stack3D,
-    HiOutlineDocumentText,
+    HiOutlineXCircle,
 } from 'react-icons/hi2';
 import { FaRegFilePdf } from 'react-icons/fa6';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
-import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinition';
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
-import { createBom, updateBom, deleteBom, revertBomToProcess, completeBom, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
-import type { InventoryItem } from '../../services/inventoryService';
+import { createBom, updateBom, deleteBom, completeBomItem, revertBomItem, getNextBomCode, type Bom as BomType, type BomItem, type BomPayload } from '../../services/bomService';
+import type { InventoryItem, AssemblyLine } from '../../services/inventoryService';
 import type { RawSku } from '../../services/rawSkuService';
-import type { Unit } from '../../services/unitService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getBomColumns, getBomItemColumns, type BomItemRow } from '../../common/commonFunctions/CommonUtilities';
+import { getBomColumns, getBomItemColumns, getBomItemExpansionColumns, type BomItemRow } from '../../common/commonFunctions/CommonUtilities';
 import { showToast } from '../../common/commonFunctions/commonFunction';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
 import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
@@ -51,39 +42,11 @@ import './Bom.css';
 let nextBomItemRowId = 1;
 const rowsFromItems = (items: BomItem[]): BomItemRow[] => items.map((item) => ({ ...item, rowId: nextBomItemRowId++ }));
 
-interface BomForm {
-    productSku: string;
-    productName: string;
-    categoryName: string | null;
-    outputQty: number;
-    unit: string;
-    status: 'Process' | 'Completed';
-    customFields: Record<string, unknown>;
-}
-
-// Category is still captured (auto-derived from the selected Product) and Version stays
-// fixed at '1.0' - neither is user-editable anymore, but BomPayload still requires them.
+// Version stays fixed at '1.0' - not user-editable, but BomPayload still requires it.
 const BOM_VERSION = '1.0';
 
-interface StockShortfall {
-    name: string;
-    needed: number;
-    available: number;
-    unit: string;
-}
-
-const emptyForm: BomForm = {
-    productSku: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-    productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-    categoryName: DEFAULT_DATA_TYPE_VALUE.NULL,
-    outputQty: 1,
-    unit: 'PCS',
-    status: 'Process',
-    customFields: {},
-};
-
 const Bom = () => {
-    const { boms, bomsLoading, fetchBoms, inventories, fetchInventories, rawSkus, fetchRawSkus, units } = useContext(AppContext);
+    const { boms, bomsLoading, fetchBoms, inventories, fetchInventories, rawSkus, fetchRawSkus } = useContext(AppContext);
     const { companyLogo } = useCompanyLogoContext();
     const { companyName, address } = useCompanySettingsContext();
     const { dateFormat } = useDateFormatContext();
@@ -91,36 +54,45 @@ const Bom = () => {
     const dataTableRef = useRef<DataTableHandle>(null);
     const [filters, setFilters] = useState<Record<string, unknown>>({ search: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING });
     const [panelVisible, setPanelVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
-    const [form, setForm] = useState<BomForm>(emptyForm);
     const [items, setItems] = useState<BomItemRow[]>([]);
+    const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingBomCode, setEditingBomCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewBomCode, setPreviewBomCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-    const [recipeBom, setRecipeBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const [stockErrors, setStockErrors] = useState<StockShortfall[]>([]);
-    const [revertBom, setRevertBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const [revertQty, setRevertQty] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const menuRef = useRef<Menu>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const menuTargetRef = useRef<SVGElement | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [menuBom, setMenuBom] = useState<BomType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    // Add Item row (Items section) - which Inventory item + qty is about to be added as a new
+    // line. Fully separate from anything else in this dialog - a BOM has no single Output
+    // Product of its own anymore for this to double up as (see bomService.ts's Bom comment),
+    // so there's no more reset-after-add confusion the way the old design had.
+    const [componentSkuId, setComponentSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    const [componentQty, setComponentQty] = useState(1);
+    // Set while editing an already-added Pending row (see handleEditComponent) - the Add
+    // Item row's fields double as the edit form too, so this just changes what clicking the
+    // button does (update that one row in place instead of adding/merging a new one) and
+    // what its label says, rather than needing a whole separate edit UI.
+    const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
 
     const filterFields: FilterField[] = [
-        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by BOM code / product name' },
+        { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by BOM code' },
     ];
 
     const filteredBoms = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
         return (boms as BomType[]).filter((bom) => {
-            return !search || bom.bomCode.toLowerCase().includes(search) || bom.productName.toLowerCase().includes(search);
+            return !search || bom.bomCode.toLowerCase().includes(search);
         });
     }, [boms, filters]);
 
     const openAddDialog = async () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setEditingBomCode(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
-        setForm(emptyForm);
         setItems([]);
-        setStockErrors([]);
+        setCustomFields({});
+        setComponentSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setComponentQty(1);
+        setEditingItemRowId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
             setPreviewBomCode(await getNextBomCode());
@@ -132,99 +104,212 @@ const Bom = () => {
     const openEditDialog = (bom: BomType) => {
         setEditingId(bom.id);
         setEditingBomCode(bom.bomCode);
-        setForm({
-            productSku: bom.productSku,
-            productName: bom.productName,
-            categoryName: bom.categoryName,
-            outputQty: bom.outputQty,
-            unit: bom.unit,
-            status: bom.status,
-            customFields: bom.customFields ?? {},
-        });
         setItems(rowsFromItems(bom.items));
-        setStockErrors([]);
+        setCustomFields(bom.customFields ?? {});
+        setComponentSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setComponentQty(1);
+        setEditingItemRowId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
+    // Once a BOM has any item Completed (status is no longer 'Process'), the whole BOM is
+    // locked from further editing here - no renaming the BOM Code, no adding/editing/deleting
+    // ANY item (even a still-Pending one), no custom fields. Production against this BOM has
+    // already started; from this point on the only way to change it is per-item Complete/
+    // Revert from the main list's own expanded row, never this dialog. A brand-new BOM
+    // (editingId null) is never locked.
+    const editingBom = editingId ? (boms as BomType[]).find((bom) => bom.id === editingId) : DEFAULT_DATA_TYPE_VALUE.UNDEFINED;
+    const isBomLocked = Boolean(editingBom && editingBom.status !== 'Process');
+
+    // Only ever called from a Pending row's own delete icon (see itemActionTemplate below) -
+    // a Completed row has no delete icon to click in the first place, so this doesn't need its
+    // own extra guard against removing one. Also backs out of editing that same row, if it
+    // was the one open in the Add Item row above.
+    const removeItem = (rowId: number) => {
+        setItems((prev) => prev.filter((item) => item.rowId !== rowId));
+        if (editingItemRowId === rowId) {
+            setEditingItemRowId(DEFAULT_DATA_TYPE_VALUE.NULL);
+            setComponentSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+            setComponentQty(1);
+        }
+    };
+
+    // Loads an already-added Pending row back into the Add Item row's own fields so its
+    // Item/Qty can be changed - only ever reachable for Pending rows (see itemActionTemplate),
+    // a Completed row must be reverted first (same reasoning as the merge-block below).
+    const handleEditComponent = (row: BomItemRow) => {
+        setEditingItemRowId(row.rowId);
+        setComponentSkuId(row.skuId);
+        setComponentQty(row.requiredQty);
+    };
+
+    const handleCancelEditComponent = () => {
+        setEditingItemRowId(DEFAULT_DATA_TYPE_VALUE.NULL);
+        setComponentSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setComponentQty(1);
+    };
+
+    // Add Item row's button does double duty: with no row being edited, it pushes
+    // componentSkuId/componentQty in as a new line (or merges into an existing Pending line
+    // for the same Inventory item, summing requiredQty - same duplicate-merge convention as
+    // Sales Order's Add Item dialog). While editingItemRowId is set (see handleEditComponent),
+    // it instead overwrites that one row in place with whatever's now in the fields. Blocks
+    // touching an already-Completed line outright either way - that represents stock that's
+    // already actually moved, which only revertBomItem should ever be able to undo first.
+    const handleAddComponent = () => {
+        if (!componentSkuId) {
+            showToast(toast, 'error', 'Error', 'Please select an Item');
+            return;
+        }
+        if (!componentQty || componentQty <= 0) {
+            showToast(toast, 'error', 'Error', 'Please enter a valid Qty');
+            return;
+        }
+        if (items.some((item) => item.skuId === componentSkuId && item.status === 'Completed' && item.rowId !== editingItemRowId)) {
+            showToast(toast, 'error', 'Error', 'This item is already Completed in this BOM - revert it first to change its qty');
+            return;
+        }
+
+        const component = (inventories as InventoryItem[]).find((inv) => inv.skuId === componentSkuId);
+
+        if (editingItemRowId !== null) {
+            // Changing which Item this row points at could collide with a DIFFERENT existing
+            // row for that same skuId - rather than silently merging two rows together here,
+            // just block it and ask the user to remove the other row first.
+            if (items.some((item) => item.skuId === componentSkuId && item.rowId !== editingItemRowId)) {
+                showToast(toast, 'error', 'Error', 'This BOM already has a line for that Item - remove it first, or pick a different Item here');
+                return;
+            }
+            setItems((prev) => prev.map((item) =>
+                item.rowId === editingItemRowId
+                    ? { ...item, skuId: componentSkuId, productName: component?.productName ?? item.productName, requiredQty: componentQty, unit: component?.unit ?? item.unit }
+                    : item
+            ));
+            showToast(toast, 'success', 'Updated', 'Item updated');
+        } else {
+            setItems((prev) => {
+                const existing = prev.find((item) => item.skuId === componentSkuId);
+                if (existing) {
+                    return prev.map((item) =>
+                        item.skuId === componentSkuId ? { ...item, requiredQty: item.requiredQty + componentQty } : item
+                    );
+                }
+                return [
+                    ...prev,
+                    {
+                        rowId: nextBomItemRowId++,
+                        skuId: componentSkuId,
+                        productName: component?.productName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                        requiredQty: componentQty,
+                        unit: component?.unit ?? 'PCS',
+                        remarks: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+                        status: 'Pending',
+                    },
+                ];
+            });
+            showToast(toast, 'success', 'Added', 'Item added');
+        }
+
+        setComponentSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+        setComponentQty(1);
+        setEditingItemRowId(DEFAULT_DATA_TYPE_VALUE.NULL);
+    };
+
     const handleSave = async () => {
-        if (!form.productSku) {
-            showToast(toast, 'error', 'Error', 'Please select a Product');
-            return;
-        }
-
         if (items.length === 0) {
-            showToast(toast, 'warn', 'Warning', 'Please add at least one SKU');
+            showToast(toast, 'warn', 'Warning', 'Please add at least one Item');
             return;
         }
 
-        // Blocks saving a BOM that needs more of a Raw SKU than is actually in stock -
-        // dispatching it later would deduct more than is available. Checked against live
-        // rawSkus, not a frozen snapshot, so this stays accurate as stock changes.
+        // Blocks saving a BOM whose still-Pending items would need more of a Raw SKU
+        // than is actually in stock - completing that item later would fail this exact same
+        // check server-side (see bom.controller.js's completeBomItem), so catching it here
+        // gives a clear error immediately instead of only at Complete time. Already-Completed
+        // items are skipped - their Raw SKU stock has already been deducted, so checking
+        // it again against current stock would be meaningless. Just a plain toast (not a
+        // per-item list) - one generic message covers the case fine.
+        //
+        // Summed per Raw SKU code first, same reasoning as completeBomItem's own check -
+        // an Inventory item's assembly can list the same Raw SKU on more than one line
+        // (Inventory Home's Product Assembly tab doesn't dedupe/merge them), so checking each
+        // line independently against the same starting stock could miss a shortage that only
+        // shows up once every line needing that SKU is added together.
+        const inventoryList = inventories as InventoryItem[];
         const rawSkuList = rawSkus as RawSku[];
-        const insufficientItems = items
-            .map((item) => {
-                const sku = rawSkuList.find((s) => s.skuCode === item.rawSkuCode);
-                const needed = item.requiredQty * form.outputQty;
-                return sku && needed > sku.currentStock
-                    ? { name: item.rawSkuName, needed: Number(needed.toFixed(2)), available: sku.currentStock, unit: item.unit }
-                    : null;
-            })
-            .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+        const neededBySkuCode = new Map<string, number>();
+        for (const item of items.filter((i) => i.status === 'Pending')) {
+            const component = inventoryList.find((inv) => inv.skuId === item.skuId);
+            for (const line of component?.assembly ?? []) {
+                const needed = line.quantity * item.requiredQty;
+                neededBySkuCode.set(line.skuCode, (neededBySkuCode.get(line.skuCode) ?? 0) + needed);
+            }
+        }
+        const hasShortage = Array.from(neededBySkuCode.entries()).some(([skuCode, needed]) => {
+            const available = rawSkuList.find((sku) => sku.skuCode === skuCode)?.currentStock ?? 0;
+            return needed > available;
+        });
+        if (hasShortage) {
+            showToast(toast, 'error', 'Error', "Some items don't have enough Raw SKU stock - can't save this BOM");
+            return;
+        }
 
-        setStockErrors(insufficientItems);
-        if (insufficientItems.length > 0) {
+        const bomCode = editingId ? editingBomCode : previewBomCode;
+        if (!bomCode.trim()) {
+            showToast(toast, 'error', 'Error', 'Please enter a BOM Code');
+
             return;
         }
 
         const payload: BomPayload = {
-            // Only sent on create - reuses the code already previewed in this dialog so it
-            // matches what actually gets saved (random codes, unlike the old sequential ones,
-            // would otherwise differ between preview and save if each were generated fresh).
-            ...(editingId ? {} : { bomCode: previewBomCode }),
-            productSku: form.productSku,
-            productName: form.productName,
-            categoryName: form.categoryName,
+            // On create, reuses the code already previewed in this dialog unless the user
+            // edited it. On update, sent as an actual rename - bom.controller.js's updateBom
+            // only re-checks uniqueness when this differs from the BOM's current code.
+            bomCode,
             version: BOM_VERSION,
-            outputQty: form.outputQty,
-            unit: form.unit,
-            status: form.status,
-            items: items.map(({ rawSkuCode, rawSkuName, requiredQty, unit, remarks }) => ({
-                rawSkuCode,
-                rawSkuName,
+            items: items.map(({ skuId, productName, requiredQty, unit, remarks }) => ({
+                skuId,
+                productName,
                 requiredQty,
                 unit,
                 remarks,
             })),
             createdBy: 'Admin User',
-            customFields: form.customFields,
+            customFields,
         };
 
         try {
-            const saved = editingId ? await updateBom(editingId, payload) : await createBom(payload);
+            if (editingId) {
+                await updateBom(editingId, payload);
+            } else {
+                await createBom(payload);
+            }
             showToast(toast, 'success', editingId ? 'Updated' : 'Created', `BOM ${editingId ? 'updated' : 'created'} successfully`);
             fetchBoms();
-            setForm(emptyForm);
             setItems([]);
+            setCustomFields({});
             setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
             setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
-            setRecipeBom(saved);
         } catch (err) {
             showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
         }
     };
 
-    const handleComplete = (bom: BomType) => {
+    // Completes ONE line of a BOM - deducts that Inventory item's own Raw SKU assembly
+    // and credits its own qty onto Inventory (see bom.controller.js's completeBomItem). The
+    // BOM's overall status (Process/Partially Completed/Completed) is recomputed server-side
+    // from every line's own status, not set here.
+    const handleCompleteItem = (bom: BomType, item: BomItem) => {
         confirmDialog({
-            message: `Mark BOM "${bom.bomCode}" as Completed? This deducts the required raw material quantities from stock and adds ${bom.outputQty} ${bom.unit} of "${bom.productName}" into Inventory stock.`,
-            header: 'Mark as Completed',
+            message: `Mark "${item.productName}" as Completed? This deducts its Raw SKU assembly from stock and adds ${item.requiredQty} ${item.unit} into Inventory.`,
+            header: 'Mark Item as Completed',
             icon: 'pi pi-exclamation-triangle',
             accept: async () => {
                 try {
-                    await completeBom(bom.id);
+                    await completeBomItem(bom.id, item.skuId);
                     fetchBoms();
-                    fetchRawSkus();
                     fetchInventories();
-                    showToast(toast, 'success', 'Completed', 'BOM completed - raw material and Inventory stock updated');
+                    fetchRawSkus();
+                    showToast(toast, 'success', 'Completed', `${item.productName} marked as Completed`);
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
                 }
@@ -232,40 +317,28 @@ const Bom = () => {
         });
     };
 
-    // Opens the quantity dialog instead of reverting outright - defaults to the full
-    // un-reversed remainder so a plain "revert everything" still takes one click, but the
-    // user can lower it for a partial reverse.
-    const handleRevertToProcess = (bom: BomType) => {
-        setRevertBom(bom);
-        setRevertQty(bom.outputQty - bom.reversedQty);
-    };
-
-    const submitRevert = async () => {
-        if (!revertBom || !revertQty || revertQty <= 0) return;
-        try {
-            await revertBomToProcess(revertBom.id, revertQty);
-            fetchBoms();
-            fetchRawSkus();
-            fetchInventories();
-            const remaining = revertBom.outputQty - revertBom.reversedQty - revertQty;
-            showToast(
-                toast,
-                'success',
-                'Reverted',
-                remaining > 0
-                    ? `Reversed ${revertQty} ${revertBom.unit} - ${remaining} ${revertBom.unit} still remain Completed`
-                    : 'BOM fully reverted to Process - raw material and Inventory stock restored'
-            );
-            setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL);
-            setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL);
-        } catch (err) {
-            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
-        }
+    const handleRevertItem = (bom: BomType, item: BomItem) => {
+        confirmDialog({
+            message: `Revert "${item.productName}" back to Pending? This restores its Raw SKU assembly and removes ${item.requiredQty} ${item.unit} from Inventory.`,
+            header: 'Revert Item to Pending',
+            icon: 'pi pi-exclamation-triangle',
+            accept: async () => {
+                try {
+                    await revertBomItem(bom.id, item.skuId);
+                    fetchBoms();
+                    fetchInventories();
+                    fetchRawSkus();
+                    showToast(toast, 'success', 'Reverted', `${item.productName} reverted to Pending`);
+                } catch (err) {
+                    showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                }
+            },
+        });
     };
 
     const menuItems = [
-        { label: 'Print', icon: 'pi pi-print', command: () => menuBom && printBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
-        { label: 'Download', icon: <FaRegFilePdf />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }, rawSkus as RawSku[]) },
+        { label: 'Print', icon: 'pi pi-print', command: () => menuBom && printBomPdf(menuBom, companyLogo, { companyName, address }) },
+        { label: 'Download', icon: <FaRegFilePdf />, command: () => menuBom && downloadBomPdf(menuBom, companyLogo, { companyName, address }) },
     ];
 
     const customFieldColumns = useCustomFieldColumns<BomType>('bom');
@@ -298,19 +371,110 @@ const Bom = () => {
         }, 0);
     };
 
+    // Complete/Revert now happen per-item from the expanded row below (getBomItemExpansionColumns'
+    // own Action column), not at the whole-BOM level - this row action is Print/Download only.
     const bomActionTemplate = (row: BomType) => (
         <div className="data-table-actions">
-            {row.status === 'Process' && <HiOutlineCheckBadge size={20} color="#16a34a" title="Mark as Completed" onClick={() => handleComplete(row)} />}
-            {row.status === 'Completed' && <HiOutlineArrowUturnLeft size={16} title="Revert to Process" onClick={() => handleRevertToProcess(row)} />}
             <HiOutlinePrinter size={16} title="Print or Download" onClick={(e) => openPrintMenu(e, row)} />
         </div>
     );
 
-    const itemColumns = getBomItemColumns(items, form.outputQty, rawSkus as RawSku[]);
+    // Main list's expandable-row content - every item in that BOM, each with its own
+    // Complete/Revert action, independent of every other item in the same BOM (see
+    // bom.controller.js's completeBomItem/revertBomItem).
+    const renderBomItemsExpansion = (bom: BomType) => {
+        if (bom.items.length === 0) {
+            return <div className="bom-component-expansion-empty">No items in this BOM yet.</div>;
+        }
+        const expansionColumns = getBomItemExpansionColumns(
+            inventories as InventoryItem[],
+            (item) => handleCompleteItem(bom, item),
+            (item) => handleRevertItem(bom, item)
+        );
+        return (
+            <div className="bom-component-expansion">
+                <DataTable
+                    value={bom.items}
+                    columns={expansionColumns}
+                    dataKey="skuId"
+                    paginator={bom.items.length > 5}
+                    rows={5}
+                    sortable={false}
+                    filterable={false}
+                />
+            </div>
+        );
+    };
 
-    // Completed BOMs are deletable too (backend allows it - see bom.controller.js's
-    // deleteBom) - deleting one is a record-cleanup action only, it deliberately does not
-    // reverse the raw material/finished goods stock a Completed BOM already moved.
+    // Edit/Delete only for still-Pending rows - a Completed row represents stock that's
+    // already actually moved (see bom.controller.js's updateBom), so it has no actions at all
+    // here; it can only go back to Pending via the main list's own Revert action.
+    const itemActionTemplate = (row: BomItemRow) =>
+        row.status === 'Pending' ? (
+            <div className="data-table-actions">
+                <HiOutlinePencilSquare size={16} title="Edit" onClick={() => handleEditComponent(row)} />
+                <HiOutlineTrash size={16} color="#dc2626" title="Delete" onClick={() => removeItem(row.rowId)} />
+            </div>
+        ) : DEFAULT_DATA_TYPE_VALUE.NULL;
+
+    const itemColumns = getBomItemColumns(items, inventories as InventoryItem[], rawSkus as RawSku[]);
+
+    // Purely informational drill-down while composing a BOM - an Item being added is itself
+    // an Inventory item that may have its own Raw SKU assembly defined (Inventory Home's
+    // Product Assembly tab). Expanding a row previews that breakdown, scaled by how much of
+    // the item this line intends to produce (row.requiredQty) - this is exactly what
+    // completing that line later will actually deduct (see bom.controller.js's
+    // completeBomItem), shown here ahead of time so the user knows what it'll take.
+    const renderComponentAssembly = (row: BomItemRow) => {
+        const component = (inventories as InventoryItem[]).find((inv) => inv.skuId === row.skuId);
+        const assembly = component?.assembly ?? [];
+        const componentQtyNeeded = row.requiredQty;
+
+        if (assembly.length === 0) {
+            return <div className="bom-component-expansion-empty">No Raw SKU assembly defined for this item.</div>;
+        }
+
+        return (
+            <div className="bom-component-expansion">
+                <h4 className="bom-component-expansion-title">
+                    Raw SKU required to produce {componentQtyNeeded} {row.unit} of {row.productName}
+                </h4>
+                <table className="bom-recipe-table">
+                    <thead>
+                        <tr>
+                            <th>Raw SKU</th>
+                            <th>Qty (per unit)</th>
+                            <th>Required Qty</th>
+                            <th>Current Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {assembly.map((line: AssemblyLine) => {
+                            const finishedSku = (rawSkus as RawSku[]).find((sku) => sku.skuCode === line.skuCode);
+                            const requiredQty = Number((line.quantity * componentQtyNeeded).toFixed(2));
+                            const currentStock = finishedSku?.currentStock;
+                            const insufficient = currentStock !== undefined && requiredQty > currentStock;
+                            const sufficient = currentStock !== undefined && requiredQty <= currentStock;
+                            const qtyStatusClass = insufficient ? ' bom-recipe-qty-needed--insufficient' : sufficient ? ' bom-recipe-qty-needed--sufficient' : '';
+                            return (
+                                <tr key={line.skuCode}>
+                                    <td>{line.skuCode} - {line.skuName}</td>
+                                    <td>{line.quantity} {line.unit}</td>
+                                    <td className={`bom-recipe-qty-needed${qtyStatusClass}`}>{requiredQty} {line.unit}</td>
+                                    <td>
+                                        {currentStock !== undefined ? `${currentStock} ${line.unit}` : '—'}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
+    // Deletable regardless of status - deliberately does not reverse the stock impact any
+    // already-Completed line already made (see bom.controller.js's deleteBom).
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<BomType>({
         getId: (row) => row.id,
         deleteOne: deleteBom,
@@ -361,247 +525,123 @@ const Bom = () => {
                 selectable
                 selection={selectedRows}
                 onSelectionChange={setSelectedRows}
+                expandable
+                rowExpansionTemplate={renderBomItemsExpansion}
             />
 
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
                 header={<DialogHeader icon={HiOutlineSquare3Stack3D} title={editingId ? 'Edit BOM' : 'Add New BOM'} />}
-                style={{ width: '960px', maxWidth: '95vw' }}
+                style={{ width: '1040px', maxWidth: '95vw' }}
                 footer={
                     <>
-                        <Button label="Cancel" outlined onClick={() => { setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE); setStockErrors([]); }} />
-                        <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                        <Button label="Cancel" outlined onClick={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
+                        {/* Hidden once locked - nothing left in this dialog can actually change
+                            (see isBomLocked), so Save would have nothing to submit. */}
+                        {!isBomLocked && (
+                            <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                        )}
                     </>
                 }
             >
                 <div className="bom-dialog-body">
-                    {stockErrors.length > 0 && (
-                        <div className="bom-stock-error-banner">
-                            <div className="bom-stock-error-title">
-                                <HiOutlineExclamationTriangle size={16} />
-                                Insufficient Stock - cannot save this BOM
-                            </div>
-                            <ul className="bom-stock-error-list">
-                                {stockErrors.map((entry) => (
-                                    <li key={entry.name}>
-                                        <strong>{entry.name}</strong>: need {entry.needed} {entry.unit}, have {entry.available} {entry.unit}
-                                    </li>
-                                ))}
-                            </ul>
+                    {isBomLocked && (
+                        <div className="bom-locked-banner">
+                            This BOM has items already Completed and can no longer be edited - revert an item back to Pending first (from the main list) to make changes.
                         </div>
                     )}
                     <div className="bom-form-section">
                         <h3 className="bom-form-section-title">Basic Information</h3>
-                        <div className="bom-dialog-grid">
-                            <div className="form-field">
+                        <div className="bom-add-component-row">
+                            <div className="form-field bom-add-component-code">
                                 <label>{fieldLabel('bomCode', 'BOM Code')}</label>
-                                <InputText value={editingId ? editingBomCode : (previewBomCode || 'Generating...')} disabled />
+                                <InputText
+                                    value={editingId ? editingBomCode : previewBomCode}
+                                    onChange={(e) => (editingId ? setEditingBomCode(e.target.value) : setPreviewBomCode(e.target.value))}
+                                    placeholder={!editingId && !previewBomCode ? 'Generating...' : undefined}
+                                    disabled={isBomLocked}
+                                />
                             </div>
-                            <div className="form-field">
-                                <label>{fieldLabel('productName', 'Product')} *</label>
+                            {!isBomLocked && (
+                            <>
+                            <div className="form-field bom-add-component-dropdown">
+                                <label>Item</label>
                                 <Dropdown
-                                    value={form.productSku || DEFAULT_DATA_TYPE_VALUE.NULL}
-                                    onChange={(e) => {
-                                        const product = (inventories as InventoryItem[]).find((item) => item.skuId === e.value);
-                                        setForm({
-                                            ...form,
-                                            productSku: e.value,
-                                            productName: product?.productName ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-                                            categoryName: product?.categoryName ?? DEFAULT_DATA_TYPE_VALUE.NULL,
-                                            unit: product?.unit ?? form.unit,
-                                        });
-                                        // Auto-populate Components from the selected product's own Product
-                                        // Assembly (Inventory Home's kit definition) - each line's quantity
-                                        // becomes the per-unit Required Qty, which Qty Needed then scales by
-                                        // Output Qty automatically. Unit comes from the assembly line itself
-                                        // (what the user picked in Product Assembly), not re-derived from the
-                                        // Raw SKU's own master unit - the two can legitimately differ.
-                                        const autoItems: BomItem[] = (product?.assembly ?? []).map((line) => ({
-                                            rawSkuCode: line.skuCode,
-                                            rawSkuName: line.skuName,
-                                            requiredQty: line.quantity,
-                                            unit: line.unit || (rawSkus as RawSku[]).find((s) => s.skuCode === line.skuCode)?.unit || 'PCS',
-                                            remarks: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
-                                        }));
-                                        setItems(rowsFromItems(autoItems));
-                                    }}
+                                    value={componentSkuId || DEFAULT_DATA_TYPE_VALUE.NULL}
+                                    onChange={(e) => setComponentSkuId(e.value)}
                                     options={(inventories as InventoryItem[]).map((item) => ({ label: `${item.skuId} - ${item.productName}`, value: item.skuId }))}
-                                    placeholder="Select product"
+                                    placeholder="Select an Item to add"
                                     filter
                                 />
                             </div>
-                            <div className="form-field">
-                                <label>{fieldLabel('outputQty', 'Output Qty')}</label>
-                                <InputNumber value={form.outputQty} onValueChange={(e) => setForm({ ...form, outputQty: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} min={0} />
+                            <div className="form-field bom-add-component-qty">
+                                <label>Qty</label>
+                                <InputNumber
+                                    value={componentQty}
+                                    onValueChange={(e) => setComponentQty(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)}
+                                    min={0}
+                                    placeholder="Qty"
+                                />
                             </div>
-                            <div className="form-field">
-                                <label>{fieldLabel('unit', 'Unit')}</label>
-                                <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
+                            {componentSkuId && (
+                                <div className="form-field bom-add-component-unit-field">
+                                    <label>Unit</label>
+                                    <span className="bom-add-component-unit">
+                                        {(inventories as InventoryItem[]).find((inv) => inv.skuId === componentSkuId)?.unit}
+                                    </span>
+                                </div>
+                            )}
+                            <div className="form-field bom-add-component-btn">
+                                <label>&nbsp;</label>
+                                <Button
+                                    label={editingItemRowId !== null ? 'Update Item' : 'Add Item'}
+                                    icon={editingItemRowId !== null ? <HiOutlinePencilSquare className="mr-2" /> : <HiOutlinePlus className="mr-2" />}
+                                    onClick={handleAddComponent}
+                                    outlined
+                                />
                             </div>
+                            {editingItemRowId !== null && (
+                                <div className="form-field bom-add-component-btn">
+                                    <label>&nbsp;</label>
+                                    <Button label="Cancel" icon={<HiOutlineXCircle className="mr-2" />} onClick={handleCancelEditComponent} text />
+                                </div>
+                            )}
+                            </>
+                            )}
                         </div>
                     </div>
 
                     <div className="bom-form-section">
                         <div className="bom-items-header">
                             <div>
-                                <h3 className="bom-form-section-title">{fieldLabel('items', 'Components')}</h3>
-                                <span className="bom-items-subtitle">Finished SKUs required to produce {form.outputQty || 0} {form.unit} of this product - Qty Needed scales automatically.</span>
+                                <h3 className="bom-form-section-title">{fieldLabel('items', 'Items')}</h3>
+                                <span className="bom-items-subtitle">Main Inventory items this BOM will produce - each is completed independently once actually made.</span>
                             </div>
                         </div>
+
                         <DataTable
-                            // Keyed on outputQty so the "Qty Needed" column - which depends on
-                            // outputQty but not on `items` itself - is guaranteed to re-render
-                            // even when PrimeReact's DataTable would otherwise skip it because
-                            // the `items` array reference didn't change.
-                            key={form.outputQty}
                             value={items}
                             columns={itemColumns}
+                            actionBodyTemplate={isBomLocked ? DEFAULT_DATA_TYPE_VALUE.UNDEFINED : itemActionTemplate}
+                            expandable
+                            rowExpansionTemplate={renderComponentAssembly}
                             paginator
                             rows={5}
                             sortable={false}
                             filterable={false}
                             dataKey="rowId"
-                            emptyMessage="No components added yet."
+                            emptyMessage="No items added yet."
                         />
                     </div>
 
                     <CustomFieldsSection
                         entityKey="bom"
-                        values={form.customFields}
-                        onChange={(columnName, value) => setForm((prev) => ({ ...prev, customFields: { ...prev.customFields, [columnName]: value } }))}
+                        values={customFields}
+                        onChange={(columnName, value) => setCustomFields((prev) => ({ ...prev, [columnName]: value }))}
+                        disabled={isBomLocked}
                     />
                 </div>
-            </Dialog>
-
-            <Dialog
-                visible={!!recipeBom}
-                onHide={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)}
-                header={<DialogHeader icon={HiOutlineDocumentText} title="BOM Recipe" />}
-                style={{ width: '720px', maxWidth: '95vw' }}
-                footer={
-                    <>
-                        <Button label="Close" outlined onClick={() => setRecipeBom(DEFAULT_DATA_TYPE_VALUE.NULL)} />
-                        <Button label="Print" icon={<HiOutlinePrinter className="mr-2" />} outlined onClick={() => recipeBom && printBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
-                        <Button label="Download" icon={<FaRegFilePdf className="mr-2" />} onClick={() => recipeBom && downloadBomPdf(recipeBom, companyLogo, { companyName, address }, rawSkus as RawSku[])} />
-                    </>
-                }
-            >
-                {recipeBom && (
-                    <div className="bom-recipe">
-                        <div className="bom-recipe-header">
-                            <div>
-                                <h3 className="bom-recipe-title">
-                                    {recipeBom.productName} <span className="bom-recipe-sku">({recipeBom.productSku})</span>
-                                </h3>
-                                <span className="bom-recipe-subtitle">{recipeBom.bomCode}</span>
-                            </div>
-                            <div className="bom-recipe-output">
-                                <span className="bom-recipe-output-label">Output</span>
-                                <span className="bom-recipe-output-value">{recipeBom.outputQty} {recipeBom.unit}</span>
-                            </div>
-                        </div>
-                        <table className="bom-recipe-table">
-                            <thead>
-                                <tr>
-                                    <th>Raw SKU</th>
-                                    <th>Required Qty</th>
-                                    <th>Qty Needed</th>
-                                    <th>Remarks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recipeBom.items.map((item) => (
-                                    <tr key={item.rawSkuCode}>
-                                        <td>{item.rawSkuCode} - {item.rawSkuName}</td>
-                                        <td>{item.requiredQty} {item.unit}</td>
-                                        <td className="bom-recipe-qty-needed">
-                                            {Number((item.requiredQty * recipeBom.outputQty).toFixed(2))} {item.unit}
-                                        </td>
-                                        <td>{item.remarks || '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Dialog>
-
-            <Dialog
-                visible={!!revertBom}
-                onHide={() => { setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL); setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL); }}
-                header={<DialogHeader icon={HiOutlineArrowUturnLeft} title="Reverse Quantity" />}
-                style={{ width: '460px', maxWidth: '95vw' }}
-                footer={
-                    <>
-                        <Button
-                            label="Cancel"
-                            icon={<HiOutlineXCircle className="mr-2" />}
-                            outlined
-                            onClick={() => { setRevertBom(DEFAULT_DATA_TYPE_VALUE.NULL); setRevertQty(DEFAULT_DATA_TYPE_VALUE.NULL); }}
-                        />
-                        <Button
-                            label="Reverse"
-                            icon={<HiOutlineArrowUturnLeft className="mr-2" />}
-                            onClick={submitRevert}
-                            disabled={!revertQty || revertQty <= 0}
-                        />
-                    </>
-                }
-            >
-                {revertBom && (() => {
-                    const remaining = revertBom.outputQty - revertBom.reversedQty;
-                    const clamp = (next: number) => Math.min(Math.max(next, 1), remaining);
-                    return (
-                        <div className="bom-dialog-body">
-                            <div className="bom-revert-info">
-                                <div className="bom-revert-info-row">
-                                    <span className="bom-revert-info-icon bom-revert-info-icon--produced"><HiCube size={16} /></span>
-                                    <span className="bom-revert-info-label">Produced</span>
-                                    <strong className="bom-revert-info-value bom-revert-info-value--produced">{revertBom.outputQty} {revertBom.unit}</strong>
-                                </div>
-                                <div className="bom-revert-info-row">
-                                    <span className="bom-revert-info-icon bom-revert-info-icon--reversed"><HiOutlineArrowPath size={16} /></span>
-                                    <span className="bom-revert-info-label">Already Reversed</span>
-                                    <strong className="bom-revert-info-value">{revertBom.reversedQty} {revertBom.unit}</strong>
-                                </div>
-                                <div className="bom-revert-info-row">
-                                    <span className="bom-revert-info-icon bom-revert-info-icon--remaining"><HiOutlineClipboardDocumentList size={16} /></span>
-                                    <span className="bom-revert-info-label">Remaining</span>
-                                    <strong className="bom-revert-info-value bom-revert-info-value--remaining">{remaining} {revertBom.unit}</strong>
-                                </div>
-                            </div>
-                            <div className="form-field">
-                                <label>Quantity to Reverse *</label>
-                                <div className="bom-revert-qty-field">
-                                    <input
-                                        type="number"
-                                        className="bom-revert-qty-input"
-                                        value={revertQty ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING}
-                                        min={1}
-                                        max={remaining}
-                                        onChange={(e) => {
-                                            const next = e.target.value === DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING ? DEFAULT_DATA_TYPE_VALUE.NULL : Number(e.target.value);
-                                            setRevertQty(next === DEFAULT_DATA_TYPE_VALUE.NULL ? next : clamp(next));
-                                        }}
-                                    />
-                                    <span className="bom-revert-qty-unit">{revertBom.unit}</span>
-                                    <div className="bom-revert-qty-steppers">
-                                        <button type="button" onClick={() => setRevertQty(clamp((revertQty ?? 0) + 1))} aria-label="Increase quantity">
-                                            <HiOutlineChevronUp size={14} />
-                                        </button>
-                                        <button type="button" onClick={() => setRevertQty(clamp((revertQty ?? 0) - 1))} aria-label="Decrease quantity">
-                                            <HiOutlineChevronDown size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <span className="bom-revert-qty-hint">
-                                    Enter a value between <strong>1 and {remaining} {revertBom.unit}</strong>
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })()}
             </Dialog>
         </div>
     );

@@ -1,14 +1,38 @@
 const { sendServerError } = require('../utils/errorResponse');
 const pool = require('../config/db');
 const BomModel = require('../models/bom.model');
-const RawSkuModel = require('../models/rawSku.model');
 const InventoryModel = require('../models/inventory.model');
+const RawSkuModel = require('../models/rawSku.model');
 const CustomFieldService = require('../services/customField.service');
 
-// Total needed for a production run of outputQty units - same formula as the frontend's
-// live "Qty Needed" preview (CommonUtilities.tsx / bomPdf.ts).
-function qtyNeeded(requiredQty, outputQty) {
-  return requiredQty * outputQty;
+// A BOM's own "status" is never set directly by the client - it's always derived from its
+// items' own per-line status, recomputed here every time items change (create/update) or a
+// single line is completed/reverted. Process (nothing completed yet) -> Partially Completed
+// (some lines done, some not) -> Completed (every line done) - matches how the frontend's
+// expandable BOM row shows each line's own Complete/Revert action independently.
+function computeBomStatus(items) {
+  if (!items || items.length === 0) return 'Process';
+  const completedCount = items.filter((item) => item.status === 'Completed').length;
+  if (completedCount === 0) return 'Process';
+  if (completedCount === items.length) return 'Completed';
+  return 'Partially Completed';
+}
+
+// Never trusts a client-supplied 'Completed' on create/update at face value - that would let
+// someone fabricate a completed line (and its stock effects) without ever going through
+// completeBomItem. A line is only allowed to come through as 'Completed' here if it already
+// genuinely was one (same skuId, same requiredQty, found in `existingItemsBySkuId` - the
+// caller's own current items before this update) - otherwise it's forced back to 'Pending'.
+// This preserves already-Completed lines across an update that only touches other, still-
+// Pending lines (e.g. adding one more item) while still blocking a client from smuggling a
+// brand new line in as already Completed. createBom passes no existing items, so every line
+// on a fresh BOM always starts 'Pending' regardless of what the client sent.
+function normalizeItems(items, existingItemsBySkuId = new Map()) {
+  return (items || []).map((item) => {
+    const existing = existingItemsBySkuId.get(item.skuId);
+    const wasCompleted = existing && existing.status === 'Completed' && Number(existing.requiredQty) === Number(item.requiredQty);
+    return { ...item, status: wasCompleted ? 'Completed' : 'Pending' };
+  });
 }
 
 async function getBoms(req, res) {
@@ -31,28 +55,26 @@ async function getNextBomCode(req, res) {
 
 async function createBom(req, res) {
   try {
-    const { productSku, productName } = req.body;
-    if (!productSku || !productName) {
-      return res.status(400).json({ status: false, message: 'productSku and productName are required', data: null });
-    }
-
-    // The frontend previews a code (via getNextBomCode) when the Add Order dialog opens so
-    // the user sees the code before saving - reused here as-is if still unclaimed, so the
+    // The frontend previews a code (via getNextBomCode) when the Add BOM dialog opens so the
+    // user sees the code before saving - reused here as-is if still unclaimed, so the
     // previewed code and the one actually saved always match. Falls back to generating a
     // fresh one if it's missing or got claimed by another order in the meantime.
     let bomCode = req.body.bomCode;
     if (!bomCode || (await BomModel.findByCode(bomCode))) {
       bomCode = await BomModel.generateOrderCode();
     }
+    const items = normalizeItems(req.body.items);
     const fields = {
-      productSku,
-      productName,
-      categoryName: req.body.categoryName || null,
+      // Left null - a BOM no longer has one shared output product (see schema.sql's
+      // migration comment above ims_bom's CREATE TABLE).
+      productSku: null,
+      productName: null,
+      categoryName: null,
       version: req.body.version || '1.0',
-      outputQty: req.body.outputQty || 1,
-      unit: req.body.unit || 'PCS',
-      status: req.body.status || 'Process',
-      items: req.body.items || [],
+      outputQty: null,
+      unit: null,
+      status: computeBomStatus(items),
+      items,
       // Derived from the authenticated session, not trusted from the request body - see
       // purchaseOrder.controller.js's identical fix for why.
       createdBy: req.user.userName,
@@ -77,35 +99,51 @@ async function updateBom(req, res) {
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
 
-    const body = req.body;
-    // Status can only change via the dedicated Complete/Revert endpoints (completeBom /
-    // revertBomToProcess), which also handle the real stock movement - a plain update that
-    // flips status directly would desync it from Inventory/Raw SKU stock, since nothing here
-    // touches stock. This was previously exploitable: complete (deducts raw stock, credits
-    // finished goods) -> plain update flipping status back to "Process" (no stock reversal)
-    // -> complete again, fabricating finished-goods stock indefinitely.
-    if (body.status && body.status !== existing.status) {
-      return res.status(400).json({ status: false, message: "Use the Complete/Revert actions to change a BOM's status, not a direct update", data: null });
+    // Once ANY item has been Completed, the whole BOM locks - not just that one line (see the
+    // stillIntact check further down, which only protects a Completed line's own qty/status).
+    // Production against this BOM has already started, so adding a new item, editing/removing
+    // a still-Pending one, or renaming the BOM Code are all blocked outright too - the only way
+    // back to an editable state is reverting every Completed item to Pending first (via
+    // revertBomItem, a separate endpoint this guard doesn't touch).
+    if (existing.status !== 'Process') {
+      return res.status(400).json({ status: false, message: 'This BOM has items already Completed and can no longer be edited - revert every item back to Pending first', data: null });
     }
-    // Once Completed, outputQty/items/productSku are the historical record of exactly what
-    // was produced and consumed - editing them after the fact would corrupt any future revert
-    // (revertBomToProcess recomputes quantities from these same fields), same reasoning as
-    // Purchase/Sales Order locking their items once no longer Draft.
-    if (existing.status === 'Completed' && (body.outputQty !== undefined || body.items !== undefined || body.productSku !== undefined)) {
-      return res.status(400).json({ status: false, message: 'Output quantity, components, and product cannot be edited once a BOM is Completed - revert to Process first', data: null });
+
+    const body = req.body;
+    const existingItemsBySkuId = new Map((existing.items || []).map((item) => [item.skuId, item]));
+    // The guard above already means every item here is Pending - a BOM's status can only be
+    // 'Process' (the one status this function still reaches past the guard for) when it has no
+    // Completed item at all, so there's no longer a per-line "was this Completed line touched"
+    // check needed on top of it; the whole-BOM lock above supersedes it.
+    const newItems = body.items ? normalizeItems(body.items, existingItemsBySkuId) : existing.items;
+
+    // bomCode is user-editable now (not just previewed once at create) - re-check uniqueness
+    // on an actual rename the same way createBom does for a fresh one, since the column still
+    // carries a UNIQUE constraint. Trimmed and compared case-sensitively, matching how it's
+    // typed/displayed everywhere else.
+    let bomCode;
+    if (body.bomCode !== undefined && body.bomCode !== existing.bomCode) {
+      bomCode = String(body.bomCode).trim();
+      if (!bomCode) {
+        return res.status(400).json({ status: false, message: 'BOM Code cannot be empty', data: null });
+      }
+      const clash = await BomModel.findByCode(bomCode);
+      if (clash && clash.id !== existing.id) {
+        return res.status(400).json({ status: false, message: `BOM Code "${bomCode}" is already in use`, data: null });
+      }
     }
 
     const fields = {
-      productSku: body.productSku ?? existing.productSku,
-      productName: body.productName ?? existing.productName,
-      categoryName: body.categoryName ?? existing.categoryName,
+      bomCode,
+      productSku: null,
+      productName: null,
+      categoryName: null,
       version: body.version ?? existing.version,
-      outputQty: body.outputQty ?? existing.outputQty,
-      unit: body.unit ?? existing.unit,
-      status: existing.status,
-      items: body.items ?? existing.items,
+      outputQty: null,
+      unit: null,
+      status: computeBomStatus(newItems),
+      items: newItems,
       createdBy: body.createdBy ?? existing.createdBy,
-      reversedQty: existing.reversedQty,
     };
 
     await BomModel.update(id, fields);
@@ -117,72 +155,86 @@ async function updateBom(req, res) {
   }
 }
 
-// Moves a BOM from Process to Completed: production actually happens here - each
-// component's scaled quantity (requiredQty * outputQty) is deducted from the matching Raw
-// SKU's currentStock, and outputQty is added onto the matching Inventory item's quantity
-// (matched by productSku === ims_inventories.skuId).
+// Marks ONE line of a BOM as Completed - this is where production actually happens for that
+// line: its own Finished SKU assembly (ims_inventories.assembly, scaled by that line's own
+// requiredQty) is deducted from ims_raw_sku."currentStock", and requiredQty is credited onto
+// that same Inventory item's own quantity. The BOM's overall "status" is then recomputed from
+// every line's status (see computeBomStatus) - Completed only once every line is done.
 //
 // Runs inside a single transaction with row-level locks (SELECT ... FOR UPDATE) on the BOM
-// itself and every raw material it touches: without this, two concurrent "Complete" requests
-// on two different orders sharing a raw material could both read the same starting stock,
-// both pass a sufficiency check, and both deduct - pushing currentStock negative. Every raw
-// material's live (locked) stock is checked against what's needed BEFORE anything is
-// deducted, and the whole operation is rejected (rolled back, nothing changes) if even one
-// line is short - matching the same all-or-nothing validate-then-mutate pattern already used
-// by salesOrder.controller.js's dispatchSalesOrder.
-async function completeBom(req, res) {
+// and every Finished SKU it touches, same all-or-nothing validate-then-mutate pattern as
+// salesOrder.controller.js's dispatchSalesOrder / the old completeBom.
+async function completeBomItem(req, res) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const { id } = req.params;
+    const { id, skuId } = req.params;
     const existing = await BomModel.findByIdForUpdate(id, client);
     if (!existing) {
       await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
-    if (existing.status !== 'Process') {
+
+    const itemIndex = existing.items.findIndex((item) => item.skuId === skuId);
+    if (itemIndex === -1) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ status: false, message: 'Only a BOM in Process can be marked Completed', data: null });
+      return res.status(404).json({ status: false, message: 'This item is not part of this BOM', data: null });
+    }
+    const item = existing.items[itemIndex];
+    if (item.status === 'Completed') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ status: false, message: 'This item is already Completed', data: null });
     }
 
-    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(existing.productSku, client);
+    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(skuId, client);
     if (!inventoryItem) {
       await client.query('ROLLBACK');
-      return res.status(400).json({
-        status: false,
-        message: `No Inventory item found for product SKU "${existing.productSku}" - create it in Inventory Home first`,
-        data: null,
-      });
+      return res.status(400).json({ status: false, message: `No Inventory item found for SKU "${skuId}"`, data: null });
+    }
+
+    const assembly = inventoryItem.assembly || [];
+    const requiredQty = Number(item.requiredQty);
+
+    // Sum each Finished SKU's total need across every assembly line referencing it BEFORE
+    // checking/deducting stock. Nothing dedupes/merges assembly rows when they're edited in
+    // Inventory Home's Product Assembly tab, so the same Finished SKU can legitimately (or
+    // accidentally) appear on more than one line - checking/deducting line-by-line instead
+    // would check each line's need against the SAME starting stock independently, letting a
+    // combined shortage slip through the check and then pushing that Finished SKU's stock
+    // negative once both lines are deducted.
+    const neededBySkuCode = new Map();
+    for (const line of assembly) {
+      const needed = Number(line.quantity) * requiredQty;
+      neededBySkuCode.set(line.skuCode, (neededBySkuCode.get(line.skuCode) || 0) + needed);
     }
 
     const shortages = [];
-    for (const item of existing.items) {
-      const needed = qtyNeeded(item.requiredQty, existing.outputQty);
-      const rawSku = await RawSkuModel.findByCodeForUpdate(item.rawSkuCode, client);
+    for (const [skuCode, needed] of neededBySkuCode) {
+      const rawSku = await RawSkuModel.findByCodeForUpdate(skuCode, client);
       const available = Number(rawSku?.currentStock ?? 0);
       if (available < needed) {
-        shortages.push(`${item.rawSkuName || item.rawSkuCode}: need ${needed}, only ${available} in stock`);
+        shortages.push(`${rawSku?.skuName || skuCode}: need ${needed}, only ${available} in stock`);
       }
     }
     if (shortages.length > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         status: false,
-        message: `Not enough raw material stock to complete this order - ${shortages.join('; ')}`,
+        message: `Not enough Finished SKU stock to complete "${item.productName}" - ${shortages.join('; ')}`,
         data: null,
       });
     }
 
-    for (const item of existing.items) {
-      const needed = qtyNeeded(item.requiredQty, existing.outputQty);
-      await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, -needed, client);
+    for (const [skuCode, needed] of neededBySkuCode) {
+      await RawSkuModel.adjustStockBySkuCode(skuCode, -needed, client);
     }
-    await InventoryModel.adjustStockBySkuId(existing.productSku, existing.outputQty, client);
+    await InventoryModel.adjustStockBySkuId(skuId, requiredQty, client);
 
-    const updated = await BomModel.update(id, { ...existing, status: 'Completed', reversedQty: 0 }, client);
+    const updatedItems = existing.items.map((it, idx) => (idx === itemIndex ? { ...it, status: 'Completed' } : it));
+    const updated = await BomModel.update(id, { ...existing, items: updatedItems, status: computeBomStatus(updatedItems) }, client);
     await client.query('COMMIT');
-    res.json({ status: true, message: 'BOM marked as Completed successfully', data: updated });
+    res.json({ status: true, message: 'Item marked as Completed', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);
@@ -191,79 +243,64 @@ async function completeBom(req, res) {
   }
 }
 
-// Reverses completeBom, partially or fully: restores a caller-supplied `qty` (not always the
-// whole run) of the deducted Raw SKU quantities, and removes that same qty from the finished
-// good's Inventory. Can be called multiple times on the same Completed BOM - `reversedQty`
-// accumulates across calls so a second/third partial reverse can't exceed what was actually
-// produced. Once the accumulated total reaches outputQty, the BOM flips back to Process (fully
-// undone) and reversedQty resets to 0, exactly like the old always-full revert used to behave.
-// Same transaction + locking treatment as completeBom, plus the mirror-image stock check: if
-// some of the finished-good quantity this order added has already been sold/dispatched
-// elsewhere, removing qty here would push Inventory negative - so that's checked and rejected
-// too, not just the raw-material side.
-async function revertBomToProcess(req, res) {
+// Reverses completeBomItem for one line: restores its Finished SKU assembly quantities and
+// removes requiredQty back off that Inventory item's own quantity, then flips that line back
+// to Pending. Mirror-image stock check to completeBomItem's shortage check - if some of the
+// Inventory quantity this line credited has already been sold/dispatched elsewhere, removing
+// it here would push that Inventory item's stock negative, so that's checked and rejected too.
+async function revertBomItem(req, res) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const { id } = req.params;
+    const { id, skuId } = req.params;
     const existing = await BomModel.findByIdForUpdate(id, client);
     if (!existing) {
       await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'BOM not found', data: null });
     }
-    if (existing.status !== 'Completed') {
+
+    const itemIndex = existing.items.findIndex((item) => item.skuId === skuId);
+    if (itemIndex === -1) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ status: false, message: 'BOM is not completed', data: null });
+      return res.status(404).json({ status: false, message: 'This item is not part of this BOM', data: null });
+    }
+    const item = existing.items[itemIndex];
+    if (item.status !== 'Completed') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ status: false, message: 'This item is not Completed', data: null });
     }
 
-    const outputQty = Number(existing.outputQty);
-    const alreadyReversed = Number(existing.reversedQty ?? 0);
-    const remaining = outputQty - alreadyReversed;
-    const qty = Number(req.body.qty);
-    if (!Number.isFinite(qty) || qty <= 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ status: false, message: 'Enter a valid quantity to reverse', data: null });
-    }
-    if (qty > remaining) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        status: false,
-        message: `Cannot reverse ${qty} - only ${remaining} of this order's ${outputQty} ${existing.unit} remain un-reversed`,
-        data: null,
-      });
-    }
-
-    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(existing.productSku, client);
+    const inventoryItem = await InventoryModel.findBySkuIdForUpdate(skuId, client);
+    const requiredQty = Number(item.requiredQty);
     const availableQty = Number(inventoryItem?.quantity ?? 0);
-    if (availableQty < qty) {
+    if (availableQty < requiredQty) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         status: false,
-        message: `Cannot reverse - only ${availableQty} of this finished good remain in Inventory (some may have already been sold/dispatched), but reversing would remove ${qty}`,
+        message: `Cannot revert "${item.productName}" - only ${availableQty} remain in Inventory (some may have already been sold/dispatched), but reverting would remove ${requiredQty}`,
         data: null,
       });
     }
 
-    for (const item of existing.items) {
-      const needed = qtyNeeded(item.requiredQty, qty);
-      await RawSkuModel.adjustStockBySkuCode(item.rawSkuCode, needed, client);
+    // Summed per Finished SKU first, same reasoning as completeBomItem's identical step -
+    // the same Finished SKU can appear on more than one assembly line, so this restores the
+    // combined amount in one adjustStockBySkuCode call per SKU rather than one per line.
+    const assembly = inventoryItem?.assembly || [];
+    const restoredBySkuCode = new Map();
+    for (const line of assembly) {
+      const restored = Number(line.quantity) * requiredQty;
+      restoredBySkuCode.set(line.skuCode, (restoredBySkuCode.get(line.skuCode) || 0) + restored);
     }
-    await InventoryModel.adjustStockBySkuId(existing.productSku, -qty, client);
+    for (const [skuCode, restored] of restoredBySkuCode) {
+      await RawSkuModel.adjustStockBySkuCode(skuCode, restored, client);
+    }
+    await InventoryModel.adjustStockBySkuId(skuId, -requiredQty, client);
 
-    const newReversedQty = alreadyReversed + qty;
-    const fullyReversed = newReversedQty >= outputQty;
-    const updated = await BomModel.update(
-      id,
-      { ...existing, status: fullyReversed ? 'Process' : 'Completed', reversedQty: fullyReversed ? 0 : newReversedQty },
-      client
-    );
+    const updatedItems = existing.items.map((it, idx) => (idx === itemIndex ? { ...it, status: 'Pending' } : it));
+    const updated = await BomModel.update(id, { ...existing, items: updatedItems, status: computeBomStatus(updatedItems) }, client);
     await client.query('COMMIT');
-    res.json({
-      status: true,
-      message: fullyReversed ? 'BOM fully reverted to Process successfully' : `Reversed ${qty} ${existing.unit} - ${outputQty - newReversedQty} remaining`,
-      data: updated,
-    });
+    res.json({ status: true, message: 'Item reverted to Pending', data: updated });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);
@@ -272,13 +309,12 @@ async function revertBomToProcess(req, res) {
   }
 }
 
-// Deletable regardless of status, including Completed - deliberately does NOT reverse the
-// stock impact a Completed BOM already made (raw materials stay deducted, finished goods stay
-// credited exactly as they are). If that stock movement itself needs undoing, revert to
-// Process first (revertBomToProcess) before deleting; deleting a Completed BOM directly is
+// Deletable regardless of status, including Completed/Partially Completed - deliberately does
+// NOT reverse the stock impact any already-Completed line made (that Inventory item stays
+// credited, its Finished SKU stays deducted). If that stock movement itself needs undoing,
+// revert the individual line(s) first (revertBomItem) before deleting; deleting directly is
 // purely a record-cleanup action. Still runs inside a transaction with a row lock (not just a
-// plain findById) so a delete can't race a concurrent completeBom transitioning this same row
-// from Process to Completed.
+// plain findById) so a delete can't race a concurrent completeBomItem/revertBomItem.
 async function deleteBom(req, res) {
   const client = await pool.connect();
   try {
@@ -302,4 +338,4 @@ async function deleteBom(req, res) {
   }
 }
 
-module.exports = { getBoms, getNextBomCode, createBom, updateBom, revertBomToProcess, completeBom, deleteBom };
+module.exports = { getBoms, getNextBomCode, createBom, updateBom, completeBomItem, revertBomItem, deleteBom };

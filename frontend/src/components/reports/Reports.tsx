@@ -82,16 +82,16 @@ interface SkuMovementRow {
     currentStock: number;
 }
 
+// A BOM no longer has one shared Output Product - each of its items is completed
+// independently (see bomService.ts's Bom comment), so this is one row per Completed item
+// across every BOM, not one row per Component consumed by a whole-BOM completion.
 interface BomConsumptionRow {
     key: string;
     bomCode: string;
-    productName: string;
-    outputQty: number;
+    itemName: string;
+    qty: number;
     unit: string;
     completedDate: string;
-    rawMaterialName: string;
-    qtyConsumed: number;
-    rawMaterialUnit: string;
 }
 
 type TabKey = 'stock' | 'sales' | 'purchase' | 'skuMovement' | 'bomConsumption';
@@ -100,7 +100,7 @@ const TABS: { key: TabKey; label: string }[] = [
     { key: 'sales', label: 'Sales Report' },
     { key: 'purchase', label: 'Purchase Report' },
     { key: 'skuMovement', label: 'SKU Movement' },
-    { key: 'bomConsumption', label: 'BOM Consumption' },
+    { key: 'bomConsumption', label: 'BOM Production' },
 ];
 
 const STOCK_TIER_STYLE: Record<StockTier, { color: string; bg: string }> = {
@@ -412,12 +412,23 @@ const Reports = () => {
                 inwardBySku.set(item.skuCode, (inwardBySku.get(item.skuCode) ?? DEFAULT_DATA_TYPE_VALUE.ZERO) + item.acceptedQty);
             }));
 
+        // Completing one BOM item deducts that Inventory item's own Raw SKU assembly,
+        // scaled by that item's own requiredQty (see bom.controller.js's completeBomItem) -
+        // summed here per Raw SKU code, across every Completed item of every BOM whose
+        // updatedAt falls in range (same best-effort proxy as the dashboard's SkuMovement
+        // widget - there's no per-item completion timestamp to check instead).
         const consumedBySku = new Map<string, number>();
         bomList
-            .filter((bom) => bom.status === 'Completed' && inRange(bom.updatedAt))
-            .forEach((bom) => bom.items.forEach((item) => {
-                consumedBySku.set(item.rawSkuCode, (consumedBySku.get(item.rawSkuCode) ?? DEFAULT_DATA_TYPE_VALUE.ZERO) + item.requiredQty * bom.outputQty);
-            }));
+            .filter((bom) => inRange(bom.updatedAt))
+            .forEach((bom) => {
+                bom.items.filter((item) => item.status === 'Completed').forEach((item) => {
+                    const assembly = inventoryList.find((inv) => inv.skuId === item.skuId)?.assembly ?? [];
+                    assembly.forEach((line) => {
+                        const needed = line.quantity * item.requiredQty;
+                        consumedBySku.set(line.skuCode, (consumedBySku.get(line.skuCode) ?? DEFAULT_DATA_TYPE_VALUE.ZERO) + needed);
+                    });
+                });
+            });
 
         const term = search.trim().toLowerCase();
         return rawSkuList
@@ -437,7 +448,7 @@ const Reports = () => {
             })
             .filter((row) => row.inwardQty > 0 || row.consumedQty > 0)
             .filter((row) => !term || row.skuCode.toLowerCase().includes(term) || row.skuName.toLowerCase().includes(term));
-    }, [materialInwardList, bomList, rawSkuList, inRange, search]);
+    }, [materialInwardList, rawSkuList, bomList, inventoryList, inRange, search]);
 
     const skuMovementColumns: ColumnConfig<SkuMovementRow>[] = [
         { field: 'skuCode', header: 'SKU Code' },
@@ -449,37 +460,37 @@ const Reports = () => {
         { field: 'currentStock', header: 'Current Stock', body: (row) => `${row.currentStock} ${row.unit}` },
     ];
 
-    // ---- Tab 4: BOM Consumption ----
+    // ---- Tab 4: BOM Production ----
+    // One row per Completed item across every BOM - a BOM has no single whole-record
+    // "Completed" moment anymore (see bomService.ts's Bom comment), each item completes
+    // independently, so this reads straight off each item's own status rather than the BOM's.
     const bomConsumptionRows: BomConsumptionRow[] = useMemo(() => {
         const term = search.trim().toLowerCase();
         const rows: BomConsumptionRow[] = [];
-        bomList
-            .filter((bom) => bom.status === 'Completed' && inRange(bom.updatedAt))
-            .forEach((bom) => bom.items.forEach((item, index) => {
-                rows.push({
-                    key: `${bom.id}-${index}`,
-                    bomCode: bom.bomCode,
-                    productName: bom.productName,
-                    outputQty: bom.outputQty,
-                    unit: bom.unit,
-                    completedDate: bom.updatedAt,
-                    rawMaterialName: item.rawSkuName,
-                    qtyConsumed: item.requiredQty * bom.outputQty,
-                    rawMaterialUnit: item.unit,
+        bomList.forEach((bom) => {
+            if (!inRange(bom.updatedAt)) return;
+            bom.items
+                .filter((item) => item.status === 'Completed')
+                .forEach((item, index) => {
+                    rows.push({
+                        key: `${bom.id}-${index}`,
+                        bomCode: bom.bomCode,
+                        itemName: item.productName,
+                        qty: item.requiredQty,
+                        unit: item.unit,
+                        completedDate: bom.updatedAt,
+                    });
                 });
-            }));
+        });
         return rows.filter((row) => !term
             || row.bomCode.toLowerCase().includes(term)
-            || row.productName.toLowerCase().includes(term)
-            || row.rawMaterialName.toLowerCase().includes(term));
+            || row.itemName.toLowerCase().includes(term));
     }, [bomList, inRange, search]);
 
     const bomConsumptionColumns: ColumnConfig<BomConsumptionRow>[] = [
         { field: 'bomCode', header: 'BOM Code' },
-        { field: 'productName', header: 'Product' },
-        { field: 'outputQty', header: 'Output Qty', body: (row) => `${row.outputQty} ${row.unit}` },
-        { field: 'rawMaterialName', header: 'Raw Material' },
-        { field: 'qtyConsumed', header: 'Qty Consumed', body: (row) => `${row.qtyConsumed} ${row.rawMaterialUnit}` },
+        { field: 'itemName', header: 'Item' },
+        { field: 'qty', header: 'Qty Produced', body: (row) => `${row.qty} ${row.unit}` },
         { field: 'completedDate', header: 'Completed On', body: (row) => formatDate(row.completedDate) },
     ];
 
@@ -512,11 +523,8 @@ const Reports = () => {
     }), [skuMovementRows]);
 
     const bomConsumptionExport: ReportExport = useMemo(() => ({
-        head: ['BOM Code', 'Product', 'Output Qty', 'Raw Material', 'Qty Consumed', 'Completed On'],
-        rows: bomConsumptionRows.map((row) => [
-            row.bomCode, row.productName, `${row.outputQty} ${row.unit}`, row.rawMaterialName,
-            `${row.qtyConsumed} ${row.rawMaterialUnit}`, formatDate(row.completedDate),
-        ]),
+        head: ['BOM Code', 'Item', 'Qty Produced', 'Completed On'],
+        rows: bomConsumptionRows.map((row) => [row.bomCode, row.itemName, `${row.qty} ${row.unit}`, formatDate(row.completedDate)]),
     }), [bomConsumptionRows]);
 
     // Single Export CSV/PDF pair driven by whichever tab is active - avoids 5 near-identical
@@ -527,7 +535,7 @@ const Reports = () => {
             case 'sales': return { title: 'Sales by Customer Report', filename: 'sales-by-customer-report', data: customerSummaryExport };
             case 'purchase': return { title: 'Purchases by Vendor Report', filename: 'purchases-by-vendor-report', data: vendorSummaryExport };
             case 'skuMovement': return { title: 'SKU Movement Report', filename: 'sku-movement-report', data: skuMovementExport };
-            case 'bomConsumption': return { title: 'BOM Consumption Report', filename: 'bom-consumption-report', data: bomConsumptionExport };
+            case 'bomConsumption': return { title: 'BOM Production Report', filename: 'bom-production-report', data: bomConsumptionExport };
         }
     }, [activeTab, stockSummaryExport, customerSummaryExport, vendorSummaryExport, skuMovementExport, bomConsumptionExport]);
 
