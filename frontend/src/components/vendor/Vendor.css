@@ -1,3 +1,9 @@
+/* Required-field asterisk (Add/Edit Vendor dialog) - Vendor Name is the only field the
+   backend actually requires (vendor.controller.js), the rest are optional. */
+.vendor-required {
+    color: var(--accent-danger-text);
+}
+
 /* Mobile/tablet redesign (Quick Actions grid + compact toolbar + wrapped paginator) - scoped
    to this page only via the .vendor-page prefix so no other page sharing FilterBar/
    DataTable is affected. Matches the reference mobile app screenshot. Desktop (>900px) is

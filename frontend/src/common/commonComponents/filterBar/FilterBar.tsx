@@ -8,7 +8,7 @@ import { AppContext } from '../../../context/AppContextDefinition';
 import { useAuthContext } from '../../../context/AuthContextDefinition';
 import { isModuleAllowed } from '../../../services/rolePermissionsService';
 import {
-    HiOutlineArchiveBox,
+    HiOutlineCube,
     HiOutlineClipboardDocumentList,
     HiOutlineFunnel,
     HiOutlineShoppingCart,
@@ -60,7 +60,7 @@ const defaultQuickActions: FilterBarQuickAction[] = [
     { label: 'Inventories', path: '/home', icon: BsBoxSeam, iconSize: 13 },
     { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList, iconSize: 18 },
     { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck, iconSize: 18 },
-    { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox, iconSize: 18 },
+    { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineCube, iconSize: 18 },
     { label: 'BOM', path: '/bom', icon: FaSitemap },
     { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart, iconSize: 18 },
 ];

@@ -66,6 +66,10 @@ const Vendor = () => {
     };
 
     const handleSave = async () => {
+        if (!form.vendorName.trim()) {
+            showToast(toast, 'error', 'Error', 'Vendor Name is required');
+            return;
+        }
         try {
             if (editingId) {
                 await updateVendor(editingId, form);
@@ -149,7 +153,7 @@ const Vendor = () => {
             >
                 <div className="dialog-form-body">
                     <div className="form-field">
-                        <label>Vendor Name</label>
+                        <label>Vendor Name <span className="vendor-required">*</span></label>
                         <InputText value={form.vendorName} onChange={(e) => setForm({ ...form, vendorName: e.target.value })} placeholder="Enter vendor name" />
                     </div>
                     <div className="form-field">

@@ -144,6 +144,10 @@
     height: 1.75rem;
     color: var(--text-tertiary);
     border-radius: 6px;
+    /* Smaller than PrimeReact's own default - this covers the page-number buttons (1, 2, 3...)
+       as well as the prev/next arrow buttons, which have no text of their own so this only
+       affects them if their icon happens to be sized in em/font-relative units. */
+    font-size: 12px;
 }
 
 .app-data-table .p-paginator .p-paginator-element:not(.p-disabled):hover {

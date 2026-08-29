@@ -7,7 +7,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark, HiOutlineArchiveBox } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark, HiOutlineCube } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
@@ -281,7 +281,7 @@ const RawSku = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={<DialogHeader icon={HiOutlineArchiveBox} title={editingId ? 'Edit SKU' : 'Add New SKU'} />}
+                header={<DialogHeader icon={HiOutlineCube} title={editingId ? 'Edit SKU' : 'Add New SKU'} />}
                 style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
                     <>

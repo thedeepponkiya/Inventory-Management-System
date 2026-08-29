@@ -1,3 +1,9 @@
+/* Required-field asterisk (Add/Edit Customer dialog) - Customer Name is the only field the
+   backend actually requires (customer.controller.js), the rest are optional. */
+.customer-required {
+    color: var(--accent-danger-text);
+}
+
 /* Mobile/tablet redesign (Quick Actions grid + compact toolbar + wrapped paginator) - scoped
    to this page only via the .customer-page prefix so no other page sharing FilterBar/
    DataTable is affected. Matches the reference mobile app screenshot. Desktop (>900px) is

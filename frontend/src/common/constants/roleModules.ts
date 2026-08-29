@@ -2,7 +2,7 @@ import type { IconType } from 'react-icons';
 import {
     HiOutlineSquares2X2,
     HiOutlineTruck,
-    HiOutlineArchiveBox,
+    HiOutlineCube,
     HiOutlineMapPin,
     HiOutlineSquare3Stack3D,
     HiOutlineShoppingCart,
@@ -37,7 +37,7 @@ export const ERP_MODULES: RoleModule[] = [
     { key: '/home', label: 'Inventories', icon: BsBoxSeam },
     { key: '/material-inward', label: 'Material Inward', icon: HiOutlineTruck },
     { key: '/purchase-order', label: 'Purchase Order', icon: HiOutlineClipboardDocumentList },
-    { key: '/raw-sku', label: 'Finished SKU', icon: HiOutlineArchiveBox },
+    { key: '/raw-sku', label: 'Raw SKU', icon: HiOutlineCube },
     { key: '/bom', label: 'BOM', icon: HiOutlineSquare3Stack3D },
     { key: '/sales-order', label: 'Sales Order', icon: HiOutlineShoppingCart },
     { key: '/locations', label: 'Locations', icon: HiOutlineMapPin },

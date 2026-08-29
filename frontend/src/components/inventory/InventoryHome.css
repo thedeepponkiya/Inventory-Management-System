@@ -7,7 +7,7 @@
 }
 
 /* Current Stock column body (getInventoryHomeColumns / renderStockCell in
-   CommonUtilities.tsx) - same design as Finished SKU's, colored per row via inline style
+   CommonUtilities.tsx) - same design as Raw SKU's, colored per row via inline style
    (colors come from data, not a fixed palette, so they can't be plain CSS classes). */
 .inventory-home-stock-cell {
     display: flex;

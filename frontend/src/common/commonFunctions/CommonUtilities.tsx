@@ -604,7 +604,7 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         filterField: 'stockLevel',
         filterType: 'dropdown',
         filterOptions: STOCK_LEVEL_LABELS,
-        // Same design as Finished SKU's Current Stock column (renderStockCell) - lowThreshold
+        // Same design as Raw SKU's Current Stock column (renderStockCell) - lowThreshold
         // here is Min Stock, since Inventory items don't have a separate Reorder Level.
         body: (row) => renderStockCell(row.quantity, row.minStock, row.maxStock, 'inventory-home-stock'),
     },

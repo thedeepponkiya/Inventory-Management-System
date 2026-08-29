@@ -9,7 +9,7 @@ export interface RouteMeta {
 export const routeMetaList: RouteMeta[] = [
     { path: '/', title: 'Dashboard', subtitle: "Welcome back, Admin! Here's what's happening with your inventory." },
     { path: '/material-inward', title: 'Material Inward', subtitle: 'Record new stock received from supplier and update inventory.' },
-    { path: '/raw-sku', title: 'Finished SKU', subtitle: 'Manage all SKUs / components in your inventory.' },
+    { path: '/raw-sku', title: 'Raw SKU', subtitle: 'Manage all SKUs / components in your inventory.' },
     { path: '/locations', title: 'Locations', subtitle: 'Manage all locations where SKUs are stored in your warehouse.' },
     { path: '/category', title: 'Category', subtitle: 'Manage all product categories used to group SKUs.' },
     { path: '/product-type', title: 'Product Type', subtitle: 'Manage all product types used to classify inventory items.' },

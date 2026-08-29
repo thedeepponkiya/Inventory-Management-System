@@ -6,7 +6,7 @@ import { useAuthContext } from '../../../context/AuthContextDefinition';
 import { isModuleAllowed } from '../../../services/rolePermissionsService';
 import {
     HiOutlineTruck, // Material Inward nav item hidden below
-    HiOutlineArchiveBox,
+    HiOutlineCube,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineSquare3Stack3D,
@@ -44,7 +44,7 @@ const navGroups = [
             { label: 'Inventories', path: '/home', icon: BsBoxSeam, iconSize: 17 },
             { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-            { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+            { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineCube },
             { label: 'BOM', path: '/bom', icon: HiOutlineSquare3Stack3D },
             { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
         ],

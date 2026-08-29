@@ -66,6 +66,10 @@ const Customer = () => {
     };
 
     const handleSave = async () => {
+        if (!form.customerName.trim()) {
+            showToast(toast, 'error', 'Error', 'Customer Name is required');
+            return;
+        }
         try {
             if (editingId) {
                 await updateCustomer(editingId, form);
@@ -149,7 +153,7 @@ const Customer = () => {
             >
                 <div className="dialog-form-body">
                     <div className="form-field">
-                        <label>Customer Name</label>
+                        <label>Customer Name <span className="customer-required">*</span></label>
                         <InputText value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="Enter customer name" />
                     </div>
                     <div className="form-field">

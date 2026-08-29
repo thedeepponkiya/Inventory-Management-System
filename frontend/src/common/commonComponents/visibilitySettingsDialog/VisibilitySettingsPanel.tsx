@@ -31,7 +31,7 @@ const quickActionItems: VisibilityItem[] = [
     { label: 'Inventories', path: '/home' },
     { label: 'Purchase Order', path: '/purchase-order' },
     { label: 'Material Inward', path: '/material-inward' },
-    { label: 'Finished SKU', path: '/raw-sku' },
+    { label: 'Raw SKU', path: '/raw-sku' },
     { label: 'BOM', path: '/bom' },
     { label: 'Sales Order', path: '/sales-order' },
 ];
@@ -42,7 +42,7 @@ const sidebarMenuItems: VisibilityItem[] = [
     { label: 'Inventories', path: '/home' },
     { label: 'Material Inward', path: '/material-inward' },
     { label: 'Purchase Order', path: '/purchase-order' },
-    { label: 'Finished SKU', path: '/raw-sku' },
+    { label: 'Raw SKU', path: '/raw-sku' },
     { label: 'BOM', path: '/bom' },
     { label: 'Sales Order', path: '/sales-order' },
     { label: 'Locations', path: '/locations' },

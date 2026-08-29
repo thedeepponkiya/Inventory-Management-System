@@ -70,7 +70,7 @@ const DashboardKpis = () => {
             columns={6}
             items={[
                 { icon: HiOutlineCube, iconColor: '#0284c7', label: 'Total Inventory Stock', value: totalInventoryStock.toLocaleString('en-IN'), sublabel: 'Total units across Inventory Home', linkLabel: 'View inventory', onClick: () => navigate('/home') },
-                { icon: HiOutlineArchiveBox, iconColor: '#2563eb', label: 'Total Finished SKUs', value: totalFinishedSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/raw-sku') },
+                { icon: HiOutlineArchiveBox, iconColor: '#2563eb', label: 'Total Raw SKUs', value: totalFinishedSkus, sublabel: 'All items in inventory', linkLabel: 'View all SKUs', onClick: () => navigate('/raw-sku') },
                 { icon: HiOutlineClipboardDocumentCheck, iconColor: '#16a34a', label: 'Total Stock Value', value: `₹${totalStockValue.toLocaleString('en-IN')}`, sublabel: 'Current inventory value', linkLabel: 'View inventory', onClick: () => navigate('/home') },
                 { icon: HiOutlineShoppingBag, iconColor: '#7c3aed', label: 'Total Purchase Value', value: `₹${totalPurchaseValue.toLocaleString('en-IN')}`, sublabel: 'All purchase orders', linkLabel: 'View purchase orders', onClick: () => navigate('/purchase-order') },
                 { icon: HiOutlineCurrencyRupee, iconColor: '#ea580c', label: 'Total Sales Value', value: `₹${totalSalesValue.toLocaleString('en-IN')}`, sublabel: 'All sales orders', linkLabel: 'View sales orders', onClick: () => navigate('/sales-order') },
