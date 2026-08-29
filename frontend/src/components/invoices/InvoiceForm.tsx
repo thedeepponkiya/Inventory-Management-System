@@ -26,7 +26,14 @@ const invoiceTypeOptions: InvoiceTypeEnum[] = ['Purchase', 'Sales'];
 const paymentTermsOptions = ['Net 15', 'Net 30', 'Net 45', 'Net 60', 'Advance', 'COD'];
 const paymentStatusOptions: PaymentStatus[] = ['Unpaid', 'Partial', 'Paid'];
 
-const toIso = (date: Date | null): string | null => (date ? date.toISOString().slice(0, 10) : DEFAULT_DATA_TYPE_VALUE.NULL);
+// Sends the FULL ISO string, matching PurchaseOrderForm.tsx / SalesOrderForm.tsx /
+// MaterialInwardForm.tsx's identically-named helper - Postgres casts it to the DATE column
+// using the connection timezone. This deliberately does NOT `.slice(0, 10)`: PrimeReact's
+// Calendar hands back a Date at LOCAL midnight, so truncating the UTC rendering of it lands
+// on the PREVIOUS calendar day for any timezone ahead of UTC - and since editing an invoice
+// re-sends whatever date is on screen, that walked the stored date one more day back on
+// every single save.
+const toIso = (date: Date | null): string | null => (date ? date.toISOString() : DEFAULT_DATA_TYPE_VALUE.NULL);
 
 const InvoiceForm = () => {
     const navigate = useNavigate();
@@ -55,7 +62,6 @@ const InvoiceForm = () => {
     const [invoiceDate, setInvoiceDate] = useState<Date | null>(new Date());
     const [dueDate, setDueDate] = useState<Date | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [paymentTerms, setPaymentTerms] = useState<string | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
-    const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('Unpaid');
     const [paidAmount, setPaidAmount] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [freightCharge, setFreightCharge] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
     const [otherCharges, setOtherCharges] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
@@ -83,7 +89,6 @@ const InvoiceForm = () => {
             setInvoiceDate(new Date(existingInvoice.invoiceDate));
             setDueDate(existingInvoice.dueDate ? new Date(existingInvoice.dueDate) : DEFAULT_DATA_TYPE_VALUE.NULL);
             setPaymentTerms(existingInvoice.paymentTerms);
-            setPaymentStatus(existingInvoice.paymentStatus);
             setPaidAmount(existingInvoice.paidAmount);
             setFreightCharge(existingInvoice.freightCharge);
             setOtherCharges(existingInvoice.otherCharges);
@@ -111,6 +116,20 @@ const InvoiceForm = () => {
         const dueAmount = grandTotal - paidAmount;
         return { discountAmount, gstAmount, grandTotal, dueAmount };
     }, [subTotal, discountPercent, gstPercent, freightCharge, otherCharges, paidAmount]);
+
+    // Payment Status is DERIVED from Paid Amount vs. Grand Total, never picked by hand - same
+    // rule (and same reasoning) as PurchaseOrderForm.tsx / SalesOrderForm.tsx: 0 paid is
+    // Unpaid, paid at/above the grand total is Paid, anything in between is Partial. Mirrors
+    // deriveInvoiceFinancials in the backend's invoice.controller.js, which recomputes the same
+    // thing authoritatively on save regardless of what this (or any direct API call) sends -
+    // which is exactly why the field below is disabled: it used to be a freely-editable
+    // dropdown whose value the backend silently discarded on every save.
+    const paymentStatus: PaymentStatus = useMemo(() => {
+        if (paidAmount <= 0) return 'Unpaid';
+        if (totals.grandTotal <= 0) return 'Paid';
+        if (paidAmount >= totals.grandTotal) return 'Paid';
+        return 'Partial';
+    }, [paidAmount, totals.grandTotal]);
 
     const handleCancel = () => {
         navigate('/invoices');
@@ -250,7 +269,8 @@ const InvoiceForm = () => {
                         </div>
                         <div className="form-field">
                             <label>Payment Status</label>
-                            <Dropdown value={paymentStatus} onChange={(e) => setPaymentStatus(e.value)} options={paymentStatusOptions} />
+                            <Dropdown value={paymentStatus} options={paymentStatusOptions} disabled />
+                            <span className="inv-form-helper">Auto-calculated from Paid Amount vs Grand Total</span>
                         </div>
                         <div className="form-field">
                             <label>Paid Amount (Rs.)</label>

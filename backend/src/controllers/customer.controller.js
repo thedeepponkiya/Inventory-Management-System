@@ -12,7 +12,7 @@ async function getCustomers(req, res) {
 
 async function createCustomer(req, res) {
   try {
-    const { customerName, email, phoneNumber, address, city, zipCode } = req.body;
+    const { customerName, email, phoneNumber, address, city, zipCode, gstNo } = req.body;
     if (!customerName) {
       return res.status(400).json({ status: false, message: 'customerName is required', data: null });
     }
@@ -22,7 +22,7 @@ async function createCustomer(req, res) {
       return res.status(409).json({ status: false, message: 'Customer already exists', data: null });
     }
 
-    const created = await CustomerModel.create(customerName, email, phoneNumber, address, city, zipCode);
+    const created = await CustomerModel.create(customerName, email, phoneNumber, address, city, zipCode, gstNo);
     res.status(201).json({ status: true, message: 'Customer created successfully', data: created });
   } catch (err) {
     sendServerError(res, err);
@@ -32,7 +32,7 @@ async function createCustomer(req, res) {
 async function updateCustomer(req, res) {
   try {
     const { id } = req.params;
-    const { customerName, email, phoneNumber, address, city, zipCode } = req.body;
+    const { customerName, email, phoneNumber, address, city, zipCode, gstNo } = req.body;
 
     const existing = await CustomerModel.findById(id);
     if (!existing) {
@@ -53,7 +53,8 @@ async function updateCustomer(req, res) {
       phoneNumber ?? existing.phoneNumber,
       address ?? existing.address,
       city ?? existing.city,
-      zipCode ?? existing.zipCode
+      zipCode ?? existing.zipCode,
+      gstNo ?? existing.gstNo
     );
     res.json({ status: true, message: 'Customer updated successfully', data: updated });
   } catch (err) {

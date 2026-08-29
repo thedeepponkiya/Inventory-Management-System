@@ -33,14 +33,28 @@ async function getSalesOrders(req, res) {
   }
 }
 
+async function getNextSoNo(req, res) {
+  try {
+    const soNo = await SalesOrderModel.getNextSoNo();
+    res.json({ status: true, message: 'Next SO No. fetched successfully', data: { soNo } });
+  } catch (err) {
+    sendServerError(res, err);
+  }
+}
+
 async function createSalesOrder(req, res) {
   try {
     const { customerName, orderDate } = req.body;
     if (!customerName || !orderDate) {
       return res.status(400).json({ status: false, message: 'customerName and orderDate are required', data: null });
     }
-    if (!req.body.customerGstNo) {
-      return res.status(400).json({ status: false, message: 'customerGstNo is required', data: null });
+
+    // Frontend-only guarded before now (SalesOrderForm.tsx blocks Save with zero items) - a
+    // direct API call could create a Draft SO with an empty items array, which then reaches
+    // "Dispatched" vacuously (every one of zero lines' pendingQty is trivially <= 0) without
+    // ever actually shipping anything.
+    if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
+      return res.status(400).json({ status: false, message: 'At least one item is required', data: null });
     }
 
     const duplicateSkuId = findDuplicateSkuId(req.body.items || []);
@@ -107,6 +121,30 @@ async function updateSalesOrder(req, res) {
     }
     if (existing.status !== 'Draft' && req.body.items) {
       return res.status(400).json({ status: false, message: 'Items can only be edited while the order is in Draft', data: null });
+    }
+    // The frontend's own Save button is already hidden once an order isn't Draft (see
+    // SalesOrderForm.tsx's isLocked), so this only ever guards a direct API call. Applies the
+    // same "identity/commercial terms are locked in once the order has moved past Draft"
+    // reasoning the items-guard above already uses, extended to the rest of the order's
+    // fields - deliveryDate/remarks/customFields are left editable since rescheduling a
+    // delivery or updating a note after confirmation is legitimate and doesn't affect what
+    // was actually agreed/shipped.
+    if (existing.status !== 'Draft') {
+      const lockedFieldMismatch = ['customerName', 'customerGstNo', 'purchaseOrderRef'].find(
+        (field) => req.body[field] !== undefined && (req.body[field] || null) !== (existing[field] || null)
+      );
+      if (lockedFieldMismatch) {
+        return res.status(400).json({ status: false, message: `${lockedFieldMismatch} can only be edited while the order is in Draft`, data: null });
+      }
+      if (req.body.orderDate !== undefined) {
+        const normalizeDate = (value) => {
+          const d = new Date(value);
+          return Number.isNaN(d.getTime()) ? String(value) : d.toISOString().slice(0, 10);
+        };
+        if (normalizeDate(req.body.orderDate) !== normalizeDate(existing.orderDate)) {
+          return res.status(400).json({ status: false, message: 'orderDate can only be edited while the order is in Draft', data: null });
+        }
+      }
     }
     if (req.body.items) {
       const duplicateSkuId = findDuplicateSkuId(req.body.items);
@@ -191,24 +229,6 @@ async function confirmSalesOrder(req, res) {
   }
 }
 
-async function startProcessing(req, res) {
-  try {
-    const { id } = req.params;
-    const existing = await SalesOrderModel.findById(id);
-    if (!existing) {
-      return res.status(404).json({ status: false, message: 'Sales order not found', data: null });
-    }
-    if (existing.status !== 'Confirmed') {
-      return res.status(400).json({ status: false, message: 'Only a Confirmed order can start Processing', data: null });
-    }
-
-    const updated = await SalesOrderModel.update(id, { ...existing, status: 'Processing' });
-    res.json({ status: true, message: 'Sales order moved to Processing', data: updated });
-  } catch (err) {
-    sendServerError(res, err);
-  }
-}
-
 // Ships some or all of the still-pending quantity for one or more lines - deducts that
 // exact quantity from each line's Inventory SKU (mirrors BOM's Dispatch step, but per-item
 // and allowed to happen incrementally across multiple calls instead of one all-or-nothing
@@ -232,9 +252,18 @@ async function dispatchSalesOrder(req, res) {
       await client.query('ROLLBACK');
       return res.status(404).json({ status: false, message: 'Sales order not found', data: null });
     }
-    if (existing.status !== 'Processing' && existing.status !== 'Partially Shipped') {
+    // "Processing" is kept here only so any order already in that status from before the
+    // Start Processing step was retired can still be dispatched - nothing new ever reaches it
+    // anymore (Confirm Order goes straight to being dispatchable).
+    if (existing.status !== 'Confirmed' && existing.status !== 'Processing' && existing.status !== 'Partially Shipped') {
       await client.query('ROLLBACK');
-      return res.status(400).json({ status: false, message: 'Only a Processing or Partially Shipped order can be dispatched', data: null });
+      return res.status(400).json({ status: false, message: 'Only a Confirmed or Partially Shipped order can be dispatched', data: null });
+    }
+
+    const billNo = req.body.billNo ? String(req.body.billNo).trim() : '';
+    if (!billNo) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ status: false, message: 'Bill No is required to dispatch', data: null });
     }
 
     const shipments = req.body.items;
@@ -304,6 +333,10 @@ async function dispatchSalesOrder(req, res) {
       dispatchDate: new Date().toISOString().slice(0, 10),
       items: dispatchedLineItems,
       dispatchedBy: req.user.userName,
+      // Manually typed in by whoever dispatches the order (e.g. the physical delivery
+      // challan/bill number) - required (validated above), recorded against this specific
+      // dispatch event.
+      billNo,
     }, client);
 
     await client.query('COMMIT');
@@ -337,7 +370,8 @@ async function dispatchSalesOrder(req, res) {
 
 // Undoes every shipment made so far on this order in one shot - restores each line's
 // dispatchedQty back to Inventory and resets it to fully pending. Does not support
-// reverting a single partial shipment out of several; only a full reset back to Processing.
+// reverting a single partial shipment out of several; only a full reset back to Confirmed
+// (the step immediately before dispatch now that Start Processing has been retired).
 // Same transaction + locking treatment as dispatchSalesOrder.
 //
 // Because this undoes the ENTIRE shipment history, not just one batch, it also cleans up the
@@ -374,7 +408,7 @@ async function revertDispatch(req, res) {
       updatedItems.push({ ...item, dispatchedQty: 0, pendingQty: item.orderedQty });
     }
 
-    const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Processing' }, client);
+    const updated = await SalesOrderModel.update(id, { ...existing, items: updatedItems, status: 'Confirmed' }, client);
 
     // Clean up what this order's dispatch(es) created - every history row (the whole ledger
     // for this SO, since revert undoes all of it) and every still-Unpaid auto-generated
@@ -391,7 +425,7 @@ async function revertDispatch(req, res) {
     const warning = paidInvoices.length > 0
       ? `${paidInvoices.length} invoice(s) from this order's earlier dispatch (${paidInvoices.map((inv) => inv.invoiceNo).join(', ')}) already have a payment recorded and were left in place - cancel or credit them manually from the Invoices page if they're no longer valid.`
       : null;
-    res.json({ status: true, message: 'Sales order reverted to Processing successfully', data: updated, warning });
+    res.json({ status: true, message: 'Sales order reverted to Confirmed successfully', data: updated, warning });
   } catch (err) {
     await client.query('ROLLBACK');
     sendServerError(res, err);
@@ -428,8 +462,12 @@ async function deleteSalesOrder(req, res) {
     if (!existing) {
       return res.status(404).json({ status: false, message: 'Sales order not found', data: null });
     }
-    if (existing.status !== 'Draft') {
-      return res.status(400).json({ status: false, message: 'Only a Draft order can be deleted', data: null });
+    // Draft (never confirmed) and Cancelled (explicitly called off) are both terminal/unused
+    // states with no stock or invoice side effects to unwind - anything past Draft that's
+    // still active (Confirmed/Processing/Partially Shipped/Dispatched) has to be Cancelled
+    // first, same as before.
+    if (existing.status !== 'Draft' && existing.status !== 'Cancelled') {
+      return res.status(400).json({ status: false, message: 'Only a Draft or Cancelled order can be deleted', data: null });
     }
 
     await SalesOrderModel.remove(id);
@@ -441,10 +479,10 @@ async function deleteSalesOrder(req, res) {
 
 module.exports = {
   getSalesOrders,
+  getNextSoNo,
   createSalesOrder,
   updateSalesOrder,
   confirmSalesOrder,
-  startProcessing,
   dispatchSalesOrder,
   revertDispatch,
   cancelSalesOrder,

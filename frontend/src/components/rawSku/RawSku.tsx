@@ -7,7 +7,8 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
-import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark, HiOutlineArchiveBox } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineCheckCircle, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePhoto, HiOutlineXMark, HiOutlineCube, HiOutlineMinus } from 'react-icons/hi2';
+import { TbCubePlus } from 'react-icons/tb';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
@@ -15,14 +16,14 @@ import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/Qui
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
-import { createRawSku, updateRawSku, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
+import { createRawSku, updateRawSku, adjustRawSkuStock, deleteRawSku, getNextSkuCode, type RawSku as RawSkuType, type RawSkuPayload } from '../../services/rawSkuService';
 import { uploadProductImage } from '../../services/inventoryService';
 import type { Category } from '../../services/categoryService';
 import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getRawSkuColumns, getStockLevel, type RawSkuWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
+import { getRawSkuColumns, getActionBodyTemplate, getStockLevel, type RawSkuWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import './RawSku.css';
 
@@ -73,6 +74,18 @@ const RawSku = () => {
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingSkuCode, setEditingSkuCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewSkuCode, setPreviewSkuCode] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    // Snapshot of `currentStock` at the moment the Edit dialog was opened - see
+    // InventoryHome.tsx's identical originalQuantityRef for why handleSave needs this to
+    // decide whether `currentStock` actually belongs in the update payload.
+    const originalCurrentStockRef = useRef<number | null>(null);
+
+    // "Update Stock" dialog - a dedicated Add/Remove-by-quantity action (Action column),
+    // separate from the Edit dialog's own Current Stock field so a quick stock movement
+    // doesn't require opening the full edit form.
+    const [stockDialogVisible, setStockDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const [stockDialogSku, setStockDialogSku] = useState<RawSkuType | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
+    const [stockAdjustmentQty, setStockAdjustmentQty] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
+    const [stockSaving, setStockSaving] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
 
     const filterFields: FilterField[] = [
         { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by SKU name / code' },
@@ -146,6 +159,7 @@ const RawSku = () => {
     const openEditDialog = (sku: RawSkuType) => {
         setEditingId(sku.id);
         setEditingSkuCode(sku.skuCode);
+        originalCurrentStockRef.current = sku.currentStock;
         setForm({
             images: sku.images,
             skuName: sku.skuName,
@@ -171,9 +185,13 @@ const RawSku = () => {
             showToast(toast, 'error', 'Error', 'SKU Name is required');
             return;
         }
+        if (editingId && !editingSkuCode.trim()) {
+            showToast(toast, 'error', 'Error', 'SKU Code is required');
+            return;
+        }
 
         const payload: RawSkuPayload = {
-            skuCode: editingId ? undefined : previewSkuCode,
+            skuCode: editingId ? editingSkuCode : previewSkuCode,
             images: form.images,
             skuName: form.skuName,
             categoryId: form.categoryId,
@@ -199,7 +217,14 @@ const RawSku = () => {
 
         try {
             if (editingId) {
-                await updateRawSku(editingId, payload);
+                // Omit `currentStock` entirely when the user never touched it this session,
+                // rather than resending the dialog-open-time snapshot as if it were a real
+                // edit - see originalCurrentStockRef's declaration comment for why.
+                const updatePayload: Partial<RawSkuPayload> = { ...payload };
+                if (form.currentStock === originalCurrentStockRef.current) {
+                    delete updatePayload.currentStock;
+                }
+                await updateRawSku(editingId, updatePayload);
                 showToast(toast, 'success', 'Updated', 'SKU updated successfully');
             } else {
                 await createRawSku(payload);
@@ -224,9 +249,46 @@ const RawSku = () => {
         }
     };
 
+    const openStockDialog = (sku: RawSkuType) => {
+        setStockDialogSku(sku);
+        setStockAdjustmentQty(DEFAULT_DATA_TYPE_VALUE.ZERO);
+        setStockDialogVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
+    };
+
+    // Add-only now - the Remove Stock button was removed, so there's no direction left to
+    // choose; always passed straight through as 'Add'.
+    const handleStockSave = async () => {
+        if (!stockDialogSku) return;
+        if (!(stockAdjustmentQty > 0)) {
+            showToast(toast, 'error', 'Error', 'Quantity must be greater than 0');
+            return;
+        }
+
+        setStockSaving(DEFAULT_DATA_TYPE_VALUE.TRUE);
+        try {
+            await adjustRawSkuStock(stockDialogSku.id, 'Add', stockAdjustmentQty);
+            showToast(toast, 'success', 'Updated', 'Stock updated successfully');
+            fetchRawSkus();
+            setStockDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE);
+            setStockDialogSku(DEFAULT_DATA_TYPE_VALUE.NULL);
+        } catch (err) {
+            showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        } finally {
+            setStockSaving(DEFAULT_DATA_TYPE_VALUE.FALSE);
+        }
+    };
+
     // toast.current is only read inside handleToggleStatus's own async callback, never during render
     // eslint-disable-next-line react-hooks/refs
     const columns = getRawSkuColumns(dateFormat, handleToggleStatus, openEditDialog);
+
+    const actionTemplate = getActionBodyTemplate<RawSkuWithStockLevel>({
+        icons: [{
+            icon: TbCubePlus,
+            title: 'Update Stock',
+            onClick: openStockDialog,
+        }],
+    });
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<RawSkuWithStockLevel>({
         getId: (row) => row.id,
@@ -273,6 +335,7 @@ const RawSku = () => {
                 value={filteredSkus}
                 columns={columns}
                 loading={rawSkusLoading}
+                actionBodyTemplate={actionTemplate}
                 selectable
                 selection={selectedRows}
                 onSelectionChange={setSelectedRows}
@@ -281,7 +344,7 @@ const RawSku = () => {
             <Dialog
                 visible={panelVisible}
                 onHide={() => setPanelVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
-                header={<DialogHeader icon={HiOutlineArchiveBox} title={editingId ? 'Edit SKU' : 'Add New SKU'} />}
+                header={<DialogHeader icon={HiOutlineCube} title={editingId ? 'Edit SKU' : 'Add New SKU'} />}
                 style={{ width: '900px', maxWidth: '95vw' }}
                 footer={
                     <>
@@ -300,9 +363,8 @@ const RawSku = () => {
                                 <label>SKU Code</label>
                                 <InputText
                                     value={editingId ? editingSkuCode : previewSkuCode}
-                                    onChange={(e) => setPreviewSkuCode(e.target.value)}
+                                    onChange={(e) => (editingId ? setEditingSkuCode(e.target.value) : setPreviewSkuCode(e.target.value))}
                                     placeholder="Generating..."
-                                    disabled={!!editingId}
                                 />
                             </div>
                             <div className="form-field">
@@ -355,23 +417,17 @@ const RawSku = () => {
 
                     <div className="raw-sku-form-section">
                         <h3 className="raw-sku-form-section-title">Stock Levels</h3>
+                        {/* Locked once editing an existing SKU - Current Stock in particular now has its
+                            own dedicated "Update Stock" action (Action column), so this form no longer
+                            needs to be the way to change it (or the other stock-level figures) after
+                            creation. */}
                         <div className="raw-sku-dialog-grid">
                             <div className="form-field">
-                                <label>Min Stock</label>
-                                <InputNumber value={form.minStock} onValueChange={(e) => setForm({ ...form, minStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
-                            </div>
-                            <div className="form-field">
-                                <label>Max Stock</label>
-                                <InputNumber value={form.maxStock} onValueChange={(e) => setForm({ ...form, maxStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
-                            </div>
-                            <div className="form-field">
-                                <label>Reorder Level</label>
-                                <InputNumber value={form.reorderLevel} onValueChange={(e) => setForm({ ...form, reorderLevel: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
-                            </div>
-                            <div className="form-field">
-                                <label>Opening Stock</label>
+                                <label>Opening Stock <span className="raw-sku-required">*</span></label>
                                 <InputNumber
                                     value={form.openingStock}
+                                    min={0}
+                                    disabled={!!editingId}
                                     onValueChange={(e) => {
                                         const openingStock = e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO;
                                         // No transactions have happened yet on a brand-new SKU, so current
@@ -382,8 +438,20 @@ const RawSku = () => {
                                 />
                             </div>
                             <div className="form-field">
-                                <label>Current Stock</label>
-                                <InputNumber value={form.currentStock} onValueChange={(e) => setForm({ ...form, currentStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                                <label>Current Stock <span className="raw-sku-required">*</span></label>
+                                <InputNumber value={form.currentStock} min={0} disabled={!!editingId} onValueChange={(e) => setForm({ ...form, currentStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                            </div>
+                            <div className="form-field">
+                                <label>Min Stock <span className="raw-sku-required">*</span></label>
+                                <InputNumber value={form.minStock} min={0} disabled={!!editingId} onValueChange={(e) => setForm({ ...form, minStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                            </div>
+                            <div className="form-field">
+                                <label>Max Stock <span className="raw-sku-required">*</span></label>
+                                <InputNumber value={form.maxStock} min={0} disabled={!!editingId} onValueChange={(e) => setForm({ ...form, maxStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
+                            </div>
+                            <div className="form-field">
+                                <label>Reorder Level</label>
+                                <InputNumber value={form.reorderLevel} min={0} disabled={!!editingId} onValueChange={(e) => setForm({ ...form, reorderLevel: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} />
                             </div>
                         </div>
                     </div>
@@ -461,6 +529,86 @@ const RawSku = () => {
                 </div>
                 </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                visible={stockDialogVisible}
+                onHide={() => setStockDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)}
+                header={<DialogHeader icon={HiOutlineArrowPath} title="Update stock" badgeColor="green" />}
+                style={{ width: '420px', maxWidth: '95vw' }}
+                footer={
+                    <>
+                        <Button label="Cancel" outlined onClick={() => setStockDialogVisible(DEFAULT_DATA_TYPE_VALUE.FALSE)} />
+                        <Button label="Add stock" icon={<HiOutlinePlus className="mr-2" />} onClick={handleStockSave} loading={stockSaving} disabled={!(stockAdjustmentQty > 0)} />
+                    </>
+                }
+            >
+                {stockDialogSku && (
+                    <div className="raw-sku-stock-dialog-body">
+                        <div className="raw-sku-stock-card">
+                            <div className="raw-sku-stock-summary">
+                                <div className="raw-sku-stock-summary-image">
+                                    {stockDialogSku.images.length > 0 ? (
+                                        <img src={resolveImageUrl(stockDialogSku.images[0])} alt={stockDialogSku.skuName} />
+                                    ) : (
+                                        <HiOutlineCube size={26} />
+                                    )}
+                                </div>
+                                <div className="raw-sku-stock-summary-details">
+                                    <div className="raw-sku-stock-summary-name">{stockDialogSku.skuName}</div>
+                                    <span className="raw-sku-stock-summary-code">{stockDialogSku.skuCode}</span>
+                                    <div className="raw-sku-stock-summary-meta">
+                                        {stockDialogSku.productTypeName && <span>{stockDialogSku.productTypeName}</span>}
+                                        {stockDialogSku.locationName && <span className="raw-sku-stock-summary-location">{stockDialogSku.locationName}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="raw-sku-stock-summary-divider" />
+                            <div className="raw-sku-stock-summary-footer">
+                                <span className="raw-sku-stock-summary-label">Current stock</span>
+                                <span className="raw-sku-stock-summary-value">
+                                    {stockDialogSku.currentStock} <span className="raw-sku-stock-summary-unit">{stockDialogSku.unit}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="form-field">
+                            <label className="raw-sku-qty-label">Quantity to add</label>
+                            <div className="raw-sku-qty-stepper-row">
+                                <button
+                                    type="button"
+                                    className="raw-sku-qty-step-btn"
+                                    onClick={() => setStockAdjustmentQty((prev) => Math.max(0, prev - 1))}
+                                    disabled={stockAdjustmentQty <= 0}
+                                    aria-label="Decrease quantity"
+                                >
+                                    <HiOutlineMinus size={16} />
+                                </button>
+                                <div className="raw-sku-qty-display">
+                                    <InputNumber
+                                        value={stockAdjustmentQty}
+                                        min={0}
+                                        // PrimeReact only fires onValueChange on Enter/Tab/blur/the +-buttons -
+                                        // typing a digit directly fires onChange instead, so both are wired to
+                                        // the same setter (otherwise the Add stock button's disabled state -
+                                        // and any other UI reacting to this value - stayed stale until the
+                                        // field lost focus).
+                                        onValueChange={(e) => setStockAdjustmentQty(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)}
+                                        onChange={(e) => setStockAdjustmentQty(e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO)}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    className="raw-sku-qty-step-btn"
+                                    onClick={() => setStockAdjustmentQty((prev) => prev + 1)}
+                                    aria-label="Increase quantity"
+                                >
+                                    <HiOutlinePlus size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

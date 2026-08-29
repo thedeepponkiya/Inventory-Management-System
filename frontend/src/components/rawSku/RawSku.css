@@ -28,6 +28,201 @@
     transform-origin: left center;
 }
 
+/* Required-field asterisk, matching InventoryHome.css's identical .inventory-home-required. */
+.raw-sku-required {
+    color: var(--accent-danger-text);
+}
+
+.raw-sku-stock-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Read-only SKU summary card at the top of the "Update Stock" dialog - a quick visual
+   confirmation of which SKU is being adjusted (thumbnail + key details + current stock)
+   before the Quantity stepper below. The faint diagonal-hatch texture (in place of a flat
+   fill) is what visually marks this as a read-only "reference" card rather than another
+   editable field. */
+.raw-sku-stock-card {
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    background:
+        repeating-linear-gradient(135deg, var(--surface-subtle-2) 0, var(--surface-subtle-2) 1px, transparent 1px, transparent 10px),
+        var(--surface-subtle);
+    overflow: hidden;
+}
+
+.raw-sku-stock-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+}
+
+.raw-sku-stock-summary-image {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    color: var(--text-subtle);
+}
+
+.raw-sku-stock-summary-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.raw-sku-stock-summary-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.raw-sku-stock-summary-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.raw-sku-stock-summary-code {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.raw-sku-stock-summary-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.raw-sku-stock-summary-meta span:not(:last-child)::after {
+    content: '\2022';
+    margin-left: 8px;
+    color: var(--text-subtle);
+}
+
+.raw-sku-stock-summary-location {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--surface-subtle-2);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.raw-sku-stock-summary-location::after {
+    content: none !important;
+}
+
+.raw-sku-stock-summary-divider {
+    height: 1px;
+    background: var(--border-default);
+    margin: 0 14px;
+}
+
+.raw-sku-stock-summary-footer {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 12px 14px;
+}
+
+.raw-sku-stock-summary-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+
+.raw-sku-stock-summary-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #16a34a;
+}
+
+.raw-sku-stock-summary-unit {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+}
+
+.raw-sku-qty-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Three-segment stepper (minus | input | plus) as separate boxes with real gaps between them -
+   not PrimeReact's own showButtons layout, which fuses the buttons flush against the input
+   into one bordered unit. */
+.raw-sku-qty-stepper-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.raw-sku-qty-step-btn {
+    width: 48px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 10px;
+    background: var(--surface-subtle-2);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.raw-sku-qty-step-btn:hover:not(:disabled) {
+    background: var(--border-default);
+}
+
+.raw-sku-qty-step-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.raw-sku-qty-display {
+    flex: 1;
+    min-width: 0;
+    border-radius: 10px;
+    background: var(--surface-subtle);
+    display: flex;
+}
+
+.raw-sku-qty-display .p-inputnumber {
+    width: 100%;
+}
+
+.raw-sku-qty-display .p-inputnumber-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
 /* Add/Edit dialog's own Status field (mirrors Locations.css's identical .location-status-*
    pattern) - previously this dialog had no Status control at all, so on mobile (where the
    table's own status-toggle column is hideOnMobile:true) there was no way to change a Raw

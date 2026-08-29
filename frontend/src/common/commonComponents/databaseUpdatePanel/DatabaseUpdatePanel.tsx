@@ -14,6 +14,7 @@ import {
     HiOutlineTrash,
     HiOutlineSquare3Stack3D,
     HiOutlineShieldCheck,
+    HiOutlineLockOpen,
 } from 'react-icons/hi2';
 import DialogHeader from '../dialogHeader/DialogHeader';
 import { previewDatabaseUpdate, updateDatabase, type PendingSchemaChanges } from '../../../services/databaseUpdateService';
@@ -30,7 +31,7 @@ const steps = [
 
 function countChanges(changes: PendingSchemaChanges): number {
     return changes.newTables.length + changes.droppedTables.length + changes.newColumns.length + changes.removedColumns.length
-        + changes.renamedColumns.length + changes.newIndexes.length;
+        + changes.nullableColumns.length + changes.renamedColumns.length + changes.newIndexes.length;
 }
 
 // Inline Developer Admin section (rendered directly, no dialog wrapper - matches
@@ -98,7 +99,7 @@ const DatabaseUpdatePanel = () => {
                 <HiOutlineShieldCheck size={22} className="database-update-info-icon" />
                 <div>
                     <strong>This action never deletes or changes existing data.</strong>
-                    <p>It only adds tables/columns that don&apos;t exist yet on this database - already-present data is left exactly as it is.</p>
+                    <p>It only adds tables/columns that don&apos;t exist yet (or relaxes a column that no longer needs a value) on this database - already-present data is left exactly as it is.</p>
                 </div>
             </div>
 
@@ -174,6 +175,12 @@ const DatabaseUpdatePanel = () => {
                                 <div className="database-update-preview-item" key={`idx-${indexName}`}>
                                     <span className="database-update-preview-icon database-update-preview-icon--add"><HiOutlinePlusCircle size={16} /></span>
                                     <span>New index <strong>{indexName}</strong> on {table}</span>
+                                </div>
+                            ))}
+                            {preview.nullableColumns.map(({ table, column }) => (
+                                <div className="database-update-preview-item" key={`nullable-${table}-${column}`}>
+                                    <span className="database-update-preview-icon database-update-preview-icon--add"><HiOutlineLockOpen size={16} /></span>
+                                    <span><strong>{table}.{column}</strong> no longer requires a value (existing values kept)</span>
                                 </div>
                             ))}
                             {preview.removedColumns.map(({ table, column }) => (

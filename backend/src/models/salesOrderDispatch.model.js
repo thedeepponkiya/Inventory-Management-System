@@ -7,10 +7,10 @@ const TABLE = 'ims_sales_order_dispatches';
 // items/status update and the Inventory stock adjustment.
 async function create(fields, client = pool) {
   const result = await client.query(
-    `INSERT INTO ${TABLE} ("soId", "dispatchDate", items, "dispatchedBy")
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO ${TABLE} ("soId", "dispatchDate", items, "dispatchedBy", "billNo")
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [fields.soId, fields.dispatchDate, JSON.stringify(fields.items), fields.dispatchedBy]
+    [fields.soId, fields.dispatchDate, JSON.stringify(fields.items), fields.dispatchedBy, fields.billNo || null]
   );
   return result.rows[0];
 }

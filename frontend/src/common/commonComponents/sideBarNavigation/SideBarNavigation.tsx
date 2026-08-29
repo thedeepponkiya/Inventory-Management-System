@@ -6,7 +6,7 @@ import { useAuthContext } from '../../../context/AuthContextDefinition';
 import { isModuleAllowed } from '../../../services/rolePermissionsService';
 import {
     HiOutlineTruck, // Material Inward nav item hidden below
-    HiOutlineArchiveBox,
+    HiOutlineCube,
     HiOutlineMapPin,
     HiOutlineSquares2X2,
     HiOutlineSquare3Stack3D,
@@ -42,9 +42,9 @@ const navGroups = [
         groupLabel: 'Operation',
         items: [
             { label: 'Inventories', path: '/home', icon: BsBoxSeam, iconSize: 17 },
-            { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
             { label: 'Purchase Order', path: '/purchase-order', icon: HiOutlineClipboardDocumentList },
-            { label: 'Finished SKU', path: '/raw-sku', icon: HiOutlineArchiveBox },
+            { label: 'Material Inward', path: '/material-inward', icon: HiOutlineTruck },
+            { label: 'Raw SKU', path: '/raw-sku', icon: HiOutlineCube },
             { label: 'BOM', path: '/bom', icon: HiOutlineSquare3Stack3D },
             { label: 'Sales Order', path: '/sales-order', icon: HiOutlineShoppingCart },
         ],
@@ -216,18 +216,7 @@ const SidePanel = () => {
                 </div>
 
                 <div className="sidebar-items">
-                    {!hiddenPaths.includes(dashboardItem.path) && isAllowedForRole(dashboardItem.path) && (
-                        <NavLink
-                            to={dashboardItem.path}
-                            end
-                            className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
-                            title={dashboardItem.label}
-                            onClick={() => setMobileOpen(false)}
-                        >
-                            <dashboardItem.icon size={19} />
-                            <span>{dashboardItem.label}</span>
-                        </NavLink>
-                    )}
+
 
                     {visibleCrmItems.length > 0 && (
                         <div className="sidebar-group">
@@ -281,6 +270,19 @@ const SidePanel = () => {
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {!hiddenPaths.includes(dashboardItem.path) && isAllowedForRole(dashboardItem.path) && (
+                        <NavLink
+                            to={dashboardItem.path}
+                            end
+                            className={`sidebar-item${isItemActive(dashboardItem.path) ? ' sidebar-item--active' : ''}`}
+                            title={dashboardItem.label}
+                            onClick={() => setMobileOpen(false)}
+                        >
+                            <dashboardItem.icon size={19} />
+                            <span>{dashboardItem.label}</span>
+                        </NavLink>
                     )}
 
                     {navGroups.map((group) => {

@@ -42,9 +42,9 @@ const CrmDashboardPage = () => {
     // Mirrors CrmLeadsPage.tsx's canEditLead - Sales User can view a lead from here but not
     // edit its own fields.
     const canEditLead = user?.roleId !== 'Sales User';
-    // Mirrors CrmLeadsPage.tsx's canViewFollowups - Sales User doesn't get the drawer's
-    // Follow-ups tab either.
-    const canViewFollowups = user?.roleId !== 'Sales User';
+    // Mirrors CrmLeadsPage.tsx's canViewFollowups - Sales User now gets the drawer's
+    // Follow-ups tab too.
+    const canViewFollowups = true;
     const { data: leads = [] } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: followups = [] } = useFollowupsQuery();

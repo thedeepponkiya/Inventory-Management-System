@@ -115,13 +115,25 @@ async function updateLead(req, res) {
 
 async function reorderLeads(req, res) {
   try {
+    // A Kanban drag writes "stageId" (and sortOrder) on real leads, so it's an edit of a lead's
+    // own fields exactly like updateLead - and it was the one lead-mutating endpoint here with
+    // no permission check at all, which let a Sales User move ANY lead between stages via a
+    // direct call, side-stepping the deliberately-disabled Stage dropdown in LeadDetailDrawer.
+    // Same single gate updateLead uses (rather than a per-lead scope check): Sales User is the
+    // only role leadScopeUserId narrows, and canEditLead already blocks that role outright, so
+    // nobody who reaches this line has a restricted scope to escape from.
+    if (!canEditLead(req)) {
+      return res.status(403).json({ status: false, message: 'Not authorized to edit leads', data: null });
+    }
     const { stageId, orderedLeadIds } = req.body;
     if (!Array.isArray(orderedLeadIds) || orderedLeadIds.length === 0) {
       return res.status(400).json({ status: false, message: 'orderedLeadIds must be a non-empty array', data: null });
     }
 
     await CrmLeadModel.reorderStage(stageId ?? null, orderedLeadIds);
-    const leads = await CrmLeadModel.getAll();
+    // Scoped identically to getLeads - an unscoped getAll() here returned every lead in the
+    // system in the reorder response, regardless of the caller's role.
+    const leads = await CrmLeadModel.getAll(leadScopeUserId(req));
     res.json({ status: true, message: 'Leads reordered successfully', data: leads });
   } catch (err) {
     sendServerError(res, err);

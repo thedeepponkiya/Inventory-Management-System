@@ -9,6 +9,7 @@ export interface Customer {
     address: string;
     city: string;
     zipCode: string;
+    gstNo: string | null;
     createdAt: string;
 }
 
@@ -19,6 +20,7 @@ export interface CustomerPayload {
     address: string;
     city: string;
     zipCode: string;
+    gstNo: string;
 }
 
 interface ApiResponse<T> {

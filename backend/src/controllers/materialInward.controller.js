@@ -11,8 +11,20 @@ const CustomFieldService = require('../services/customField.service');
 // Inward's own freightCharge/otherCharges, which aren't derived from items - they're real
 // user-entered charges layered on top, so they're added back in here rather than trusted
 // as-sent like every other total used to be.
+//
+// computeOrderTotals is shared with Purchase Order/Sales Order and always prices off
+// `orderedQty` unconditionally - for Material Inward that field is the PO line's ORIGINAL
+// ordered quantity (kept in the stored items purely for display/pending-qty math), not what
+// this specific inward transaction actually received. Left unmapped, every inward - even a
+// tiny partial receipt - would be billed at the PO's FULL ordered quantity, and rejected
+// (failed-QC) quantity would be billed too even though it's never owed to the vendor. Remap
+// to acceptedQty here before totaling, same as MaterialInwardForm.tsx's own live-preview
+// totals already do and the same pattern salesOrder.controller.js's dispatchSalesOrder uses
+// (remapping to shipQty) - only for this totals computation, the stored `items` keep their
+// real orderedQty untouched.
 function computeInwardTotals(items, freightCharge, otherCharges) {
-  const base = computeOrderTotals(items);
+  const itemsForTotals = (items || []).map((item) => ({ ...item, orderedQty: Number(item.acceptedQty) || 0 }));
+  const base = computeOrderTotals(itemsForTotals);
   const freight = Number(freightCharge) || 0;
   const other = Number(otherCharges) || 0;
   return { ...base, grandTotal: Math.round((base.grandTotal + freight + other) * 100) / 100 };
@@ -23,12 +35,33 @@ function computeInwardTotals(items, freightCharge, otherCharges) {
 // meaning Raw SKU currentStock never moved on receiving at all). `sign` is 1 to apply a set
 // of items' stock and -1 to reverse it (used by update/delete so edits/deletes never leave a
 // stale delta behind). Always runs against the transaction's own client, never the bare pool.
+//
+// Returns the list of skuCodes that matched NO Raw SKU row. adjustStockBySkuCode's UPDATE ...
+// WHERE "skuCode" = $1 quietly affects zero rows whenever an item's skuCode isn't a real Raw
+// SKU code (Material Inward items copy skuCode straight off the linked PO line, and a PO
+// line's skuCode is currently a free-typed item name rather than a picked SKU), which made
+// "stock never moved on receiving" completely invisible. Collecting the misses lets the
+// caller surface them as a warning instead.
 async function applyStockForItems(items, sign, client) {
+  const unmatchedSkuCodes = [];
   for (const item of items) {
     const qty = Number(item.acceptedQty ?? item.receivedQty ?? 0);
     if (!item.skuCode || !qty) continue;
-    await RawSkuModel.adjustStockBySkuCode(item.skuCode, sign * qty, client);
+    const updated = await RawSkuModel.adjustStockBySkuCode(item.skuCode, sign * qty, client);
+    if (!updated) unmatchedSkuCodes.push(item.skuCode);
   }
+  return unmatchedSkuCodes;
+}
+
+// Deliberately a soft warning rather than a hard 400/500: the Material Inward record itself
+// and the linked PO's resync are real, wanted writes that already committed in the same
+// transaction, and failing the whole save would just block receiving entirely for every PO
+// whose lines don't carry real SKU codes (the everyday case today). Same soft-`warning`
+// convention createMaterialInward already uses for a failed auto-generated invoice.
+function buildStockWarning(unmatchedSkuCodes) {
+  const unique = [...new Set(unmatchedSkuCodes.filter(Boolean))];
+  if (unique.length === 0) return null;
+  return `Stock was not updated for: ${unique.join(', ')} (no matching Raw SKU code) - update it manually or fix the linked SKU.`;
 }
 
 // Server-side backstop for the same cap the frontend's Add Material Inward form already
@@ -38,7 +71,11 @@ async function applyStockForItems(items, sign, client) {
 // (so its own already-counted receipt isn't double-subtracted from its own new pending check).
 async function validateAgainstPendingQty(purchaseOrderId, items, client, excludeInwardId = null) {
   if (!purchaseOrderId) return;
-  const po = await PurchaseOrderModel.findById(purchaseOrderId, client);
+  // FOR UPDATE, not the plain findById - this locks the PO row for the rest of the
+  // transaction, so two concurrent Material Inward saves against the same PO can't both
+  // read the same pre-write pendingQty, both pass this check, and both commit (the second
+  // one now blocks here until the first's transaction commits or rolls back).
+  const po = await PurchaseOrderModel.findByIdForUpdate(purchaseOrderId, client);
   if (!po) return;
 
   const allInwards = await MaterialInwardModel.getAll(client);
@@ -88,7 +125,10 @@ async function generateInwardNo(purchaseOrderId, purchaseOrderNo) {
 async function resyncPurchaseOrderTotals(purchaseOrderId, client) {
   if (!purchaseOrderId) return;
 
-  const po = await PurchaseOrderModel.findById(purchaseOrderId, client);
+  // FOR UPDATE here too, not just in validateAgainstPendingQty above - deleteMaterialInward
+  // calls straight into this without going through that check first, so this needs its own
+  // lock rather than relying on one already being held.
+  const po = await PurchaseOrderModel.findByIdForUpdate(purchaseOrderId, client);
   if (!po || po.status === 'Cancelled') return;
 
   const allInwards = await MaterialInwardModel.getAll(client);
@@ -106,29 +146,41 @@ async function resyncPurchaseOrderTotals(purchaseOrderId, client) {
       .reduce((sum, mi) => sum + mi.receivedQty, 0);
     return { ...item, receivedQty, pendingQty: item.orderedQty - receivedQty };
   });
-  const hasAnyInward = relevantInwards.length > 0;
+  // Fully received = every line's pendingQty is down to zero (or below, if something was
+  // over-received). A PARTIAL receipt must NOT flip the PO to 'Received': that used to be
+  // terminal (ALLOWED_PO_STATUS_TRANSITIONS lets Received go nowhere but Received) and also
+  // dropped the PO out of Material Inward's own PO picker, so the remaining quantity could
+  // never be received and the PO could no longer be cancelled. Staying 'Sent' until fully
+  // received is the minimal correct fix - there's no 'Partially Received' value anywhere in
+  // the status enum (purchaseOrder.controller.js's VALID_STATUSES, purchaseOrderService.ts's
+  // PurchaseOrderStatus) to introduce without a migration and a sweep of every status-based
+  // UI condition.
+  const isFullyReceived = updatedItems.length > 0 && updatedItems.every((item) => item.pendingQty <= 0);
 
   // Only the Sent<->Received transition is auto-managed (so a later edit/delete that
   // un-fulfills a PO correctly reverts it, not just moves status forward one-way). Draft/
   // Cancelled are left alone - they aren't reachable from Material Inward's PO picker
   // anyway (it filters those out), but this keeps the auto-logic from ever overriding them.
-  // Saving any Material Inward against a PO (even a partial receipt) marks it Received;
-  // removing the last inward against it reverts it back to Sent.
   let status = po.status;
   if (po.status === 'Sent' || po.status === 'Received') {
-    status = hasAnyInward ? 'Received' : 'Sent';
+    status = isFullyReceived ? 'Received' : 'Sent';
   }
 
+  // Every key here must be one PurchaseOrderModel.update actually consumes - it writes a
+  // fixed column list, so any field omitted from this object arrives as `undefined` and is
+  // sent to Postgres as NULL. That's exactly how "shippingDate" (absent here until now) got
+  // permanently wiped off the PO on every single Material Inward create/update/delete. The
+  // paymentTerms/currency/approvedBy/approvedAt keys that used to be here were the mirror
+  // image of the same confusion - the model has no such columns, so they were pure noise.
   await PurchaseOrderModel.update(purchaseOrderId, {
     vendorId: po.vendorId,
     poDate: po.poDate,
     expectedDeliveryDate: po.expectedDeliveryDate,
+    shippingDate: po.shippingDate,
     deliveryAddress: po.deliveryAddress,
-    paymentTerms: po.paymentTerms,
     status,
     paymentStatus: po.paymentStatus,
     paidAmount: po.paidAmount,
-    currency: po.currency,
     items: updatedItems,
     totalItems: po.totalItems,
     totalQty: po.totalQty,
@@ -138,8 +190,6 @@ async function resyncPurchaseOrderTotals(purchaseOrderId, client) {
     grandTotal: po.grandTotal,
     remarks: po.remarks,
     createdBy: po.createdBy,
-    approvedBy: po.approvedBy,
-    approvedAt: po.approvedAt,
   }, client);
 }
 
@@ -157,7 +207,7 @@ async function getMaterialInwards(req, res) {
 // partway through used to leave a Material Inward record persisted with only some of its
 // stock applied, or (on update) stock double-reversed/not-reversed at all, with the client
 // seeing a 500 as if nothing had happened. Matches the BEGIN/COMMIT/ROLLBACK/finally pattern
-// already used by bom.controller.js's completeBom/revertBomToProcess.
+// already used by bom.controller.js's completeBomItem/revertBomItem.
 async function createMaterialInward(req, res) {
   const { vendorId, warehouseId, receivedDate } = req.body;
   if (!vendorId || !warehouseId || !receivedDate) {
@@ -197,7 +247,7 @@ async function createMaterialInward(req, res) {
     await validateAgainstPendingQty(fields.purchaseOrderId, items, client);
 
     const created = await MaterialInwardModel.create(inwardNo, fields, client);
-    await applyStockForItems(created.items, 1, client);
+    const stockWarning = buildStockWarning(await applyStockForItems(created.items, 1, client));
     await resyncPurchaseOrderTotals(created.purchaseOrderId, client);
     await CustomFieldService.saveValues('materialInward', created.id, req.body.customFields, client);
     const withCustomFields = await MaterialInwardModel.findById(created.id, client);
@@ -215,7 +265,10 @@ async function createMaterialInward(req, res) {
       console.error('Failed to auto-generate invoice for material inward', created.id, invoiceErr);
       invoiceWarning = 'Material inward saved, but its Purchase Invoice could not be auto-generated. Please create it manually from the Invoices page.';
     }
-    res.status(201).json({ status: true, message: 'Material inward created successfully', data: withCustomFields, warning: invoiceWarning });
+    // Both soft failures share the single `warning` field the client already renders - joined
+    // rather than one overwriting the other, since they're independent and both actionable.
+    const warning = [stockWarning, invoiceWarning].filter(Boolean).join(' ') || null;
+    res.status(201).json({ status: true, message: 'Material inward created successfully', data: withCustomFields, warning });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });
@@ -257,7 +310,13 @@ async function updateMaterialInward(req, res) {
       freightCharge,
       otherCharges,
       remarks: body.remarks ?? existing.remarks,
-      receivedBy: body.receivedBy ?? existing.receivedBy,
+      // Never taken from the request body on the update path - the receiver is whoever
+      // actually received the goods, established once at create time from the authenticated
+      // session, and editing the record later must not rewrite it. MaterialInwardForm.tsx
+      // sends a hard-coded 'Admin User' in its payload for both create and update, so
+      // honouring the body here overwrote the real receiver on every single edit. Same
+      // "don't trust client-supplied identity fields" reasoning as the create path.
+      receivedBy: existing.receivedBy,
     };
 
     // Exclude this record's own already-counted receipt from the pending-qty check, since
@@ -269,7 +328,9 @@ async function updateMaterialInward(req, res) {
     // diffing - simplest thing that's correct even when SKUs/quantities/line count all
     // change between the old and new items array.
     await applyStockForItems(existing.items, -1, client);
-    await applyStockForItems(updated.items, 1, client);
+    // Only the NEW items' misses are reported: a reversal that matches nothing is the same
+    // no-op the original apply was, so warning about it twice would just be noise.
+    const stockWarning = buildStockWarning(await applyStockForItems(updated.items, 1, client));
     await resyncPurchaseOrderTotals(updated.purchaseOrderId, client);
     if (existing.purchaseOrderId && existing.purchaseOrderId !== updated.purchaseOrderId) {
       await resyncPurchaseOrderTotals(existing.purchaseOrderId, client);
@@ -278,7 +339,7 @@ async function updateMaterialInward(req, res) {
     const withCustomFields = await MaterialInwardModel.findById(id, client);
 
     await client.query('COMMIT');
-    res.json({ status: true, message: 'Material inward updated successfully', data: withCustomFields });
+    res.json({ status: true, message: 'Material inward updated successfully', data: withCustomFields, warning: stockWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(err.statusCode || 500).json({ status: false, message: err.message, data: null });

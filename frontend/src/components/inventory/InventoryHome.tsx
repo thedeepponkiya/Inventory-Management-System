@@ -27,7 +27,7 @@ import DataTable, { type DataTableHandle } from '../../common/commonComponents/d
 import DialogHeader from '../../common/commonComponents/dialogHeader/DialogHeader';
 import QuickAddDropdown from '../../common/commonComponents/quickAddDropdown/QuickAddDropdown';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
-import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type AssemblyLine } from '../../services/inventoryService';
+import { createInventoryItem, updateInventoryItem, deleteInventoryItem, getNextSkuId, uploadProductImage, type InventoryItem, type InventoryPayload, type AssemblyLine } from '../../services/inventoryService';
 import { AppContext } from '../../context/AppContextDefinition';
 import { useDateFormatContext } from '../../context/DateFormatContextDefinition';
 import type { RawSku } from '../../services/rawSkuService';
@@ -36,7 +36,7 @@ import type { ProductType } from '../../services/productTypeService';
 import type { Unit } from '../../services/unitService';
 import type { Location as LocationRecord } from '../../services/locationService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getActionBodyTemplate, getStockLevel, type AssemblyRow, type InventoryItemWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
+import { getInventoryHomeColumns, getInventoryHomeAssemblyColumns, getStockLevel, type AssemblyRow, type InventoryItemWithStockLevel } from '../../common/commonFunctions/CommonUtilities';
 import { showToast, resolveImageUrl } from '../../common/commonFunctions/commonFunction';
 import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import CustomFieldsSection from '../../common/commonComponents/customFieldsSection/CustomFieldsSection';
@@ -45,6 +45,14 @@ import './InventoryHome.css';
 let nextAssemblyRowId = 1;
 const emptyAssemblyRow = (): AssemblyRow => ({ rowId: nextAssemblyRowId++, skuCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, skuName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: 1, unit: 'PCS' });
 const rowsFromAssembly = (assembly: AssemblyLine[]): AssemblyRow[] => assembly.map((line) => ({ ...line, rowId: nextAssemblyRowId++ }));
+
+// There's no "Add Item" button for Product Assembly anymore - instead exactly one blank row is
+// always kept available to fill in next, appearing automatically the moment the previous blank
+// row gets a SKU picked (see updateAssemblyRow) so the grid never runs out of a place to add the
+// next component. Also used to seed the very first row when a dialog opens with none yet, and
+// to top back up after a row gets deleted.
+const ensureTrailingBlankRow = (rows: AssemblyRow[]): AssemblyRow[] =>
+    rows.some((row) => !row.skuCode) ? rows : [...rows, emptyAssemblyRow()];
 
 const emptyForm: Omit<InventoryItem, 'id' | 'skuId' | 'createdDate' | 'assembly'> = {
     images: [], productName: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, categoryName: DEFAULT_DATA_TYPE_VALUE.NULL, productType: DEFAULT_DATA_TYPE_VALUE.NULL, barcode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING, quantity: DEFAULT_DATA_TYPE_VALUE.ZERO, unit: 'PCS', locationName: DEFAULT_DATA_TYPE_VALUE.NULL, status: 'Active', unitCost: DEFAULT_DATA_TYPE_VALUE.ZERO, sellingCost: DEFAULT_DATA_TYPE_VALUE.ZERO, minStock: DEFAULT_DATA_TYPE_VALUE.ZERO, maxStock: DEFAULT_DATA_TYPE_VALUE.ZERO, openingStock: DEFAULT_DATA_TYPE_VALUE.ZERO, customFields: {},
@@ -65,6 +73,14 @@ const InventoryHome = () => {
     const [editingId, setEditingId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingSkuId, setEditingSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
     const [previewSkuId, setPreviewSkuId] = useState(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
+    // Snapshot of `quantity` at the moment the Edit dialog was opened - handleSave compares
+    // against this to decide whether to actually send `quantity` in the update payload. The
+    // backend's own update already COALESCEs quantity against the LIVE column value when it's
+    // omitted (see inventory.controller.js's updateInventory), specifically so a concurrent
+    // stock-moving transaction (BOM/Sales Order/Material Inward) isn't clobbered by a stale
+    // value - but that protection only works if this form doesn't always resend its own
+    // dialog-open-time snapshot as if it were a real edit.
+    const originalQuantityRef = useRef<number | null>(null);
 
     const filterFields: FilterField[] = [
         { key: 'search', type: 'search', label: 'Search', placeholder: 'Search by SKU ID or product name' },
@@ -79,20 +95,21 @@ const InventoryHome = () => {
             .map((item) => ({ ...item, stockLevel: getStockLevel(item.quantity, item.minStock, item.maxStock).label }));
     }, [inventories, filters]);
 
-    const addAssemblyRow = () => {
-        if (assemblyRows.some((row) => !row.skuCode)) {
-            showToast(toast, 'warn', 'Warning', 'Please select a SKU for the existing row before adding another');
-            return;
-        }
-        setAssemblyRows((prev) => [...prev, emptyAssemblyRow()]);
-    };
-
+    // Whenever a row's SKU gets picked (patch.skuCode truthy), top the grid back up to always
+    // have one blank row available - this is the entire replacement for the old "Add Item"
+    // button, so picking a SKU is the only action that ever needs to grow the list.
     const updateAssemblyRow = (rowId: number, patch: Partial<AssemblyRow>) => {
-        setAssemblyRows((prev) => prev.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)));
+        setAssemblyRows((prev) => {
+            const updated = prev.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row));
+            return patch.skuCode ? ensureTrailingBlankRow(updated) : updated;
+        });
     };
 
     const removeAssemblyRow = (rowId: number) => {
-        setAssemblyRows((prev) => prev.filter((row) => row.rowId !== rowId));
+        // Topped back up here too - deleting the one standing blank row (or the last filled
+        // row, leaving none) must never leave the grid with nowhere left to add a component,
+        // now that there's no button to bring one back manually.
+        setAssemblyRows((prev) => ensureTrailingBlankRow(prev.filter((row) => row.rowId !== rowId)));
     };
 
     // Uploads each file to the backend (see inventoryService.ts's uploadProductImage) and
@@ -142,7 +159,9 @@ const InventoryHome = () => {
         setEditingId(DEFAULT_DATA_TYPE_VALUE.NULL);
         setEditingSkuId(DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING);
         setForm(emptyForm);
-        setAssemblyRows([]);
+        // Seeded with one blank row instead of starting empty - there's no "Add Item" button
+        // to bring the first one in manually anymore (see ensureTrailingBlankRow).
+        setAssemblyRows([emptyAssemblyRow()]);
         setActiveDialogTab('details');
         setActiveImageIndex(DEFAULT_DATA_TYPE_VALUE.ZERO);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
@@ -156,6 +175,7 @@ const InventoryHome = () => {
     const openEditDialog = (item: InventoryItem) => {
         setEditingId(item.id);
         setEditingSkuId(item.skuId);
+        originalQuantityRef.current = item.quantity;
         setForm({
             images: item.images,
             productName: item.productName,
@@ -173,30 +193,83 @@ const InventoryHome = () => {
             openingStock: item.openingStock,
             customFields: item.customFields ?? {},
         });
-        setAssemblyRows(rowsFromAssembly(item.assembly));
+        // Always ends with one blank row ready to fill - if the item's saved assembly is
+        // already fully populated (or empty), this tops it up the same way picking a SKU does.
+        setAssemblyRows(ensureTrailingBlankRow(rowsFromAssembly(item.assembly)));
         setActiveDialogTab('details');
         setActiveImageIndex(DEFAULT_DATA_TYPE_VALUE.ZERO);
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
 
     const handleSave = async () => {
-        if (assemblyRows.length === 0) {
+        // The Details tab marks Product Name/Category/Product Type/Unit/Location with a
+        // required asterisk, but nothing actually enforced that before now - only
+        // productName was ever checked, and only server-side. Category/Product Type/Location
+        // in particular are dropdowns that default to null, so they could be left fully
+        // blank despite the asterisk promising otherwise.
+        if (!form.productName.trim()) {
+            setActiveDialogTab('details');
+            showToast(toast, 'error', 'Error', 'Product Name is required');
+            return;
+        }
+        if (!form.categoryName) {
+            setActiveDialogTab('details');
+            showToast(toast, 'error', 'Error', 'Category is required');
+            return;
+        }
+        if (!form.productType) {
+            setActiveDialogTab('details');
+            showToast(toast, 'error', 'Error', 'Product Type is required');
+            return;
+        }
+        if (!form.unit) {
+            setActiveDialogTab('details');
+            showToast(toast, 'error', 'Error', 'Unit is required');
+            return;
+        }
+        if (!form.locationName) {
+            setActiveDialogTab('details');
+            showToast(toast, 'error', 'Error', 'Location is required');
+            return;
+        }
+
+        // There's always a standing blank row now (see ensureTrailingBlankRow) - it's the
+        // normal "pick a SKU to add another line" placeholder, not a mistake to flag, so
+        // validation (and the payload below) only ever looks at the rows actually filled in.
+        const filledAssemblyRows = assemblyRows.filter((row) => row.skuCode);
+        if (filledAssemblyRows.length === 0) {
             setActiveDialogTab('assembly');
             showToast(toast, 'warn', 'Warning', 'Please add at least one SKU');
             return;
         }
 
-        const hasBlankAssemblyRow = assemblyRows.some((row) => !row.skuCode);
-        if (hasBlankAssemblyRow) {
+        // The InputNumber's own min={1} stops a user from typing a negative/zero value in,
+        // but a row's quantity can still end up unset (e.g. left at whatever a blank input
+        // resolves to) - a zero/negative line quantity here would flip completeBomItem's
+        // stock-deduction sign and bypass its shortage check entirely, see
+        // stockValidation.util.js's findInvalidAssemblyLine on the backend.
+        if (filledAssemblyRows.some((row) => !(row.quantity > 0))) {
             setActiveDialogTab('assembly');
-            showToast(toast, 'warn', 'Warning', 'Please select a SKU for every Product Assembly row, or remove the empty one');
+            showToast(toast, 'warn', 'Warning', 'Every Product Assembly row needs a quantity greater than 0');
             return;
         }
 
-        const assembly = assemblyRows.map(({ skuCode, skuName, quantity, unit }) => ({ skuCode, skuName, quantity, unit }));
+        if (editingId && !editingSkuId.trim()) {
+            showToast(toast, 'error', 'Error', 'SKU (ID) is required');
+            return;
+        }
+
+        const assembly = filledAssemblyRows.map(({ skuCode, skuName, quantity, unit }) => ({ skuCode, skuName, quantity, unit }));
         try {
             if (editingId) {
-                await updateInventoryItem(editingId, { ...form, assembly });
+                // Omit `quantity` entirely when the user never touched it this session,
+                // rather than resending the dialog-open-time snapshot as if it were a real
+                // edit - see originalQuantityRef's declaration comment for why.
+                const payload: Partial<InventoryPayload> = { ...form, assembly, skuId: editingSkuId };
+                if (form.quantity === originalQuantityRef.current) {
+                    delete payload.quantity;
+                }
+                await updateInventoryItem(editingId, payload);
                 showToast(toast, 'success', 'Updated', 'Inventory item updated successfully');
             } else {
                 await createInventoryItem({ ...form, assembly, skuId: previewSkuId });
@@ -228,7 +301,17 @@ const InventoryHome = () => {
 
     const assemblyColumns = getInventoryHomeAssemblyColumns(assemblyRows, rawSkus as RawSku[], updateAssemblyRow, (units as Unit[]).map((u) => u.unit));
 
-    const assemblyActionTemplate = getActionBodyTemplate<AssemblyRow>({ onDelete: (row) => removeAssemblyRow(row.rowId) });
+    // Delete icon only shows once a row has a SKU picked - the standing blank row (see
+    // ensureTrailingBlankRow) has nothing in it to delete, and it's about to either get filled
+    // in or stay as the harmless trailing placeholder, so a delete affordance on it would just
+    // be confusing. Hand-rolled rather than getActionBodyTemplate's onDelete, which has no way
+    // to hide the icon conditionally per row.
+    const assemblyActionTemplate = (row: AssemblyRow) =>
+        row.skuCode ? (
+            <div className="data-table-actions">
+                <HiOutlineTrash size={16} color="#dc2626" title="Delete" onClick={() => removeAssemblyRow(row.rowId)} />
+            </div>
+        ) : DEFAULT_DATA_TYPE_VALUE.NULL;
 
     const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<InventoryItemWithStockLevel>({
         getId: (row) => row.id,
@@ -328,9 +411,8 @@ const InventoryHome = () => {
                                                 <InputText
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={editingId ? editingSkuId : previewSkuId}
-                                                    onChange={(e) => setPreviewSkuId(e.target.value)}
+                                                    onChange={(e) => (editingId ? setEditingSkuId(e.target.value) : setPreviewSkuId(e.target.value))}
                                                     placeholder="Generating..."
-                                                    disabled={!!editingId}
                                                 />
                                                 <HiOutlineTag size={15} className="inventory-home-input-icon" />
                                             </div>
@@ -383,6 +465,19 @@ const InventoryHome = () => {
                                             <label>Unit <span className="inventory-home-required">*</span></label>
                                             <QuickAddDropdown quickAddType="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.value })} options={(units as Unit[]).map((u) => u.unit)} placeholder="Select unit" />
                                         </div>
+                                        <div className="form-field">
+                                            <label>Location <span className="inventory-home-required">*</span></label>
+                                            <QuickAddDropdown
+                                                quickAddType="location"
+                                                value={form.locationName}
+                                                onChange={(e) => setForm({ ...form, locationName: e.value })}
+                                                options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.location }))}
+                                                valueTemplate={(option, props) => option ? (
+                                                    <span className="inventory-home-location-value"><HiOutlineMapPin size={14} />{option.label}</span>
+                                                ) : props.placeholder}
+                                                placeholder="Select location"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -398,6 +493,12 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.openingStock}
+                                                    min={0}
+                                                    // Stock & Pricing fields are locked once editing an existing item
+                                                    // (Location is the one exception) - Opening Stock in particular is
+                                                    // a one-time starting figure that shouldn't be edited after the
+                                                    // item already has real transaction history against it.
+                                                    disabled={!!editingId}
                                                     onValueChange={(e) => {
                                                         const openingStock = e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO;
                                                         // No transactions have happened yet on a brand-new item, so
@@ -416,6 +517,8 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.quantity}
+                                                    min={0}
+                                                    disabled={!!editingId}
                                                     onValueChange={(e) => setForm({ ...form, quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
                                                 />
                                                 <HiOutlineCube size={15} className="inventory-home-input-icon" />
@@ -427,6 +530,8 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.minStock}
+                                                    min={0}
+                                                    disabled={!!editingId}
                                                     onValueChange={(e) => setForm({ ...form, minStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
                                                 />
                                                 <HiOutlineCube size={15} className="inventory-home-input-icon" />
@@ -438,6 +543,8 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.maxStock}
+                                                    min={0}
+                                                    disabled={!!editingId}
                                                     onValueChange={(e) => setForm({ ...form, maxStock: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
                                                 />
                                                 <HiOutlineCube size={15} className="inventory-home-input-icon" />
@@ -449,6 +556,7 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.unitCost}
+                                                    min={0}
                                                     onValueChange={(e) => setForm({ ...form, unitCost: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
                                                     mode="decimal"
                                                     minFractionDigits={2}
@@ -462,25 +570,13 @@ const InventoryHome = () => {
                                                 <InputNumber
                                                     className="inventory-home-input inventory-home-input--icon"
                                                     value={form.sellingCost}
+                                                    min={0}
                                                     onValueChange={(e) => setForm({ ...form, sellingCost: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })}
                                                     mode="decimal"
                                                     minFractionDigits={2}
                                                 />
                                                 <HiOutlineCurrencyRupee size={15} className="inventory-home-input-icon" />
                                             </div>
-                                        </div>
-                                        <div className="form-field">
-                                            <label>Location <span className="inventory-home-required">*</span></label>
-                                            <QuickAddDropdown
-                                                quickAddType="location"
-                                                value={form.locationName}
-                                                onChange={(e) => setForm({ ...form, locationName: e.value })}
-                                                options={(locations as LocationRecord[]).map((l) => ({ label: l.location, value: l.location }))}
-                                                valueTemplate={(option, props) => option ? (
-                                                    <span className="inventory-home-location-value"><HiOutlineMapPin size={14} />{option.label}</span>
-                                                ) : props.placeholder}
-                                                placeholder="Select location"
-                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -551,9 +647,10 @@ const InventoryHome = () => {
                         <div className="inventory-home-assembly-header">
                             <div>
                                 <h3>Product Assembly</h3>
-                                <span className="inventory-home-assembly-subtitle">Which SKUs (and how many of each) are used to assemble this product.</span>
+                                {/* No "Add SKU" button - picking a SKU in the last row below adds
+                                    the next blank one automatically (see ensureTrailingBlankRow). */}
+                                <span className="inventory-home-assembly-subtitle">Which SKUs (and how many of each) are used to assemble this product. Pick a SKU below to add it - a new row appears automatically for the next one.</span>
                             </div>
-                            <Button label="Add SKU" icon={<HiOutlinePlus className="mr-2" />} size="small" onClick={addAssemblyRow} outlined />
                         </div>
                         <DataTable
                             value={assemblyRows}

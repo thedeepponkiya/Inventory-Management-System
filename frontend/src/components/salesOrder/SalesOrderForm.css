@@ -47,25 +47,33 @@
     justify-content: flex-end;
 }
 
-/* The page itself is capped to exactly the height .app-content's flex layout gives it
-   (routers.css's ".app-content > div { flex: 1 1 auto; min-height: 0 }" already sizes this
-   root div to fill the viewport below the header/toolbar) and clipped with overflow:hidden -
-   so the page itself never grows taller than the screen and .app-content never gets anything
-   to scroll. Scrolling instead happens inside .so-form-main / .so-preview-panel below, each
-   independently, once their own content actually needs more room than they have. */
+/* Order Information now carries its fields AND the Order Items table in one tab (see
+   SalesOrderForm.tsx), so it's routinely taller than the viewport - the page used to clip
+   itself to exactly the viewport height and scroll each tab internally instead, which just
+   moved that overflow into a cramped inner scrollbar. Letting the page grow to its natural
+   content height instead means .app-content (routers.css) is the one that scrolls - and it
+   already hides its own scrollbar (scrollbar-width: none / ::-webkit-scrollbar), so content
+   past the viewport is still reachable by scrolling, just without a visible scrollbar anywhere. */
 .sales-order-form-page {
-    height: 100%;
-    min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .so-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
     gap: 16px;
+    /* Stretch (not start) so Order Summary matches the main column's height instead of just
+       sitting at its own shorter natural height - safe now that neither column is clipped to
+       a fixed viewport-bound height (see .sales-order-form-page above), so this only ever
+       grows the shorter column, never clips or forces a scrollbar on the taller one. */
     align-items: stretch;
+    /* Fills whatever leftover height .sales-order-form-page has below the toolbar (that page
+       is itself already stretched to the full available viewport height by .app-content's own
+       flex layout - routers.css) instead of sitting at its own short content height and
+       leaving a dead gap of page background beneath the cards on a short/empty order. Still
+       free to grow taller than that when content genuinely needs more room - flex-grow only
+       ever adds leftover space, it never caps how tall this can get. */
     flex: 1 1 auto;
     min-height: 0;
 }
@@ -73,10 +81,6 @@
 @media (max-width: 1000px) {
     .so-form-layout {
         grid-template-columns: 1fr;
-        /* Below the breakpoint the two columns stack instead of sitting side by side, so this
-           is the one case where the page's own scroll is still wanted - a single stacked
-           column can legitimately be taller than the screen on a small viewport. */
-        overflow-y: auto;
     }
 }
 
@@ -84,20 +88,16 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    /* Grid items default to min-height:auto (content-based), same footgun as flex items -
-       without this override, .so-form-main refuses to actually pass its grid-stretched
-       height down to the tabbed card/table below, even though the grid row itself is tall
-       enough (see routers.css's .app-content > div for the identical page-level bug). */
     min-height: 0;
 }
 
-/* Grid-stretched by .so-form-layout to match the sidebar's height - the single card inside
-   grows to fill it (rather than shrinking to its own content height) so both columns end
-   level even when Order Summary's content is shorter than the tabbed form's. */
+/* Grows to fill .so-form-main's now-stretched height (see .so-form-layout above) instead of
+   sitting at its own shorter content height and leaving a gap of page background below the
+   card - mirrors .so-preview-card's identical treatment on the Order Summary side. */
 .so-form-main > .so-card {
-    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
 }
 
@@ -108,33 +108,11 @@
     min-height: 0;
 }
 
-.so-form-main > .so-card .p-tabview-panels {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    /* Each tab's own content scrolls internally within the now fixed-height card, instead of
-       relying on the whole page growing tall enough to show it. The Items & Charges tab's
-       DataTable already manages its own internal scroll (scrollHeight="flex"), so this only
-       actually kicks in for the plainer form tabs. */
-    overflow-y: auto;
-}
-
-/* The active tab's own content wrapper - needs to flex-fill .p-tabview-panels too, so the
-   Order Items DataTable inside it (which already flexes itself, see DataTable.css) actually
-   has real stretch space to grow into instead of sitting at its own content height with a
-   dead gap below before the stretched card's bottom edge. */
 .so-form-main > .so-card .p-tabview-panel {
-    flex: 1 1 auto;
-    min-height: 0;
     display: flex;
     flex-direction: column;
-}
-
-/* Safety floor so the Order Items table never gets squeezed to near-nothing if the
-   stretched card (matched to Order Summary's height) happens to be short. */
-.so-form-main .app-data-table.p-datatable {
-    min-height: 240px;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* Generic white card used for both "Order Information" and "Order Items" */
@@ -155,7 +133,26 @@
     font-size: 13px;
 }
 
+/* Fills whatever height .so-section--last has to give it (which is itself now stretched to
+   fill the card - see .so-section--last and the .p-tabview* rules above) instead of shrinking
+   to fit only the rows present - PrimeReact's DataTable already grows to fill a properly
+   bounded flex ancestor on its own (DataTable.css's default `flex: 1 1 auto; min-height: 0`,
+   paired with the `height="flex"` scrollHeight DataTable.tsx defaults to), so completing this
+   chain down to it is all that's needed - no fixed pixel height required. This is what keeps
+   the table the same visible size whether it holds 1 item or a full page of 5, and pins the
+   paginator to the bottom of the card instead of it sitting right under a short table. */
+.so-order-items-table {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .so-card--tabs .p-tabview-panels {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 16px 0 0 !important;
 }
 
@@ -172,7 +169,15 @@
     margin-bottom: 20px;
 }
 
+/* Only ever the Order Items block (see SalesOrderForm.tsx) - grows to consume whatever
+   leftover height the tab has beyond the Order Details fields above it, so the items table
+   inside it (via .so-order-items-table) can fill the rest of the card instead of the fields
+   section and the table both just sitting at their own short content heights. */
 .so-section--last {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     padding-bottom: 0;
     margin-bottom: 0;
     border-bottom: none;
@@ -319,19 +324,16 @@
     align-items: center;
     gap: 6px;
 }
-/* Live preview panel - position:sticky no longer applies (the page itself doesn't scroll
-   anymore, see .sales-order-form-page above), so the panel scrolls its own content
-   internally instead if it ever needs more height than the column has. */
 .so-preview-panel {
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow-y: auto;
 }
 
 .so-preview-card {
+    /* Grows to fill whatever height .so-form-layout's align-items: stretch gives the panel
+       (matching the main column), instead of sitting at its own shorter content height with
+       dead space below it inside the stretched panel. */
     flex: 1 1 auto;
-    min-height: 0;
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
@@ -358,6 +360,15 @@
     border-radius: 999px;
     padding: 4px 12px;
     height: fit-content;
+}
+
+/* No rule meant a Draft order's badge fell through to the base .so-preview-status color
+   above (accent-info, blue) - identical to Processing's own variant right below - even though
+   the main Sales Order list renders Draft as neutral/gray (getSalesOrderColumns in
+   CommonUtilities.tsx). Matches that same neutral treatment here instead. */
+.so-preview-status--draft {
+    color: var(--text-muted);
+    background: var(--surface-subtle-2);
 }
 
 .so-preview-status--confirmed {
@@ -578,24 +589,32 @@
     color: var(--text-secondary);
 }
 
-.so-preview-totals {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--text-tertiary);
-    padding-top: 8px;
-    border-top: 1px solid var(--border-default);
-}
-
 .so-discount-value {
     color: var(--accent-success-text);
     font-weight: 600;
 }
 
-.so-preview-totals > div {
-    display: flex;
-    justify-content: space-between;
+/* Total row - sits as the table's own footer, directly under the Qty column instead of as a
+   separate summary line below the table. Sticky at the bottom (mirrors the header's sticky
+   top: 0) so it stays visible while the body above it scrolls. Tinted with the live theme
+   accent color (same variable DataTable.css's id-link cells use) on both cells so the whole
+   row visually leads the table instead of reading as just another line. */
+.so-preview-items-table tfoot td {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface-card);
+    border-bottom: none;
+    border-top: 1px solid var(--border-default);
+    font-weight: 700;
+    color: var(--accent-primary);
+}
+
+/* Tinted with the live theme accent color (same variable DataTable.css's id-link cells use)
+   so the qty total visually leads the table instead of reading as just another row. */
+.so-preview-total-qty {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-primary);
 }
 
 .so-preview-grand-total {

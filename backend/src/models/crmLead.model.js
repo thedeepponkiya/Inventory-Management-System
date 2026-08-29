@@ -53,6 +53,19 @@ async function getNextSortOrder(stageId) {
   return result.rows[0].nextOrder;
 }
 
+// Delete guards for crm_stages/crm_sources - both FKs are declared with no ON DELETE clause
+// (default RESTRICT), so a referenced row can't be removed. Same shape as
+// materialInward.model.js's countByPurchaseOrder, which backs the equivalent PO delete guard.
+async function countByStage(stageId) {
+  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE} WHERE "stageId" = $1`, [stageId]);
+  return Number(result.rows[0].count);
+}
+
+async function countBySource(sourceId) {
+  const result = await pool.query(`SELECT COUNT(*) FROM ${TABLE} WHERE "sourceId" = $1`, [sourceId]);
+  return Number(result.rows[0].count);
+}
+
 async function create(leadCode, fields) {
   const result = await pool.query(
     `INSERT INTO ${TABLE} (
@@ -135,4 +148,4 @@ async function reorderStage(stageId, orderedLeadIds) {
   }
 }
 
-module.exports = { getAll, findById, getNextLeadCode, getNextSortOrder, create, update, remove, reorderStage };
+module.exports = { getAll, findById, getNextLeadCode, getNextSortOrder, countByStage, countBySource, create, update, remove, reorderStage };

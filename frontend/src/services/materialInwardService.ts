@@ -140,13 +140,17 @@ export async function createMaterialInward(payload: MaterialInwardPayload): Prom
     return { data: normalizeMaterialInward(result.data), warning: result.warning };
 }
 
-export async function updateMaterialInward(id: number, payload: Partial<MaterialInwardPayload>): Promise<MaterialInward> {
+// Returns `warning` alongside the record for the same reason create does: an edit re-applies
+// the items' Raw SKU stock, so it can hit the same "this item's skuCode matches no Raw SKU"
+// soft failure and the caller needs to be able to surface it.
+export async function updateMaterialInward(id: number, payload: Partial<MaterialInwardPayload>): Promise<{ data: MaterialInward; warning: string | null }> {
     const response = await authFetch(`${API_BASE_URL}/material-inwards/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
     });
-    return normalizeMaterialInward(await parseResponse<MaterialInward>(response));
+    const result = await parseResponseWithWarning<MaterialInward>(response);
+    return { data: normalizeMaterialInward(result.data), warning: result.warning };
 }
 
 export async function deleteMaterialInward(id: number): Promise<void> {

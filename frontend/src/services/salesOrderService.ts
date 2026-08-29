@@ -57,6 +57,11 @@ export interface SalesOrderDispatch {
     dispatchDate: string;
     items: SalesOrderDispatchLineItem[];
     dispatchedBy: string | null;
+    // Manually typed in by whoever dispatches the order (e.g. the physical delivery
+    // challan/bill number) - required at the application layer (dispatchSalesOrder rejects a
+    // dispatch without one), not unique. Nullable in the type only because dispatch rows
+    // created before this field existed have none.
+    billNo: string | null;
     createdAt: string;
 }
 
@@ -198,6 +203,12 @@ export async function getSalesOrders(): Promise<SalesOrder[]> {
     return data.map(normalizeSalesOrder);
 }
 
+export async function getNextSoNo(): Promise<string> {
+    const response = await authFetch(`${API_BASE_URL}/sales-orders/next-so-no`);
+    const data = await parseResponse<{ soNo: string }>(response);
+    return data.soNo;
+}
+
 export async function createSalesOrder(payload: SalesOrderPayload): Promise<SalesOrder> {
     const response = await authFetch(`${API_BASE_URL}/sales-orders`, {
         method: 'POST',
@@ -221,16 +232,14 @@ export async function confirmSalesOrder(id: number): Promise<SalesOrder> {
     return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
 }
 
-export async function startProcessingSalesOrder(id: number): Promise<SalesOrder> {
-    const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/start-processing`, { method: 'POST' });
-    return normalizeSalesOrder(await parseResponse<SalesOrder>(response));
-}
-
-export async function dispatchSalesOrder(id: number, items: DispatchShipment[]): Promise<{ data: SalesOrder; warning: string | null }> {
+// billNo is manually typed in by whoever dispatches the order (e.g. the physical delivery
+// challan/bill number) - required (the Dispatch dialog blocks Save without one), recorded
+// against this specific dispatch event (see SalesOrderDispatch.billNo).
+export async function dispatchSalesOrder(id: number, items: DispatchShipment[], billNo: string): Promise<{ data: SalesOrder; warning: string | null }> {
     const response = await authFetch(`${API_BASE_URL}/sales-orders/${id}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, billNo }),
     });
     const result = await parseResponseWithWarning<SalesOrder>(response);
     return { data: normalizeSalesOrder(result.data), warning: result.warning };

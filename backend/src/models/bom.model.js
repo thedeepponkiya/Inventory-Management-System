@@ -74,15 +74,19 @@ async function create(bomCode, fields) {
 // back atomically together with the raw-material/finished-good stock adjustments.
 // `reversedQty` defaults to whatever the caller passes (falls back to 0 for plain edits via
 // updateBom, which never touch it) - see revertBomToProcess for how it accumulates on partial
-// reverts and resets once a BOM is fully reverted back to Process.
+// reverts and resets once a BOM is fully reverted back to Process. `bomCode` falls back to
+// the existing value if the caller doesn't pass one (completeBomItem/revertBomItem never
+// touch it) - see bom.controller.js's updateBom for the uniqueness check on an actual rename.
 async function update(id, fields, db = pool) {
   const result = await db.query(
     `UPDATE ${TABLE} SET
-      "productSku" = $1, "productName" = $2, "categoryName" = $3, version = $4, "outputQty" = $5,
-      unit = $6, status = $7, items = $8, "createdBy" = $9, "reversedQty" = $10, "updatedAt" = now()
-    WHERE id = $11
+      "bomCode" = COALESCE($1, "bomCode"), "productSku" = $2, "productName" = $3, "categoryName" = $4,
+      version = $5, "outputQty" = $6, unit = $7, status = $8, items = $9, "createdBy" = $10,
+      "reversedQty" = $11, "updatedAt" = now()
+    WHERE id = $12
     RETURNING *`,
     [
+      fields.bomCode ?? null,
       fields.productSku,
       fields.productName,
       fields.categoryName,
@@ -103,4 +107,20 @@ async function remove(id, db = pool) {
   await db.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, findByCode, findByIdForUpdate, generateOrderCode, create, update, remove };
+// How many BOMs have at least one line referencing this Inventory SKU ID. Used by
+// inventory.controller.js to guard a rename/delete, the same way
+// materialInward.model.js's countByPurchaseOrder guards deletePurchaseOrder - the link is a
+// plain string inside the `items` JSONB array, not a real FK, so nothing in the database
+// would stop the reference from being orphaned (and adjustStockBySkuId then silently no-ops
+// on the miss instead of erroring). jsonb_array_elements expands each row's items so the
+// EXISTS/COUNT can match on a single element's skuId; a plain `items @> ...` containment
+// check can't express "any element has this skuId" without knowing the rest of the element.
+async function countBySkuId(skuId) {
+  const result = await pool.query(
+    `SELECT COUNT(DISTINCT b.id) FROM ${TABLE} b, jsonb_array_elements(b.items) elem WHERE elem->>'skuId' = $1`,
+    [skuId]
+  );
+  return Number(result.rows[0].count);
+}
+
+module.exports = { getAll, findById, findByCode, findByIdForUpdate, generateOrderCode, create, update, remove, countBySkuId };

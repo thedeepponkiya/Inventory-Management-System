@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const { isCrmAdmin } = require('../utils/crmPermissions.util');
 const CrmSourceModel = require('../models/crmSource.model');
+const CrmLeadModel = require('../models/crmLead.model');
 
 async function getSources(req, res) {
   try {
@@ -73,6 +74,15 @@ async function deleteSource(req, res) {
     const existing = await CrmSourceModel.findById(id);
     if (!existing) {
       return res.status(404).json({ status: false, message: 'Source not found', data: null });
+    }
+
+    // crm_leads."sourceId" references this table with no ON DELETE clause (default RESTRICT), so
+    // deleting a source still attached to a lead would otherwise throw a raw Postgres
+    // FK-violation (23503) that sendServerError scrubs down to a generic "Something went wrong",
+    // hiding the real cause - same guard/reasoning as deletePurchaseOrder's Material Inward check.
+    const leadCount = await CrmLeadModel.countBySource(id);
+    if (leadCount > 0) {
+      return res.status(400).json({ status: false, message: `Cannot delete this source - ${leadCount} lead(s) are currently using it. Move or reassign them first.`, data: null });
     }
 
     await CrmSourceModel.remove(id);

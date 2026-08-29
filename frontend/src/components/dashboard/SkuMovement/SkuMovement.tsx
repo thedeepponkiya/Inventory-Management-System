@@ -9,7 +9,7 @@ import {
     HiOutlineMagnifyingGlass,
 } from 'react-icons/hi2';
 import { AppContext } from '../../../context/AppContextDefinition';
-import type { RawSku } from '../../../services/rawSkuService';
+import type { InventoryItem } from '../../../services/inventoryService';
 import type { Bom } from '../../../services/bomService';
 import { getFilterRange } from '../dashboardUtils';
 import { resolveImageUrl } from '../../../common/commonFunctions/commonFunction';
@@ -30,37 +30,42 @@ const SkuMovementThumb = ({ images, variant }: { images: string[]; variant: 'neg
 );
 
 const SkuMovement = () => {
-    const { rawSkus, boms } = useContext(AppContext);
-    const rawSkuList = rawSkus as RawSku[];
+    const { inventories, boms } = useContext(AppContext);
+    const inventoryList = inventories as InventoryItem[];
     const bomList = boms as Bom[];
     const [movementFilter, setMovementFilter] = useState('Last 3 Months');
     const [search, setSearch] = useState('');
 
-    // Derived from Completed Orders' items, since there's no dedicated stock-movement log
-    // table; a Completed Order's items are the only real record of a Raw SKU quantity
-    // actually leaving its location (deducted at Completed - see bom.controller.js's
-    // completeBom). Range is driven by movementFilter (This/Last Week, This/Last Month,
-    // Last 3 Months, This/Last Year).
+    // Derived from every BOM's own Completed items, since there's no dedicated stock-movement
+    // log table - a Completed item is the only real record of an Inventory item's quantity
+    // actually being produced (credited - see bom.controller.js's completeBomItem). A BOM no
+    // longer has one whole-record "Completed" moment (each item completes independently, see
+    // bomService.ts's Bom comment), so this reads bom.items' own status directly rather than
+    // gating on the BOM's own derived status - a Partially Completed BOM's finished items
+    // still count. Range is driven by movementFilter (This/Last Week, This/Last Month,
+    // Last 3 Months, This/Last Year), checked against the BOM's updatedAt as a best-effort
+    // proxy for "when" - there's no per-item completion timestamp to check instead, so a BOM
+    // touched again after the window closes can push an in-window completion out of range.
     const skuMovement = useMemo(() => {
         const { start, end } = getFilterRange(movementFilter);
         const term = search.trim().toLowerCase();
         const matchesSearch = (name: string, code: string) =>
             !term || name.toLowerCase().includes(term) || code.toLowerCase().includes(term);
 
-        const consumedBySku = new Map<string, { rawSkuName: string; unit: string; total: number; locationName: string | null; images: string[] }>();
+        const producedBySku = new Map<string, { productName: string; unit: string; total: number; locationName: string | null; images: string[] }>();
         bomList
-            .filter((bom) => bom.status === 'Completed' && new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
+            .filter((bom) => new Date(bom.updatedAt) >= start && new Date(bom.updatedAt) <= end)
             .forEach((bom) => {
-                bom.items.forEach((item) => {
-                    const consumedQty = item.requiredQty * bom.outputQty;
-                    const existing = consumedBySku.get(item.rawSkuCode);
+                bom.items.filter((item) => item.status === 'Completed').forEach((item) => {
+                    const producedQty = item.requiredQty;
+                    const existing = producedBySku.get(item.skuId);
                     if (existing) {
-                        existing.total += consumedQty;
+                        existing.total += producedQty;
                     } else {
                         // BomItem has no location/images of its own - look them up from the
-                        // Raw SKU master, same denormalize-at-read approach used everywhere else.
-                        const rawSku = rawSkuList.find((sku) => sku.skuCode === item.rawSkuCode);
-                        consumedBySku.set(item.rawSkuCode, { rawSkuName: item.rawSkuName, unit: item.unit, total: consumedQty, locationName: rawSku?.locationName ?? null, images: rawSku?.images ?? [] });
+                        // Inventory master, same denormalize-at-read approach used everywhere else.
+                        const inventoryItem = inventoryList.find((inv) => inv.skuId === item.skuId);
+                        producedBySku.set(item.skuId, { productName: item.productName, unit: item.unit, total: producedQty, locationName: inventoryItem?.locationName ?? null, images: inventoryItem?.images ?? [] });
                     }
                 });
             });
@@ -69,18 +74,18 @@ const SkuMovement = () => {
         // (see .sku-movement-list's max-height in SkuMovement.css), so every matching SKU is
         // reachable rather than only the top 5, same approach as Recent Sales Orders/Low
         // Stock Alerts' own scrollable lists.
-        const topMoving = Array.from(consumedBySku.entries())
-            .map(([skuCode, data]) => ({ skuCode, ...data }))
-            .filter((sku) => matchesSearch(sku.rawSkuName, sku.skuCode))
+        const topMoving = Array.from(producedBySku.entries())
+            .map(([skuId, data]) => ({ skuId, ...data }))
+            .filter((sku) => matchesSearch(sku.productName, sku.skuId))
             .sort((a, b) => b.total - a.total);
 
-        const nonMoving = rawSkuList
-            .filter((sku) => !consumedBySku.has(sku.skuCode))
-            .filter((sku) => matchesSearch(sku.skuName, sku.skuCode))
-            .sort((a, b) => b.currentStock - a.currentStock);
+        const nonMoving = inventoryList
+            .filter((sku) => !producedBySku.has(sku.skuId))
+            .filter((sku) => matchesSearch(sku.productName, sku.skuId))
+            .sort((a, b) => b.quantity - a.quantity);
 
         return { topMoving, nonMoving };
-    }, [bomList, rawSkuList, movementFilter, search]);
+    }, [bomList, inventoryList, movementFilter, search]);
 
     return (
         <div className="dashboard-card">
@@ -131,12 +136,12 @@ const SkuMovement = () => {
                                 <div className="sku-movement-item" key={sku.id}>
                                     <SkuMovementThumb images={sku.images} variant="negative" />
                                     <div className="sku-movement-item-info">
-                                        <div className="sku-movement-item-name">{sku.skuName}</div>
-                                        <div className="sku-movement-item-sub">#{sku.skuCode}</div>
+                                        <div className="sku-movement-item-name">{sku.productName}</div>
+                                        <div className="sku-movement-item-sub">#{sku.skuId}</div>
                                         <div className="sku-movement-item-sub">Location: {sku.locationName ?? '—'}</div>
                                     </div>
                                     <div className="sku-movement-item-meta">
-                                        <div className="sku-movement-item-value sku-movement-item-value--negative">{sku.currentStock.toLocaleString('en-IN')}</div>
+                                        <div className="sku-movement-item-value sku-movement-item-value--negative">{sku.quantity.toLocaleString('en-IN')}</div>
                                         <div className="sku-movement-item-unit">{sku.unit}</div>
                                     </div>
                                 </div>
@@ -159,16 +164,16 @@ const SkuMovement = () => {
 
                     {skuMovement.topMoving.length === 0 ? (
                         <div className="dashboard-empty-state">
-                            {search.trim() ? `No SKUs match "${search}".` : 'No Orders have been dispatched in this period.'}
+                            {search.trim() ? `No SKUs match "${search}".` : 'No BOM items have been completed in this period.'}
                         </div>
                     ) : (
                         <div className="sku-movement-list">
                             {skuMovement.topMoving.map((sku) => (
-                                <div className="sku-movement-item" key={sku.skuCode}>
+                                <div className="sku-movement-item" key={sku.skuId}>
                                     <SkuMovementThumb images={sku.images} variant="positive" />
                                     <div className="sku-movement-item-info">
-                                        <div className="sku-movement-item-name">{sku.rawSkuName}</div>
-                                        <div className="sku-movement-item-sub">#{sku.skuCode}</div>
+                                        <div className="sku-movement-item-name">{sku.productName}</div>
+                                        <div className="sku-movement-item-sub">#{sku.skuId}</div>
                                         <div className="sku-movement-item-sub">Location: {sku.locationName ?? '—'}</div>
                                     </div>
                                     <div className="sku-movement-item-meta">

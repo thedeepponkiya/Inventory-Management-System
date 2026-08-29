@@ -1,6 +1,7 @@
 const { sendServerError } = require('../utils/errorResponse');
 const { isCrmAdmin } = require('../utils/crmPermissions.util');
 const CrmStageModel = require('../models/crmStage.model');
+const CrmLeadModel = require('../models/crmLead.model');
 
 async function getStages(req, res) {
   try {
@@ -79,6 +80,15 @@ async function deleteStage(req, res) {
     const existing = await CrmStageModel.findById(id);
     if (!existing) {
       return res.status(404).json({ status: false, message: 'Stage not found', data: null });
+    }
+
+    // crm_leads."stageId" references this table with no ON DELETE clause (default RESTRICT), so
+    // deleting a stage that still has leads in it would otherwise throw a raw Postgres
+    // FK-violation (23503) that sendServerError scrubs down to a generic "Something went wrong",
+    // hiding the real cause - same guard/reasoning as deletePurchaseOrder's Material Inward check.
+    const leadCount = await CrmLeadModel.countByStage(id);
+    if (leadCount > 0) {
+      return res.status(400).json({ status: false, message: `Cannot delete this stage - ${leadCount} lead(s) are currently in it. Move or reassign them first.`, data: null });
     }
 
     await CrmStageModel.remove(id);

@@ -99,9 +99,9 @@ const CrmLeadsPage = () => {
     // access) can't edit a lead's own fields - hides the drawer's Edit button and disables its
     // inline Stage/Assigned To/Status dropdowns.
     const canEditLead = user?.roleId !== 'Sales User';
-    // Sales User also doesn't get the drawer's Follow-ups tab (or the Kanban card's "Schedule
-    // follow-up" icon, which would otherwise open it) - view/edit notes stays available.
-    const canViewFollowups = user?.roleId !== 'Sales User';
+    // Sales User now gets the drawer's Follow-ups tab (and the Kanban card's "Schedule
+    // follow-up" icon) same as every other role - previously restricted, per product decision.
+    const canViewFollowups = true;
     const { data: leads = [], isLoading } = useLeadsQuery();
     const { data: stages = [] } = useStagesQuery();
     const { data: sources = [] } = useSourcesQuery();
@@ -284,6 +284,18 @@ const CrmLeadsPage = () => {
         );
     };
 
+    // dnd-kit fires onDragCancel *instead of* onDragEnd whenever a drag is aborted rather than
+    // dropped - Escape, a window resize, a tab/visibility change, or a touch `pointercancel`.
+    // Without this handler `liveLeads` was only ever cleared in handleDragEnd, so an aborted
+    // drag left the whole page (Kanban *and* the table, both fed by `displayLeads`) permanently
+    // pinned to a stale client-only snapshot: later leads/edits/deletes stopped showing up until
+    // a full reload. Resets exactly what handleDragEnd resets, minus the mutation - dropping
+    // `liveLeads` back to null lets `displayLeads` fall through to the live React Query data.
+    const handleDragCancel = () => {
+        setActiveLead(null);
+        setLiveLeads(null);
+    };
+
     // Requires an 8px pointer move before a drag actually starts - without this, dnd-kit
     // treats every pointerdown as a potential drag and swallows plain clicks on the card's
     // own delete button / quick-action links / edit-on-click.
@@ -384,7 +396,7 @@ const CrmLeadsPage = () => {
             )}
 
             {view === 'kanban' && !isLoading && (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
                     <div className="kanban-board">
                         {unassignedLeads.length > 0 && (
                             <KanbanColumn

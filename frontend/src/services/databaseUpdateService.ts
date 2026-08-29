@@ -24,6 +24,10 @@ export interface PendingSchemaChanges {
     droppedTables: string[];
     newColumns: { table: string; column: string }[];
     removedColumns: { table: string; column: string }[];
+    // A column relaxed from NOT NULL to nullable - purely additive (an existing value is never
+    // touched, only the requirement to always have one is lifted), same trust level as
+    // newColumns/newTables, not the droppedTables/removedColumns risky category.
+    nullableColumns: { table: string; column: string }[];
     renamedColumns: { table: string; fromColumn: string; toColumn: string }[];
     newIndexes: { indexName: string; table: string }[];
 }

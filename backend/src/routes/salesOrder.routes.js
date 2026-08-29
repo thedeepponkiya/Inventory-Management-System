@@ -1,10 +1,10 @@
 const express = require('express');
 const {
   getSalesOrders,
+  getNextSoNo,
   createSalesOrder,
   updateSalesOrder,
   confirmSalesOrder,
-  startProcessing,
   dispatchSalesOrder,
   revertDispatch,
   cancelSalesOrder,
@@ -15,10 +15,10 @@ const { getPayments, addPayment, deletePayment } = require('../controllers/sales
 const router = express.Router();
 
 router.get('/', getSalesOrders);
+router.get('/next-so-no', getNextSoNo);
 router.post('/', createSalesOrder);
 router.put('/:id', updateSalesOrder);
 router.post('/:id/confirm', confirmSalesOrder);
-router.post('/:id/start-processing', startProcessing);
 router.post('/:id/dispatch', dispatchSalesOrder);
 router.post('/:id/revert-dispatch', revertDispatch);
 router.post('/:id/cancel', cancelSalesOrder);

@@ -115,6 +115,13 @@
     text-decoration: none;
 }
 
+/* Inventory's SKU/Product Name and Raw SKU's SKU Code/Name cells specifically (not every
+   other table's id-link column) - tints them with the live theme accent color instead of the
+   default cell text color, so they read as the primary identifier for those two tables. */
+.common-table-id-link--accent {
+    color: var(--accent-primary);
+}
+
 .app-data-table .p-datatable-tbody > tr:hover .common-table-id-link {
     text-decoration: underline;
 }

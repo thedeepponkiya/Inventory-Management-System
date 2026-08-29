@@ -34,9 +34,9 @@ export interface RawSku {
 }
 
 export interface RawSkuPayload {
-    // Only meaningful on create - a user-typed SKU Code (the field is editable at create
-    // time, pre-filled with a server-generated suggestion the user can overwrite). Ignored by
-    // the update endpoint, which never lets skuCode change after creation.
+    // Editable both at create time (pre-filled with a server-generated suggestion the user
+    // can overwrite) and on update (the field is unlocked in the Edit dialog too) - the
+    // backend re-checks uniqueness against other rows either way.
     skuCode?: string;
     images: string[];
     skuName: string;
@@ -112,6 +112,19 @@ export async function updateRawSku(id: number, payload: Partial<RawSkuPayload>):
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+    });
+    return normalizeRawSku(await parseResponse<RawSku>(response));
+}
+
+// "Update Stock" action (RawSku.tsx's Action column) - Add/Remove a quantity against the
+// live currentStock, distinct from editing the record's other fields via updateRawSku.
+// quantity must be > 0; direction is carried by adjustmentType instead of a signed number, so
+// the dialog can't accidentally send e.g. a negative "Add".
+export async function adjustRawSkuStock(id: number, adjustmentType: 'Add' | 'Remove', quantity: number): Promise<RawSku> {
+    const response = await authFetch(`${API_BASE_URL}/raw-skus/${id}/adjust-stock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjustmentType, quantity }),
     });
     return normalizeRawSku(await parseResponse<RawSku>(response));
 }

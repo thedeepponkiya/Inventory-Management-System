@@ -16,6 +16,11 @@
     color: var(--accent-primary);
 }
 
+.dialog-header-icon-badge--green {
+    background: rgba(22, 163, 74, 0.14);
+    color: #16a34a;
+}
+
 .dialog-header-icon-title {
     font-size: 16px;
     font-weight: 700;

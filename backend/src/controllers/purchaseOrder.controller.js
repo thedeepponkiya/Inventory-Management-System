@@ -7,6 +7,22 @@ const CustomFieldService = require('../services/customField.service');
 
 const VALID_STATUSES = ['Draft', 'Sent', 'Received', 'Cancelled'];
 
+// Only ever reachable via a direct API call: PurchaseOrderForm.tsx's Status dropdown is
+// disabled once a PO isn't Draft (a still-Draft PO can freely move to any of the 4 statuses
+// from that dropdown, matching the permissiveness below), and once Sent, the only other
+// status-changing UI action is the dedicated Cancel button, which sends exactly a
+// Sent->Cancelled transition. Most important to block: Received->Cancelled, which would
+// desync the PO's items forever - resyncPurchaseOrderTotals (materialInward.controller.js)
+// explicitly bails out for a Cancelled PO, so its receivedQty/pendingQty would be frozen at
+// whatever they were and never reflect the Material Inward records that already exist
+// against it.
+const ALLOWED_PO_STATUS_TRANSITIONS = {
+  Draft: ['Draft', 'Sent', 'Received', 'Cancelled'],
+  Sent: ['Sent', 'Cancelled'],
+  Received: ['Received'],
+  Cancelled: ['Cancelled'],
+};
+
 // Mirrors salesOrder.controller.js's findDuplicateSkuId - materialInward.controller.js's
 // resyncPurchaseOrderTotals matches a PO line to its received quantity by skuId, so two PO
 // lines sharing a SKU would make that matching ambiguous (both lines would get credited with
@@ -98,6 +114,12 @@ async function updatePurchaseOrder(req, res) {
     if (req.body.status && !VALID_STATUSES.includes(req.body.status)) {
       return res.status(400).json({ status: false, message: `status must be one of: ${VALID_STATUSES.join(', ')}`, data: null });
     }
+    if (req.body.status && req.body.status !== existing.status) {
+      const allowed = ALLOWED_PO_STATUS_TRANSITIONS[existing.status] || [];
+      if (!allowed.includes(req.body.status)) {
+        return res.status(400).json({ status: false, message: `Cannot change status from ${existing.status} to ${req.body.status}`, data: null });
+      }
+    }
     // Matches Sales Order's identical guard - the frontend already makes the Items table
     // read-only once a PO isn't Draft (and omits items from its own update payload when
     // locked, see PurchaseOrderForm.tsx's handleSave), this is the server-side backstop so a
@@ -133,7 +155,13 @@ async function updatePurchaseOrder(req, res) {
       items,
       ...totals,
       remarks: body.remarks ?? existing.remarks,
-      createdBy: body.createdBy ?? existing.createdBy,
+      // Never taken from the request body - the creator is established once, at create time,
+      // from the authenticated session, and no edit should ever rewrite it.
+      // PurchaseOrderForm.tsx sends a hard-coded 'Admin User' in its payload for both create
+      // and update, so honouring the body here silently replaced the real creator with that
+      // literal string on every single edit. Same reasoning as the create path's
+      // req.user.userName - client-supplied identity fields aren't trusted.
+      createdBy: existing.createdBy,
     };
 
     await PurchaseOrderModel.update(id, fields);

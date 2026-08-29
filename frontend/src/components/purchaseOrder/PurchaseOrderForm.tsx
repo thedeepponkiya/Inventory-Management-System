@@ -130,6 +130,9 @@ const PurchaseOrderForm = () => {
     const [items, setItems] = useState<PurchaseOrderItemRow[]>([]);
     const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
+    const [saving, setSaving] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+    const [cancelling, setCancelling] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [itemForm, setItemForm] = useState<ItemForm>(emptyItemForm());
@@ -379,13 +382,14 @@ const PurchaseOrderForm = () => {
     };
 
     const handleCancelOrder = () => {
-        if (!existingPo) return;
+        if (cancelling || !existingPo) return;
         confirmDialog({
             message: 'Are you sure you want to cancel this order?',
             header: 'Cancel Purchase Order',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             accept: async () => {
+                setCancelling(DEFAULT_DATA_TYPE_VALUE.TRUE);
                 try {
                     await updatePurchaseOrder(existingPo.id, { status: 'Cancelled' });
                     showToast(toast, 'success', 'Cancelled', 'Purchase order cancelled successfully');
@@ -393,12 +397,17 @@ const PurchaseOrderForm = () => {
                     navigate('/purchase-order');
                 } catch (err) {
                     showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+                } finally {
+                    setCancelling(DEFAULT_DATA_TYPE_VALUE.FALSE);
                 }
             },
         });
     };
 
     const handleSave = async () => {
+        // Guards against a double-click firing two saves - on the create path each would
+        // become its own separate Purchase Order. Mirrors SalesOrderForm.tsx's handleSave.
+        if (saving) return;
         if (!vendorId || !poDate) {
             showToast(toast, 'error', 'Error', 'Vendor and PO Date are required');
             return;
@@ -456,6 +465,7 @@ const PurchaseOrderForm = () => {
             customFields,
         };
 
+        setSaving(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
             if (isEditRoute && existingPo) {
                 // Once locked, the Items table is already read-only in this form - explicitly
@@ -474,6 +484,8 @@ const PurchaseOrderForm = () => {
             navigate('/purchase-order');
         } catch (err) {
             showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        } finally {
+            setSaving(DEFAULT_DATA_TYPE_VALUE.FALSE);
         }
     };
 
@@ -530,10 +542,10 @@ const PurchaseOrderForm = () => {
                 </div>
                 <div className="po-form-toolbar-actions">
                     {isEditRoute && existingPo?.status === 'Sent' && (
-                        <Button label="Cancel Order" icon={<HiOutlineXCircle className="mr-2" />} severity="danger" outlined onClick={handleCancelOrder} />
+                        <Button label="Cancel Order" icon={<HiOutlineXCircle className="mr-2" />} severity="danger" outlined onClick={handleCancelOrder} loading={cancelling} />
                     )}
-                    <Button label="Cancel" outlined onClick={handleCancel} />
-                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                    <Button label="Cancel" outlined onClick={handleCancel} disabled={saving || cancelling} />
+                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} loading={saving} />
                 </div>
             </div>
 

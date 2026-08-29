@@ -2,7 +2,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Bom } from '../../services/bomService';
 import type { CompanySettings } from '../../context/CompanySettingsContextDefinition';
-import type { RawSku } from '../../services/rawSkuService';
 
 const COLOR = {
     title: [30, 41, 59] as const,
@@ -18,12 +17,6 @@ const MARGIN = 14;
 const PAGE_WIDTH = 210;
 const PAGE_HEIGHT = 297;
 const RIGHT_EDGE = PAGE_WIDTH - MARGIN;
-
-// Total needed for a production run of bom.outputQty units - same formula as the live
-// "Qty Needed" preview column in CommonUtilities.tsx's getBomItemColumns.
-function qtyNeeded(requiredQty: number, outputQty: number): number {
-    return requiredQty * outputQty;
-}
 
 const formatDate = (value: string | null): string => (value ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
@@ -62,12 +55,12 @@ function roundTableTopCorners(doc: jsPDF, x: number, y: number, w: number, r: nu
     doc.circle(x + w - r, y + r, r, 'F');
 }
 
-function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null, rawSkus?: RawSku[]): jsPDF {
+// A BOM has no single Output Product of its own anymore (see bomService.ts's Bom comment) -
+// this prints the code + status up top and every line item (each independently Pending/
+// Completed) in the table, instead of the old Product/Order ID header + Output Qty footer.
+function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null): jsPDF {
     const doc = new jsPDF();
 
-    // Letterhead: company name + address (from Settings) on the left, logo on the right -
-    // both anchored to the same top y so they line up on the same row instead of the logo
-    // floating above or below the company name block.
     const letterheadTop = 12;
     let y = letterheadTop + 5;
     doc.setFont('helvetica', 'bold');
@@ -92,59 +85,46 @@ function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySet
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.setTextColor(...COLOR.accent);
-    doc.text('Order Recipe', PAGE_WIDTH / 2, y, { align: 'center' });
+    doc.text('Bill of Materials', PAGE_WIDTH / 2, y, { align: 'center' });
 
     y += 16;
 
-    // Two-column info row: Product on the left, Order ID / Order Date on the right.
+    // Two-column info row: BOM Code/Status on the left, Created Date on the right.
     const infoY = y;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...COLOR.accent);
-    doc.text('PRODUCT', MARGIN, infoY);
+    doc.text('BOM CODE', MARGIN, infoY);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...COLOR.title);
-    doc.text(`${bom.productName} (${bom.productSku})`, MARGIN, infoY + 6);
-    let leftInfoBottom = infoY + 6;
-    if (bom.categoryName) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
-        doc.setTextColor(...COLOR.body);
-        doc.text(bom.categoryName, MARGIN, infoY + 11.5);
-        leftInfoBottom = infoY + 11.5;
-    }
+    doc.text(`#${bom.bomCode}`, MARGIN, infoY + 6);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...COLOR.body);
+    doc.text(`Status: ${bom.status}`, MARGIN, infoY + 11.5);
+    const leftInfoBottom = infoY + 11.5;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...COLOR.accent);
-    doc.text('ORDER ID', RIGHT_EDGE, infoY, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10.5);
-    doc.setTextColor(...COLOR.title);
-    doc.text(`#${bom.bomCode}`, RIGHT_EDGE, infoY + 5.5, { align: 'right' });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...COLOR.accent);
-    doc.text('ORDER DATE', RIGHT_EDGE, infoY + 13, { align: 'right' });
+    doc.text('CREATED DATE', RIGHT_EDGE, infoY, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...COLOR.body);
-    doc.text(formatDate(bom.createdAt), RIGHT_EDGE, infoY + 18.5, { align: 'right' });
+    doc.text(formatDate(bom.createdAt), RIGHT_EDGE, infoY + 5.5, { align: 'right' });
 
-    y = Math.max(leftInfoBottom, infoY + 18.5) + 10;
+    y = Math.max(leftInfoBottom, infoY + 5.5) + 10;
     const tableStartY = y;
 
     autoTable(doc, {
         startY: y,
         margin: { left: MARGIN, right: MARGIN },
-        head: [['Raw SKU', 'Location', 'Required Qty (per unit)', 'Qty Needed', 'Remarks']],
+        head: [['Item', 'Qty', 'Status', 'Remarks']],
         body: bom.items.map((item) => [
-            `${item.rawSkuCode} - ${item.rawSkuName}`,
-            rawSkus?.find((sku) => sku.skuCode === item.rawSkuCode)?.locationName || '—',
+            `${item.skuId} - ${item.productName}`,
             `${item.requiredQty} ${item.unit}`,
-            `${Number(qtyNeeded(item.requiredQty, bom.outputQty).toFixed(2))} ${item.unit}`,
+            item.status,
             item.remarks || '—',
         ]),
         theme: 'plain',
@@ -160,7 +140,7 @@ function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySet
         },
         bodyStyles: { lineWidth: { bottom: 0.1 }, lineColor: [...COLOR.border] },
         columnStyles: {
-            3: { textColor: [...COLOR.accent], fontStyle: 'bold' },
+            1: { textColor: [...COLOR.accent], fontStyle: 'bold' },
         },
     });
 
@@ -172,18 +152,6 @@ function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySet
     roundTableTopCorners(doc, MARGIN, tableStartY, tableWidth, tableRadius, COLOR.accent);
     doc.setDrawColor(...COLOR.border);
     doc.roundedRect(MARGIN, tableStartY, tableWidth, y - tableStartY, tableRadius, tableRadius, 'S');
-
-    y += 8;
-
-    // Output Qty shown as a highlighted total row, mirroring an invoice's Total banner.
-    doc.setFillColor(...COLOR.accentBg);
-    doc.rect(MARGIN, y - 5.5, RIGHT_EDGE - MARGIN, 9, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...COLOR.title);
-    doc.text('OUTPUT QTY', MARGIN + 4, y);
-    doc.setTextColor(...COLOR.accent);
-    doc.text(`${bom.outputQty} ${bom.unit}`, RIGHT_EDGE - 4, y, { align: 'right' });
 
     const footerY = PAGE_HEIGHT - 15;
     doc.setDrawColor(...COLOR.border);
@@ -197,12 +165,12 @@ function buildBomDoc(bom: Bom, logoDataUrl?: string | null, company?: CompanySet
     return doc;
 }
 
-export function downloadBomPdf(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null, rawSkus?: RawSku[]): void {
-    buildBomDoc(bom, logoDataUrl, company, rawSkus).save(`${bom.bomCode}-Recipe.pdf`);
+export function downloadBomPdf(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null): void {
+    buildBomDoc(bom, logoDataUrl, company).save(`${bom.bomCode}-BOM.pdf`);
 }
 
-export function printBomPdf(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null, rawSkus?: RawSku[]): void {
-    const doc = buildBomDoc(bom, logoDataUrl, company, rawSkus);
+export function printBomPdf(bom: Bom, logoDataUrl?: string | null, company?: CompanySettings | null): void {
+    const doc = buildBomDoc(bom, logoDataUrl, company);
     const blobUrl = doc.output('bloburl') as unknown as string;
 
     // A hidden iframe + contentWindow.print() is used instead of window.open(blobUrl) -

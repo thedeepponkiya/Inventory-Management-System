@@ -100,6 +100,8 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
     const [items, setItems] = useState<MaterialInwardItemRow[]>([]);
     const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
+    const [saving, setSaving] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
+
     const [itemDialogVisible, setItemDialogVisible] = useState(DEFAULT_DATA_TYPE_VALUE.FALSE);
     const [editingItemRowId, setEditingItemRowId] = useState<number | null>(DEFAULT_DATA_TYPE_VALUE.NULL);
     const [editingPreviousReceivedQty, setEditingPreviousReceivedQty] = useState(DEFAULT_DATA_TYPE_VALUE.ZERO);
@@ -284,28 +286,30 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
         return { totalItems: items.length, totalQty, subTotal, discountAmount, gstAmount, grandTotal };
     }, [items, freightCharge, otherCharges]);
 
-    const linkedPurchaseOrderIds = useMemo(
-        () =>
-            new Set(
-                (materialInwards as MaterialInwardType[])
-                    .filter((mi) => mi.purchaseOrderId !== null && (!isEditRoute || mi.id !== existingMi?.id))
-                    .map((mi) => mi.purchaseOrderId),
-            ),
-        [materialInwards, isEditRoute, existingMi],
-    );
-
-    // A PO that already has a Material Inward against it is hidden from the dropdown so a
-    // second inward can't be created for it here; the currently selected PO stays visible
-    // so it keeps rendering correctly once picked (or when editing an existing inward).
+    // Eligibility is about REMAINING quantity, not "has this PO ever been received against".
+    // The old filter hid any PO with even one inward against it, which made partial receipts
+    // impossible - the first partial receipt removed the PO from this dropdown forever, so
+    // its outstanding balance could never be received. A PO stays selectable while any line
+    // still has pendingQty > 0 (kept current server-side by materialInward.controller.js's
+    // resyncPurchaseOrderTotals after every inward write). The currently selected PO stays
+    // visible regardless, so a fully-received PO still renders correctly when its own inward
+    // is reopened for editing.
     const eligiblePurchaseOrders = useMemo(
         () =>
             (purchaseOrders as PurchaseOrderType[]).filter(
-                (po) => po.status !== 'Draft' && po.status !== 'Cancelled' && (po.id === purchaseOrderId || !linkedPurchaseOrderIds.has(po.id)),
+                (po) =>
+                    po.status !== 'Draft' &&
+                    po.status !== 'Cancelled' &&
+                    (po.id === purchaseOrderId || po.items.some((item) => item.pendingQty > DEFAULT_DATA_TYPE_VALUE.ZERO)),
             ),
-        [purchaseOrders, linkedPurchaseOrderIds, purchaseOrderId],
+        [purchaseOrders, purchaseOrderId],
     );
 
     const handleSave = async () => {
+        // Guards against a double-click firing two saves - each would create its own Material
+        // Inward record (and its own auto-generated invoice + stock adjustment) against the
+        // same PO. Mirrors SalesOrderForm.tsx's handleSave.
+        if (saving) return;
         if (!vendorId || !warehouseId || !receivedDate) {
             showToast(toast, 'error', 'Error', 'Vendor, Warehouse and Received Date are required');
             return;
@@ -375,14 +379,20 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             customFields,
         };
 
+        setSaving(DEFAULT_DATA_TYPE_VALUE.TRUE);
         try {
             if (isEditRoute && existingMi) {
-                await updateMaterialInward(existingMi.id, payload);
+                const { warning } = await updateMaterialInward(existingMi.id, payload);
                 showToast(toast, 'success', 'Updated', 'Material inward updated successfully');
+                // Soft, non-fatal side-effect failures (Raw SKU stock not updated because an
+                // item's SKU code matches no Raw SKU, and/or the auto-generated Purchase
+                // Invoice) - the save itself succeeded, so these are surfaced alongside it
+                // rather than as an error, same as SalesOrderForm's dispatch warnings.
+                if (warning) showToast(toast, 'warn', 'Saved with warnings', warning, 8000);
             } else {
                 const { warning } = await createMaterialInward(payload);
                 showToast(toast, 'success', 'Created', 'Material inward created successfully');
-                if (warning) showToast(toast, 'warn', 'Invoice not generated', warning, 6000);
+                if (warning) showToast(toast, 'warn', 'Saved with warnings', warning, 8000);
             }
             fetchMaterialInwards();
             // Saving an inward against a PO also updates that PO's received/pending qty and
@@ -395,6 +405,8 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             onHide();
         } catch (err) {
             showToast(toast, 'error', 'Error', err instanceof Error ? err.message : 'Something went wrong');
+        } finally {
+            setSaving(DEFAULT_DATA_TYPE_VALUE.FALSE);
         }
     };
 
@@ -411,8 +423,8 @@ const MaterialInwardForm = ({ editingId, onHide }: MaterialInwardFormProps) => {
             style={{ width: '960px', maxWidth: '96vw' }}
             footer={
                 <>
-                    <Button label="Cancel" outlined onClick={onHide} />
-                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} />
+                    <Button label="Cancel" outlined onClick={onHide} disabled={saving} />
+                    <Button label="Save" icon={<HiOutlineCheckCircle className="mr-2" />} onClick={handleSave} loading={saving} />
                 </>
             }
         >

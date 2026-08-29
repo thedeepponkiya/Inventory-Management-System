@@ -28,6 +28,18 @@ async function findById(id, db = pool) {
   return result.rows[0];
 }
 
+// Row-locking variant for materialInward.controller.js's validate-then-write sequence
+// (check this PO's pending qty against the request, then, still inside the same
+// transaction, write the resync back) - without FOR UPDATE, two concurrent Material Inward
+// saves against the same PO can both read the same pre-write pendingQty, both pass
+// validation, and both commit, over-receiving the PO. Doesn't join payments (unlike the
+// plain findById above) since callers only ever read items/status/etc. off it, never
+// payments, while holding this lock.
+async function findByIdForUpdate(id, client) {
+  const result = await client.query(`SELECT * FROM ${TABLE} WHERE id = $1 FOR UPDATE`, [id]);
+  return result.rows[0];
+}
+
 // MAX-based (not COUNT-based) - see salesOrder.model.js's getNextSoNo for why COUNT(*)+1
 // silently collides with an already-used number whenever the sequence has any gap.
 async function getNextPoNo() {
@@ -118,4 +130,4 @@ async function findByPoNo(poNo) {
   return result.rows[0];
 }
 
-module.exports = { getAll, findById, findByPoNo, getNextPoNo, create, update, remove };
+module.exports = { getAll, findById, findByIdForUpdate, findByPoNo, getNextPoNo, create, update, remove };

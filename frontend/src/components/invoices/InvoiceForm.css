@@ -75,6 +75,13 @@
     margin: 4px 0 12px;
 }
 
+/* Inline explanation under a derived, non-editable field (e.g. Payment Status) - mirrors
+   .lead-form-helper's treatment in LeadFormDialog.css. */
+.inv-form-helper {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+}
+
 .invoice-form-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

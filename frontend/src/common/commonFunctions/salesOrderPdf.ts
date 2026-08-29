@@ -3,8 +3,6 @@ import autoTable from 'jspdf-autotable';
 import type { SalesOrder, SalesOrderStatus } from '../../services/salesOrderService';
 import { drawPdfLogo } from './pdfLogo';
 
-const formatCurrency = (value: number): string => `Rs. ${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const formatDate = (value: string | null): string => (value ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
 const COLOR = {
@@ -41,7 +39,10 @@ const CENTER_X = PAGE_WIDTH / 2;
 // two-column/table/bottom-anchored-totals-and-footer structure) - kept as its own standalone
 // function rather than a shared renderer since the two document types pull from different
 // service types with no common shape to abstract over without a pile of optional fields.
-export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null, companySettings?: { companyName: string; address: string }): void {
+// Returns the built document instead of saving it, so exportSalesOrderPdf (download) and
+// printSalesOrderPdf (print dialog) below can share this one render and just differ in what
+// they do with the finished doc.
+function buildSalesOrderPdfDoc(so: SalesOrder, logoDataUrl?: string | null, companySettings?: { companyName: string; address: string }): jsPDF {
     const doc = new jsPDF();
     let y = 24;
 
@@ -154,19 +155,22 @@ export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null,
     }
     y += 4;
 
-    // ---- Items table: solid blue header, matching the Purchase Order design ----
+    // ---- Items table: solid blue header, matching the Purchase Order design. No pricing
+    // columns - Sales Order dropped Selling Price/Discount/GST entirely (see SalesOrderForm.tsx),
+    // so this only ever tracks what's being shipped, not what it costs. ----
     autoTable(doc, {
         startY: y,
         margin: { left: MARGIN, right: MARGIN },
-        head: [['#', 'Item Description', 'Qty', 'Unit', 'Rate (Rs.)', 'Total (Rs.)']],
+        head: [['#', 'Item Description', 'Qty', 'Unit']],
         body: so.items.map((item, index) => [
             String(index + 1),
             item.itemName,
             String(item.orderedQty),
             item.unit,
-            formatCurrency(item.unitPrice),
-            formatCurrency(item.orderedQty * item.unitPrice),
         ]),
+        // Total row directly under the Qty column, mirroring the Item Summary table's own
+        // footer in SalesOrderForm.tsx's Order Summary panel.
+        foot: [['', 'Total', String(so.totalQty), '']],
         theme: 'plain',
         styles: { fontSize: 9, textColor: [...COLOR.body], cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 } },
         headStyles: {
@@ -176,12 +180,18 @@ export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null,
             fontSize: 8.5,
         },
         bodyStyles: { lineWidth: { bottom: 0.1 }, lineColor: [...COLOR.border] },
+        footStyles: {
+            fillColor: [...COLOR.white],
+            textColor: [...COLOR.blue],
+            fontStyle: 'bold',
+            fontSize: 9.5,
+            lineWidth: { top: 0.3 },
+            lineColor: [...COLOR.blue],
+        },
         columnStyles: {
             0: { cellWidth: 10, halign: 'left' },
             2: { halign: 'left' },
             3: { halign: 'left' },
-            4: { halign: 'left' },
-            5: { halign: 'left' },
         },
     });
 
@@ -201,37 +211,11 @@ export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null,
         doc.text(remarksLines, MARGIN, notesY);
     }
 
-    // ---- Totals + footer anchored near the bottom of the page, regardless of how short the
-    // item table is - falls back to flowing right after the table when it's long enough to
-    // reach that far down on its own, so it never overlaps it. ----
-    const totalsBoxWidth = 78;
-    const totalsBoxX = RIGHT_EDGE - totalsBoxWidth;
-    let ty = Math.max(226, tableEndY);
-    const totalsRow = (label: string, value: string, color: readonly [number, number, number] = COLOR.body) => {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
-        doc.setTextColor(...COLOR.body);
-        doc.text(label, totalsBoxX, ty);
-        doc.setTextColor(...color);
-        doc.text(value, RIGHT_EDGE, ty, { align: 'right' });
-        ty += 6.5;
-    };
-    totalsRow('Sub Total', formatCurrency(so.subTotal));
-    totalsRow('Discount', `- ${formatCurrency(so.discountAmount)}`, COLOR.danger);
-    totalsRow('GST', `+ ${formatCurrency(so.gstAmount)}`, COLOR.success);
-    ty += 1;
-
-    doc.setFillColor(...COLOR.blueLight);
-    doc.roundedRect(totalsBoxX, ty - 5.5, totalsBoxWidth, 11, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...COLOR.blue);
-    doc.text('Grand Total', totalsBoxX + 3, ty + 1.5);
-    doc.text(formatCurrency(so.grandTotal), RIGHT_EDGE - 3, ty + 1.5, { align: 'right' });
-    ty += 12;
-
-    // ---- Footer: prepared by | authorized signature | for {company} ----
-    const footerDividerY = Math.max(266, ty + 8);
+    // ---- Footer anchored near the bottom of the page, regardless of how short the item
+    // table is - falls back to flowing right after the table when it's long enough to reach
+    // that far down on its own, so it never overlaps it. No totals/payment section above it -
+    // Sales Order dropped pricing entirely (see SalesOrderForm.tsx), so there's nothing to sum. ----
+    const footerDividerY = Math.max(266, tableEndY + 8);
     doc.setDrawColor(...COLOR.border);
     doc.setLineWidth(0.2);
     doc.line(MARGIN, footerDividerY, RIGHT_EDGE, footerDividerY);
@@ -268,5 +252,20 @@ export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null,
     doc.setLineWidth(0.4);
     doc.roundedRect(6, 6, PAGE_WIDTH - 12, Math.min(footerY + 14, 289) - 6, 3, 3, 'S');
 
+    return doc;
+}
+
+export function exportSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null, companySettings?: { companyName: string; address: string }): void {
+    const doc = buildSalesOrderPdfDoc(so, logoDataUrl, companySettings);
     doc.save(`${so.soNo}.pdf`);
+}
+
+// Opens the same document in a new tab and triggers the browser's print dialog on it
+// (jsPDF's autoPrint sets the PDF's own OpenAction to Print, which every major PDF viewer -
+// including the browser's built-in one - honors as soon as the tab finishes loading it), so
+// printing doesn't require a download-then-reopen round trip.
+export function printSalesOrderPdf(so: SalesOrder, logoDataUrl?: string | null, companySettings?: { companyName: string; address: string }): void {
+    const doc = buildSalesOrderPdfDoc(so, logoDataUrl, companySettings);
+    doc.autoPrint();
+    window.open(doc.output('bloburl'), '_blank');
 }

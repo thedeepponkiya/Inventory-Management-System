@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IconType } from 'react-icons';
+import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputSwitch } from 'primereact/inputswitch';
@@ -9,6 +10,9 @@ import {
     HiOutlineTrash,
     HiOutlineEye,
     HiOutlineCube,
+    HiOutlineCheckCircle,
+    HiOutlineCheckBadge,
+    HiOutlineArrowUturnLeft,
     HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import StatusBadge from '../commonComponents/statusBadge/StatusBadge';
@@ -390,13 +394,13 @@ export const getRawSkuColumns = (dateFormat: DateFormatOption, onToggleStatus?: 
         field: 'skuCode',
         header: 'SKU Code',
         fieldType: 'text',
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.skuCode}</span>,
+        body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>#{row.skuCode}</span>,
     },
     {
         field: 'skuName',
         header: 'SKU Name',
         fieldType: 'text',
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.skuName}</span>,
+        body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>{row.skuName}</span>,
     },
     { field: 'categoryName', header: 'Category', fieldType: 'text', hideOnMobile: true },
     { field: 'productTypeName', header: 'Product Type', fieldType: 'text', hideOnMobile: true },
@@ -550,6 +554,7 @@ export const getCustomerColumns = (dateFormat: DateFormatOption, onEditClick?: (
     { field: 'address', header: 'Address', fieldType: 'text', hideOnMobile: true },
     { field: 'city', header: 'City', fieldType: 'text', hideOnMobile: true },
     { field: 'zipCode', header: 'Zip Code', fieldType: 'text', hideOnMobile: true },
+    { field: 'gstNo', header: 'GST No', fieldType: 'text', hideOnMobile: true },
     { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
 ];
 
@@ -581,13 +586,13 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         field: 'skuId',
         header: 'SKU (ID)',
         fieldType: 'text',
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.skuId}</span>,
+        body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>#{row.skuId}</span>,
     },
     {
         field: 'productName',
         header: 'Product Name',
         fieldType: 'text',
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>,
+        body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>{row.productName}</span>,
     },
     { field: 'categoryName', header: 'Category', fieldType: 'text' },
     { field: 'productType', header: 'Product Type', fieldType: 'text' },
@@ -600,7 +605,7 @@ export const getInventoryHomeColumns = (dateFormat: DateFormatOption, onToggleSt
         filterField: 'stockLevel',
         filterType: 'dropdown',
         filterOptions: STOCK_LEVEL_LABELS,
-        // Same design as Finished SKU's Current Stock column (renderStockCell) - lowThreshold
+        // Same design as Raw SKU's Current Stock column (renderStockCell) - lowThreshold
         // here is Min Stock, since Inventory items don't have a separate Reorder Level.
         body: (row) => renderStockCell(row.quantity, row.minStock, row.maxStock, 'inventory-home-stock'),
     },
@@ -665,7 +670,13 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
         field: 'quantity',
         header: 'Qty Used',
         body: (row) => (
-            <InputNumber value={row.quantity} onValueChange={(e) => onUpdateRow(row.rowId, { quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} inputClassName="inventory-home-assembly-qty" />
+            // min={1}, not 0 - a zero/negative line quantity here flips completeBomItem's
+            // stock-deduction sign and silently bypasses its shortage check (see
+            // stockValidation.util.js's findInvalidAssemblyLine on the backend). Disabled until
+            // a SKU is picked - a quantity means nothing against no item yet, and this row is
+            // just the standing "pick a SKU to add a line" placeholder until then (see
+            // ensureTrailingBlankRow in InventoryHome.tsx).
+            <InputNumber value={row.quantity} min={1} onValueChange={(e) => onUpdateRow(row.rowId, { quantity: e.value ?? DEFAULT_DATA_TYPE_VALUE.ZERO })} inputClassName="inventory-home-assembly-qty" disabled={!row.skuCode} />
         ),
     },
     {
@@ -681,6 +692,7 @@ export const getInventoryHomeAssemblyColumns = (assemblyRows: AssemblyRow[], sku
                 placeholder="Select unit"
                 className="inventory-home-assembly-dropdown"
                 filter
+                disabled={!row.skuCode}
             />
         ),
     },
@@ -855,6 +867,9 @@ export const getPurchaseOrderPaymentColumns = (dateFormat: DateFormatOption, use
 // action render (same reasoning as PurchaseOrderForm.tsx's paymentActionTemplate - the delete
 // handler closes over the `toast` ref, which react-hooks/refs flags if routed through
 // getActionBodyTemplate).
+// NOTE: the Transaction History tab this feeds is currently hidden behind
+// SalesOrderForm.tsx's SHOW_PAYMENTS_TAB flag - kept here, fully working, so flipping that
+// flag back on is all it takes.
 export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<SalesOrderPayment>[] => [
     { field: 'paymentDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
     { field: 'amount', header: 'Amount (Rs.)', fieldType: 'currency' },
@@ -867,9 +882,11 @@ export const getSalesOrderPaymentColumns = (dateFormat: DateFormatOption, users:
 ];
 
 // One row per Dispatch History entry (see salesOrder.controller.js's dispatchSalesOrder) -
-// read-only ledger, no action column (unlike getSalesOrderPaymentColumns, there's no
-// add/delete flow for these from the frontend - "Revert Dispatch" undoes the SO's aggregate
-// totals in one shot but deliberately never removes rows here, see the schema comment).
+// read-only ledger, no action column (unlike getSalesOrderPaymentColumns, there's no per-row
+// add/delete flow for these from the frontend). "Revert Dispatch" removes every row for the SO
+// in one shot (SalesOrderDispatchModel.removeAllForSo, called from revertDispatch) rather than
+// letting a user delete one row at a time - it's a full undo of the whole shipment history, not
+// a per-line edit.
 export const getSalesOrderDispatchColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users']): ColumnConfig<SalesOrderDispatch>[] => [
     { field: 'dispatchDate', header: 'Date', fieldType: 'date', options: { formatOption: dateFormat } },
     {
@@ -885,6 +902,7 @@ export const getSalesOrderDispatchColumns = (dateFormat: DateFormatOption, users
             </div>
         ),
     },
+    { field: 'billNo', header: 'Bill No', body: (row) => row.billNo || '—' },
     { field: 'dispatchedBy', header: 'Dispatched By', fieldType: 'userAvatar', options: { users } },
 ];
 
@@ -897,16 +915,23 @@ const salesOrderStatusVariant: Record<SalesOrderStatus, StatusVariant> = {
     Cancelled: 'danger',
 };
 
+// Rows passed to a table with a Bill No column need this precomputed onto them (as
+// `billNoText`) so the column's own filter/search can match against a plain string - `field`
+// can't be the raw `dispatches` array itself (PrimeReact's default text filter coerces the
+// field value to a string to match against, which for an array of objects would never
+// usefully match real Bill No text). See SalesOrder.tsx for where this gets computed.
+export type SalesOrderWithBillNo = SalesOrder & { billNoText: string };
+
 // Status is a Draft -> Confirmed -> Processing -> (Partially Shipped <-> Dispatched)
 // lifecycle with real stock-deduction side effects (see SalesOrder.tsx's dedicated
 // Confirm/Process/Dispatch/Revert/Cancel actions) - shown as a plain badge here, same
 // reasoning as Bom's Order status column.
-export const getSalesOrderColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users'], onEditClick?: (so: SalesOrder) => void): ColumnConfig<SalesOrder>[] => [
+export const getSalesOrderColumns = (dateFormat: DateFormatOption, users: UserAvatarBodyOptions['users'], onEditClick?: (so: SalesOrder) => void): ColumnConfig<SalesOrderWithBillNo>[] => [
     {
         field: 'soNo',
-        header: 'SO No.',
+        header: 'Order No.',
         fieldType: 'text',
-        body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.soNo}</span>,
+        body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>#{row.soNo}</span>,
     },
     {
         field: 'customerName',
@@ -914,23 +939,37 @@ export const getSalesOrderColumns = (dateFormat: DateFormatOption, users: UserAv
         fieldType: 'text',
         body: (row) => <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.customerName}</span>,
     },
-    { field: 'orderDate', header: 'SO Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'orderDate', header: 'Order Date', fieldType: 'date', options: { formatOption: dateFormat } },
+    { field: 'totalQty', header: 'Total Qty', fieldType: 'text', hideOnMobile: true },
     { field: 'deliveryDate', header: 'Expected Delivery', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
     { field: 'status', header: 'Order Status', fieldType: 'status', options: { variantMap: salesOrderStatusVariant }, filterType: 'dropdown', filterOptions: ['Draft', 'Confirmed', 'Processing', 'Partially Shipped', 'Dispatched', 'Cancelled'], hideOnMobile: true },
+    {
+        // Precomputed field (see SalesOrderWithBillNo) - an order can be dispatched more than
+        // once (partial shipments), each with its own Bill No (SalesOrderDispatch.billNo), so
+        // this is every one recorded so far, comma-joined, rather than picking just the
+        // latest and silently dropping the rest. Filterable/searchable like a normal text
+        // column since it's a real string field, unlike the raw `dispatches` array it's built
+        // from.
+        field: 'billNoText',
+        header: 'Bill No',
+        fieldType: 'text',
+        hideOnMobile: true,
+        body: (row) => row.billNoText || '—',
+    },
     { field: 'createdBy', header: 'Created By', fieldType: 'userAvatar', options: { users }, hideOnMobile: true },
     { field: 'createdAt', header: 'Created Date', fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
-    { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'], hideOnMobile: true },
-    { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
-    {
-        field: 'paidAmount',
-        key: 'remainAmount',
-        header: 'Remaining Payment',
-        hideOnMobile: true,
-        // Always derived (grandTotal - paidAmount), never stored separately - so it can
-        // never drift out of sync if either of those two changes.
-        body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
-    },
-    { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
+    // { field: 'paymentStatus', header: 'Payment Status', fieldType: 'status', options: { variantMap: paymentStatusVariant }, filterType: 'dropdown', filterOptions: ['Unpaid', 'Partial', 'Paid'], hideOnMobile: true },
+    // { field: 'paidAmount', header: 'Paid Amount', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
+    // {
+    //     field: 'paidAmount',
+    //     key: 'remainAmount',
+    //     header: 'Remaining Payment',
+    //     hideOnMobile: true,
+    //     // Always derived (grandTotal - paidAmount), never stored separately - so it can
+    //     // never drift out of sync if either of those two changes.
+    //     body: (row) => `Rs. ${Math.max(row.grandTotal - row.paidAmount, 0).toLocaleString('en-IN')}`,
+    // },
+    // { field: 'grandTotal', header: 'Grand Total', fieldType: 'currency', options: { decimals: 0 }, hideOnMobile: true },
 ];
 
 export interface SalesOrderItemRow extends SalesOrderItem {
@@ -977,17 +1016,13 @@ export const getSalesOrderItemColumns = (items: SalesOrderItemRow[], inventories
     { field: 'orderedQty', header: 'Ordered Qty', fieldType: 'text' },
     { field: 'dispatchedQty', header: 'Dispatched Qty', fieldType: 'text' },
     { field: 'pendingQty', header: 'Pending Qty', fieldType: 'text' },
-    { field: 'unitPrice', header: 'Selling Price (Rs.)', fieldType: 'currency' },
-    { field: 'discountPercent', header: 'Discount %', fieldType: 'text' },
-    { field: 'gstPercent', header: 'GST %', fieldType: 'text' },
-    { field: 'lineTotal', header: 'Line Total (Rs.)', fieldType: 'currency' },
 ];
 
-// Status is a Process -> Completed order lifecycle now (not a simple Active/Inactive
-// toggle), so it's shown as a plain badge here - the transition itself only happens via
-// the dedicated Complete/Revert actions in Bom.tsx (real stock-deduction side effects, so
-// it's deliberately not a one-click switch). Completed is terminal - Sales Order owns the
-// "shipped to customer" concept now, not this Order lifecycle.
+// A BOM no longer has one shared Output Product/Qty of its own - it's just a code plus a
+// list of Inventory items to produce, each completed independently (see Bom.tsx's expandable
+// row + per-item Complete/Revert). "status" here is server-derived from every item's own
+// status (bom.controller.js's computeBomStatus): Process (nothing done yet) / Partially
+// Completed (some items done) / Completed (every item done).
 // `getLabel` resolves a column's header through Developer Admin's built-in-field label
 // overrides (see useFieldLabels.ts) - defaults to the hardcoded string here when the caller
 // doesn't pass one (or hasn't wired this form up to the label-override feature yet), so every
@@ -997,43 +1032,64 @@ export const getBomColumns = (
     onEditClick?: (bom: Bom) => void,
     getLabel: (fieldKey: string, defaultLabel: string) => string = (_key, defaultLabel) => defaultLabel
 ): ColumnConfig<Bom>[] => [
-    {
-        field: 'bomCode',
-        header: getLabel('bomCode', 'BOM Code'),
-        fieldType: 'text',
-        // Only clickable while Process - editing a Completed order (stock already moved) is
-        // blocked the same way the old pencil icon was hidden (see Bom.tsx's action column).
-        body: (row) => (row.status === 'Process'
-            ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>#{row.bomCode}</span>
-            : <span>#{row.bomCode}</span>),
-    },
-    {
-        field: 'productName',
-        header: getLabel('productName', 'Product Name'),
-        fieldType: 'text',
-        // Same Process-only click-to-edit rule as the BOM Code column above.
-        body: (row) => (row.status === 'Process'
-            ? <span className="common-table-id-link" onClick={() => onEditClick?.(row)}>{row.productName}</span>
-            : <span>{row.productName}</span>),
-    },
-    { field: 'productSku', header: getLabel('productSku', 'Product SKU'), fieldType: 'text', hideOnMobile: true },
-    { field: 'outputQty', header: getLabel('outputQty', 'Output Qty'), fieldType: 'text', hideOnMobile: true },
-    { field: 'unit', header: getLabel('unit', 'Unit'), fieldType: 'text', hideOnMobile: true },
-    { field: 'items', header: getLabel('items', 'Components'), filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
-    { field: 'createdAt', header: getLabel('createdAt', 'Created Date'), fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
-    { field: 'status', header: getLabel('status', 'Status'), fieldType: 'status', options: { variantMap: { Process: 'info', Completed: 'success' } }, filterType: 'dropdown', filterOptions: ['Process', 'Completed'] },
-];
+        {
+            field: 'bomCode',
+            header: getLabel('bomCode', 'BOM Code'),
+            fieldType: 'text',
+            // Always clickable to open the dialog - unlike the old single-Output-Product BOM,
+            // there's no "locked once Completed" state at the whole-BOM level anymore: new
+            // Pending items can always be added, only individually-Completed items within it
+            // are protected from editing (see bom.controller.js's updateBom).
+            body: (row) => <span className="common-table-id-link common-table-id-link--accent" onClick={() => onEditClick?.(row)}>#{row.bomCode}</span>,
+        },
+        {
+            field: 'items',
+            key: 'totalQty',
+            header: getLabel('totalQty', 'Total Qty'),
+            filter: false,
+            // Sum of every item's own requiredQty - the closest single "how much is this BOM
+            // worth" number now that there's no shared Output Qty of its own.
+            body: (row) => row.items.reduce((sum, item) => sum + item.requiredQty, 0),
+        },
+        {
+            field: 'items',
+            key: 'completedQty',
+            header: getLabel('completedQty', 'Completed Qty'),
+            filter: false,
+            hideOnMobile: true,
+            body: (row) => row.items.filter((item) => item.status === 'Completed').reduce((sum, item) => sum + item.requiredQty, 0),
+        },
+        {
+            field: 'items',
+            key: 'pendingQty',
+            header: getLabel('pendingQty', 'Pending Qty'),
+            filter: false,
+            hideOnMobile: true,
+            body: (row) => row.items.filter((item) => item.status === 'Pending').reduce((sum, item) => sum + item.requiredQty, 0),
+        },
+        { field: 'items', header: getLabel('items', 'Items'), key: 'itemCount', filter: false, fieldType: 'badgeCount', options: { label: 'SKU' }, hideOnMobile: true },
+        { field: 'createdAt', header: getLabel('createdAt', 'Created Date'), fieldType: 'date', options: { formatOption: dateFormat }, hideOnMobile: true },
+        {
+            field: 'status',
+            header: getLabel('status', 'Status'),
+            fieldType: 'status',
+            options: { variantMap: { Process: 'info', 'Partially Completed': 'warning', Completed: 'success' } },
+            filterType: 'dropdown',
+            filterOptions: ['Process', 'Partially Completed', 'Completed'],
+        },
+    ];
 
 export interface BomItemRow extends BomItem {
     rowId: number;
 }
 
-// Read-only: BOM Components are always auto-populated from the selected Product's own
-// Product Assembly (see Bom.tsx's Product dropdown) - there is no manual add/edit/delete
-// of rows, just a display of whichever SKUs came from that product's assembly. Location is
-// looked up live from rawSkus (not stored on the item) so it always reflects the Raw SKU's
-// current location rather than a frozen snapshot from whenever the order was created.
-export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSkus: RawSku[]): ColumnConfig<BomItemRow>[] => [
+// Items are Main Inventory items - manually added/removed one at a time in the Add/Edit BOM
+// dialog while composing a BOM (see Bom.tsx's Add Item row), each independently completed
+// later from the main list's expandable row (getBomItemExpansionColumns below), not here.
+// Location/stock are looked up live from `inventories` (not stored on the item) so they
+// always reflect that item's current Inventory record rather than a frozen snapshot from
+// whenever the BOM was composed.
+export const getBomItemColumns = (items: BomItemRow[], inventories: InventoryItem[], rawSkus: RawSku[]): ColumnConfig<BomItemRow>[] => [
     {
         field: 'rowId',
         key: 'image',
@@ -1041,7 +1097,7 @@ export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSku
         filter: false,
         style: { width: '56px' },
         body: (row) => {
-            const src = rawSkus.find((sku) => sku.skuCode === row.rawSkuCode)?.images?.[0];
+            const src = inventories.find((inv) => inv.skuId === row.skuId)?.images?.[0];
             if (!src) {
                 return (
                     <div className="common-table-thumb common-table-thumb--placeholder">
@@ -1049,7 +1105,7 @@ export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSku
                     </div>
                 );
             }
-            return <Image src={resolveImageUrl(src)} alt={row.rawSkuName} imageClassName="common-table-thumb" preview />;
+            return <Image src={resolveImageUrl(src)} alt={row.productName} imageClassName="common-table-thumb" preview />;
         },
     },
     {
@@ -1060,39 +1116,157 @@ export const getBomItemColumns = (items: BomItemRow[], outputQty: number, rawSku
         body: (row) => items.findIndex((item) => item.rowId === row.rowId) + 1,
     },
     {
-        field: 'rawSkuCode',
-        header: 'Finished SKU',
-        body: (row) => `${row.rawSkuCode} - ${row.rawSkuName}`,
+        field: 'skuId',
+        header: 'Item',
+        body: (row) => <span>{row.skuId} - {row.productName}</span>,
     },
     {
-        field: 'rawSkuCode',
+        field: 'skuId',
         key: 'location',
         header: 'Location',
-        body: (row) => rawSkus.find((sku) => sku.skuCode === row.rawSkuCode)?.locationName || '—',
+        body: (row) => inventories.find((inv) => inv.skuId === row.skuId)?.locationName || '—',
     },
-    { field: 'requiredQty', header: 'Required Qty', fieldType: 'text' },
-    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    {
+        field: 'skuId',
+        key: 'currentStock',
+        header: 'Current Qty',
+        // The item's own live Inventory stock, shown for context - before this BOM's line
+        // for it is completed, this is how much of it already exists in Inventory.
+        body: (row) => {
+            const stock = inventories.find((inv) => inv.skuId === row.skuId);
+            return stock ? `${stock.quantity} ${stock.unit}` : '—';
+        },
+    },
     {
         field: 'requiredQty',
-        key: 'qtyNeeded',
-        header: 'Qty Needed',
-        // Scaled for the BOM's current Output Qty - preview-only, never persisted (see
-        // ims_bom's schema comment in schema.sql). Flagged red when it exceeds the Raw
-        // SKU's current stock, since dispatching this order later would need more than is
-        // actually available.
+        key: 'requiredQty',
+        header: 'Required Qty',
+        // Shown as a badge (leading icon + background tint) - red when producing this much of
+        // the item would need more of some Raw SKU (from its own Product Assembly) than
+        // currently exists in stock, green when every Raw SKU line covers it. This is the
+        // real constraint completing this line later checks server-side (see
+        // bom.controller.js's completeBomItem) - NOT the Inventory item's own current stock,
+        // which has no bearing on whether more of it can be produced.
         body: (row) => {
-            const needed = row.requiredQty * outputQty;
-            const stock = rawSkus.find((sku) => sku.skuCode === row.rawSkuCode);
-            const insufficient = Boolean(stock) && needed > stock!.currentStock;
+            const component = inventories.find((inv) => inv.skuId === row.skuId);
+            const assembly = component?.assembly ?? [];
+            const shortfall = assembly.find((line) => {
+                const needed = line.quantity * row.requiredQty;
+                const available = rawSkus.find((sku) => sku.skuCode === line.skuCode)?.currentStock ?? 0;
+                return needed > available;
+            });
+            const insufficient = Boolean(shortfall);
+            const sufficient = assembly.length > 0 && !insufficient;
+            const statusClass = insufficient ? ' bom-item-qty-needed--insufficient' : sufficient ? ' bom-item-qty-needed--sufficient' : '';
             return (
                 <span
-                    className={`bom-item-qty-needed${insufficient ? ' bom-item-qty-needed--insufficient' : ''}`}
-                    title={insufficient ? `Only ${stock!.currentStock} ${row.unit} in stock` : undefined}
+                    className={`bom-item-qty-needed${statusClass}`}
+                    title={insufficient ? `Not enough ${shortfall!.skuName} in stock` : undefined}
                 >
-                    {Number.isFinite(needed) ? Number(needed.toFixed(2)) : 0} {row.unit}
                     {insufficient && <HiOutlineExclamationTriangle size={13} className="bom-item-qty-needed-icon" />}
+                    {sufficient && <HiOutlineCheckCircle size={13} className="bom-item-qty-needed-icon" />}
+                    {row.requiredQty} {row.unit}
                 </span>
             );
         },
     },
+    { field: 'unit', header: 'Unit', fieldType: 'text' },
+    {
+        field: 'status',
+        header: 'Status',
+        fieldType: 'status',
+        options: { variantMap: { Pending: 'warning', Completed: 'success' } },
+    },
 ];
+
+// Main BOM list's expandable-row content - every item in that BOM, each with its own
+// Complete/Revert action (onComplete/onRevert), independent of every other item in the same
+// BOM. Separate from getBomItemColumns above (used inside the Add/Edit dialog while composing
+// a BOM, where there's no complete/revert action - only add/remove of still-Pending lines).
+export const getBomItemExpansionColumns = (
+    inventories: InventoryItem[],
+    onComplete: (item: BomItem) => void,
+    onRevert: (item: BomItem) => void
+): ColumnConfig<BomItem>[] => [
+        {
+            field: 'skuId',
+            key: 'action',
+            header: 'Action',
+            filter: false,
+            style: { width: '64px' },
+            // Icon-only Button (not a bare clickable icon) - same boxed square look as the
+            // page toolbar's own Refresh button (see FilterBar.css's .filter-bar-refresh-btn),
+            // reused here via .bom-item-action-btn so this row action reads as a real button.
+            body: (row) => (
+                <div className="data-table-actions">
+                    {row.status === 'Pending' ? (
+                        <Button
+                            className="bom-item-action-btn bom-item-action-btn--complete"
+                            icon={<HiOutlineCheckBadge size={20} />}
+                            outlined
+                            size="small"
+                            onClick={() => onComplete(row)}
+                            aria-label="Mark as Completed"
+                            title="Mark as Completed"
+                        />
+                    ) : (
+                        <Button
+                            className="bom-item-action-btn"
+                            icon={<HiOutlineArrowUturnLeft size={20} />}
+                            outlined
+                            size="small"
+                            onClick={() => onRevert(row)}
+                            aria-label="Revert to Pending"
+                            title="Revert to Pending"
+                        />
+                    )}
+                </div>
+            ),
+        },
+        {
+            field: 'skuId',
+            key: 'image',
+            header: 'Image',
+            filter: false,
+            style: { width: '56px' },
+            body: (row) => {
+                const src = inventories.find((inv) => inv.skuId === row.skuId)?.images?.[0];
+                if (!src) {
+                    return (
+                        <div className="common-table-thumb common-table-thumb--placeholder">
+                            <HiOutlineCube size={16} />
+                        </div>
+                    );
+                }
+                return <Image src={resolveImageUrl(src)} alt={row.productName} imageClassName="common-table-thumb" preview />;
+            },
+        },
+        { field: 'skuId', header: 'Item', body: (row) => <span>{row.skuId} - {row.productName}</span> },
+        {
+            field: 'skuId',
+            key: 'location',
+            header: 'Location',
+            filter: false,
+            body: (row) => inventories.find((inv) => inv.skuId === row.skuId)?.locationName || '—',
+        },
+        {
+            field: 'skuId',
+            key: 'currentStock',
+            header: 'Current Qty',
+            filter: false,
+            // The item's own live Inventory stock, shown for context alongside how much of it
+            // this line still needs to produce.
+            body: (row) => {
+                const stock = inventories.find((inv) => inv.skuId === row.skuId);
+                return stock ? `${stock.quantity} ${stock.unit}` : '—';
+            },
+        },
+        { field: 'requiredQty', header: 'Qty', fieldType: 'text' },
+        { field: 'unit', header: 'Unit', fieldType: 'text' },
+        {
+            field: 'status',
+            header: 'Status',
+            fieldType: 'status',
+            options: { variantMap: { Pending: 'warning', Completed: 'success' } },
+        },
+    ];

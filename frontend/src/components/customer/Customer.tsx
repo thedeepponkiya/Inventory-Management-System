@@ -23,6 +23,7 @@ const emptyForm: CustomerPayload = {
     address: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     city: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
     zipCode: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
+    gstNo: DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
 };
 
 const Customer = () => {
@@ -61,6 +62,7 @@ const Customer = () => {
             address: customer.address,
             city: customer.city,
             zipCode: customer.zipCode,
+            gstNo: customer.gstNo ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING,
         });
         setPanelVisible(DEFAULT_DATA_TYPE_VALUE.TRUE);
     };
@@ -171,6 +173,10 @@ const Customer = () => {
                     <div className="form-field">
                         <label>Zip Code</label>
                         <InputText value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} placeholder="Enter zip code" />
+                    </div>
+                    <div className="form-field">
+                        <label>Customer GST No</label>
+                        <InputText value={form.gstNo} onChange={(e) => setForm({ ...form, gstNo: e.target.value })} placeholder="Enter customer GST No" />
                     </div>
                 </div>
             </Dialog>

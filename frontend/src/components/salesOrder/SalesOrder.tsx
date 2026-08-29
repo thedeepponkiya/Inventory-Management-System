@@ -2,8 +2,7 @@ import { useContext, useMemo, useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
-import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowPath } from 'react-icons/hi2';
-import { FaRegFilePdf } from 'react-icons/fa6';
+import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowPath, HiOutlinePrinter } from 'react-icons/hi2';
 import FilterBar, { type FilterField } from '../../common/commonComponents/filterBar/FilterBar';
 import DataTable, { type DataTableHandle } from '../../common/commonComponents/dataTable/DataTable';
 import { AppContext } from '../../context/AppContextDefinition';
@@ -12,9 +11,9 @@ import { useCompanyLogoContext } from '../../context/CompanyLogoContextDefinitio
 import { useCompanySettingsContext } from '../../context/CompanySettingsContextDefinition';
 import { deleteSalesOrder, type SalesOrder as SalesOrderType } from '../../services/salesOrderService';
 import { DEFAULT_DATA_TYPE_VALUE } from '../../common/constants/commonConstant';
-import { getSalesOrderColumns, getActionBodyTemplate } from '../../common/commonFunctions/CommonUtilities';
+import { getSalesOrderColumns, getActionBodyTemplate, type SalesOrderWithBillNo } from '../../common/commonFunctions/CommonUtilities';
 import { useBulkDelete } from '../../common/commonFunctions/useBulkDelete';
-import { exportSalesOrderPdf } from '../../common/commonFunctions/salesOrderPdf';
+import { printSalesOrderPdf } from '../../common/commonFunctions/salesOrderPdf';
 import { useCustomFieldColumns } from '../../common/commonFunctions/useCustomFieldColumns';
 import './SalesOrder.css';
 
@@ -34,23 +33,36 @@ const SalesOrder = () => {
 
     const filteredSalesOrders = useMemo(() => {
         const search = (filters.search as string)?.toLowerCase() ?? DEFAULT_DATA_TYPE_VALUE.EMPTY_STRING;
-        return (salesOrders as SalesOrderType[]).filter((so) => {
-            return !search || so.soNo.toLowerCase().includes(search) || so.customerName.toLowerCase().includes(search);
-        });
+        return (salesOrders as SalesOrderType[])
+            .filter((so) => !search || so.soNo.toLowerCase().includes(search) || so.customerName.toLowerCase().includes(search))
+            // Precomputed onto each row for the Bill No column's own filter/search to match
+            // against - see SalesOrderWithBillNo's comment for why it can't just filter the
+            // raw `dispatches` array directly.
+            .map((so): SalesOrderWithBillNo => ({
+                ...so,
+                billNoText: so.dispatches.map((dispatch) => dispatch.billNo).filter((billNo): billNo is string => Boolean(billNo)).join(', '),
+            }));
     }, [salesOrders, filters]);
 
-    const customFieldColumns = useCustomFieldColumns<SalesOrderType>('salesOrder');
+    // Genericized over SalesOrderWithBillNo (not the plain SalesOrderType) so its own
+    // ColumnConfig<T> lines up with getSalesOrderColumns' below when spread into one array -
+    // TS otherwise can't unify a ColumnConfig<SalesOrder>[] and a ColumnConfig<SalesOrderWithBillNo>[]
+    // into the single array type the table's `columns` prop expects.
+    const customFieldColumns = useCustomFieldColumns<SalesOrderWithBillNo>('salesOrder');
     const columns = [...getSalesOrderColumns(dateFormat, users, (so) => navigate(`/sales-order/${so.id}`)), ...customFieldColumns];
 
-    const actionTemplate = getActionBodyTemplate<SalesOrderType>({
+    const actionTemplate = getActionBodyTemplate<SalesOrderWithBillNo>({
         icons: [{
-            icon: FaRegFilePdf,
-            title: 'Export PDF',
-            onClick: (so) => exportSalesOrderPdf(so, companyLogo, { companyName, address }),
+            icon: HiOutlinePrinter,
+            title: 'Print',
+            onClick: (so) => printSalesOrderPdf(so, companyLogo, { companyName, address }),
         }],
     });
 
-    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<SalesOrderType>({
+    // Also genericized over SalesOrderWithBillNo, same reasoning as customFieldColumns above -
+    // `selection`/`onSelectionChange` feed the same DataTable instance, whose generic T is
+    // inferred from every prop together (value/columns/selection all need to agree).
+    const { selectedRows, setSelectedRows, handleBulkDelete, bulkDeleting } = useBulkDelete<SalesOrderWithBillNo>({
         getId: (row) => row.id,
         deleteOne: deleteSalesOrder,
         onDeleted: fetchSalesOrders,

@@ -78,12 +78,13 @@ async function create(skuId, fields) {
 async function update(id, fields) {
   const result = await pool.query(
     `UPDATE ${TABLE} SET
-      images = $1, "productName" = $2, "categoryName" = $3, "productType" = $4, barcode = $5,
-      quantity = COALESCE($6, quantity), unit = $7, "locationName" = $8, status = $9, "unitCost" = $10, "sellingCost" = $11, assembly = $12,
-      "minStock" = $13, "maxStock" = $14, "openingStock" = $15, "updatedAt" = now()
-    WHERE id = $16
+      "skuId" = $1, images = $2, "productName" = $3, "categoryName" = $4, "productType" = $5, barcode = $6,
+      quantity = COALESCE($7, quantity), unit = $8, "locationName" = $9, status = $10, "unitCost" = $11, "sellingCost" = $12, assembly = $13,
+      "minStock" = $14, "maxStock" = $15, "openingStock" = $16, "updatedAt" = now()
+    WHERE id = $17
     RETURNING *`,
     [
+      fields.skuId,
       JSON.stringify(fields.images),
       fields.productName,
       fields.categoryName,
@@ -109,4 +110,17 @@ async function remove(id) {
   await pool.query(`DELETE FROM ${TABLE} WHERE id = $1`, [id]);
 }
 
-module.exports = { getAll, findById, findBySkuId, findBySkuIdForUpdate, adjustStockBySkuId, getNextSkuId, create, update, remove };
+// How many Inventory items have at least one Product Assembly line referencing this Raw SKU
+// code. Used by rawSku.controller.js to guard a rename/delete - see bom.model.js's
+// countBySkuId for the same reasoning; here the dangling reference would make every future
+// BOM completion for that finished good either fail its stock check forever or silently
+// deduct nothing (adjustStockBySkuCode no-ops on a code that matches no row).
+async function countByAssemblySkuCode(skuCode) {
+  const result = await pool.query(
+    `SELECT COUNT(DISTINCT i.id) FROM ${TABLE} i, jsonb_array_elements(i.assembly) line WHERE line->>'skuCode' = $1`,
+    [skuCode]
+  );
+  return Number(result.rows[0].count);
+}
+
+module.exports = { getAll, findById, findBySkuId, findBySkuIdForUpdate, adjustStockBySkuId, getNextSkuId, create, update, remove, countByAssemblySkuCode };

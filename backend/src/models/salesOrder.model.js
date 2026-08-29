@@ -41,19 +41,27 @@ async function findByIdForUpdate(id, client) {
   return result.rows[0];
 }
 
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 // MAX-based (not COUNT-based): COUNT(*)+1 silently collides with an ALREADY-USED number
-// whenever the sequence has any gap (a deleted order, or simply not starting at 1 - which
-// this table never did, its first real row was 000002) - the UNIQUE constraint on soNo then
+// whenever the sequence has any gap (a deleted order) - the UNIQUE constraint on soNo then
 // makes every create() fail with a raw Postgres error instead of a real number. Taking the
 // highest existing numeric suffix instead is immune to gaps.
+//
+// Format is "<Mon>-<YY>-<NNN>" (e.g. "Aug-26-001"), and the 3-digit sequence resets every
+// month - the WHERE clause only ever looks at rows already stamped with THIS month's exact
+// prefix, so a new month always starts back at 001 regardless of how many orders came
+// before it. Older rows in the previous "SO-<year>-<seq>" format simply never match this
+// pattern and are ignored here, same as any other month/prefix that isn't the current one.
 async function getNextSoNo() {
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const prefix = `${MONTH_ABBR[now.getMonth()]}-${String(now.getFullYear()).slice(-2)}-`;
   const result = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING("soNo" FROM 9) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "soNo" ~ $1`,
-    [`^SO-${year}-[0-9]+$`]
+    `SELECT COALESCE(MAX(CAST(SUBSTRING("soNo" FROM ${prefix.length + 1}) AS INTEGER)), 0) AS "maxSeq" FROM ${TABLE} WHERE "soNo" ~ $1`,
+    [`^${prefix}[0-9]{3}$`]
   );
   const nextSeq = Number(result.rows[0].maxSeq) + 1;
-  return `SO-${year}-${String(nextSeq).padStart(6, '0')}`;
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
 }
 
 async function create(soNo, fields) {
@@ -138,4 +146,16 @@ async function findBySoNo(soNo) {
   return result.rows[0];
 }
 
-module.exports = { getAll, findById, findByIdForUpdate, findBySoNo, getNextSoNo, create, update, remove };
+// How many Sales Orders have at least one line referencing this Inventory SKU ID. Used by
+// inventory.controller.js to guard a rename/delete - see bom.model.js's countBySkuId for why
+// this needs jsonb_array_elements rather than a containment check, and why the guard exists
+// at all (the link is a plain string in the `items` JSONB array, not a real FK).
+async function countBySkuId(skuId) {
+  const result = await pool.query(
+    `SELECT COUNT(DISTINCT so.id) FROM ${TABLE} so, jsonb_array_elements(so.items) elem WHERE elem->>'skuId' = $1`,
+    [skuId]
+  );
+  return Number(result.rows[0].count);
+}
+
+module.exports = { getAll, findById, findByIdForUpdate, findBySoNo, getNextSoNo, create, update, remove, countBySkuId };
